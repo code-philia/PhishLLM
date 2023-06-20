@@ -1,11 +1,14 @@
 import os.path
 import time
+
+import selenium.common.exceptions
 from xdriver.xutils.PhishIntentionWrapper import PhishIntentionWrapper
 from xdriver.xutils.Logger import Logger
 from xdriver.XDriver import XDriver
 from tqdm import tqdm
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.by import By
 
 if __name__ == "__main__":
     sleep_time = 5; timeout_time = 60
@@ -25,9 +28,11 @@ if __name__ == "__main__":
     os.makedirs('./datasets/alexa_login', exist_ok=True)
     for target in tqdm(alexa_urls[:5000]):
         ct += 1
-        if ct <= 1983:
+        if ct <= 1296:
             continue
         target = 'https://{}'.format(target)
+        # if target != 'https://businessinsider.com':
+        #     continue
         if os.path.exists(annotations) and target in open(annotations).read():
             continue
 
@@ -50,32 +55,39 @@ if __name__ == "__main__":
             continue
 
         try:
-            (btns, btns_dom), (links, links_dom), (images, images_dom) = driver.get_all_clickable_elements()
-        except:
+            (btns, btns_dom),  (links, links_dom), \
+                (images, images_dom), (others, others_dom) = driver.get_all_clickable_elements()
+        except Exception as e:
+            print(e)
             continue
-        all_clickable = btns + links + images
-        all_clickable_dom = btns_dom + links_dom + images_dom
+        all_clickable = btns + links+ images + others
+        all_clickable_dom = btns_dom + links_dom + images_dom + others_dom
         # save the element screenshot
-        for it in range(min(len(all_clickable), 50)):
+        for it in range(min(300, len(all_clickable))):
             save_path = './datasets/alexa_login/{}/{}.png'.format(target.split('https://')[1], it)
             try:
+                driver.scroll_to_top()
                 x1, y1, x2, y2 = driver.get_location(all_clickable[it])
-            except:
+            except selenium.common.exceptions.TimeoutException as e:
+                actions = ActionChains(driver)
+                actions.send_keys(Keys.CONTROL + "l")
+                actions.send_keys(target)
+                actions.send_keys(Keys.ENTER)
+                actions.perform()
+            except Exception as e:
                 continue
-            if x2 - x1 <= 0 or y2 - y1 <= 0:
+
+            if x2 - x1 <= 0 or y2 - y1 <= 0 or \
+                    y2 >= driver.get_window_size()['height']//2: # invisible or at the bottom
                 continue
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
             try:
                 all_clickable[it].screenshot(save_path)
             except Exception as e:
                 actions = ActionChains(driver)
-                # Focus on the address bar
                 actions.send_keys(Keys.CONTROL + "l")
-                # Enter the URL in the address bar
                 actions.send_keys(target)
-                # Hit Enter key
                 actions.send_keys(Keys.ENTER)
-                # Perform the actions
                 actions.perform()
                 Logger.spit(e, debug=True)
                 continue
