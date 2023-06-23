@@ -7,6 +7,10 @@ import torch
 from torch import nn, optim
 
 def trainer(EPOCH, model, train_dataloader, device, BATCH_SIZE):
+    loss_img = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.visual.parameters(), lr=1e-5) # only change the image encoder part
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, len(train_dataloader)*EPOCH)
+
     for epoch in range(EPOCH):
         print(f"running epoch {epoch}")
         step = 0
@@ -55,15 +59,12 @@ def convert_models_to_fp32(model):
 
 if __name__ == '__main__':
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    EPOCH = 10
+    EPOCH = 5
     BATCH_SIZE = 128
     model, preprocess = clip.load("ViT-B/32", device=device)
     # https://github.com/openai/CLIP/issues/57
     if device == "cpu":
         model.float()
 
-    loss_img = nn.CrossEntropyLoss()
-    loss_txt = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.visual.parameters(), lr=1e-5) # only change the image encoder part
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, len(train_dataloader)*EPOCH)
+
     trainer(EPOCH, model, train_dataloader, device, BATCH_SIZE)
