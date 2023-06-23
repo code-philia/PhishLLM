@@ -18,7 +18,7 @@ if __name__ == "__main__":
     XDriver.set_headless()
     Logger.set_debug_on()
     driver = XDriver.boot(chrome=True)
-    driver.set_script_timeout(timeout_time)
+    driver.set_script_timeout(timeout_time/2)
     driver.set_page_load_timeout(timeout_time)
     time.sleep(sleep_time)  # fixme: you have to sleep sometime, otherwise the browser will keep crashing
 
@@ -28,11 +28,10 @@ if __name__ == "__main__":
     os.makedirs('./datasets/alexa_login', exist_ok=True)
     for target in tqdm(alexa_urls[:5000]):
         ct += 1
-        if ct <= 1296:
+        if ct <= 4860:
             continue
         target = 'https://{}'.format(target)
-        # if target != 'https://businessinsider.com':
-        #     continue
+        # target = 'https://kissanime.com.ru'
         if os.path.exists(annotations) and target in open(annotations).read():
             continue
 
@@ -49,14 +48,16 @@ if __name__ == "__main__":
             driver.quit()
             XDriver.set_headless()
             driver = XDriver.boot(chrome=True)
-            driver.set_script_timeout(timeout_time)
+            driver.set_script_timeout(timeout_time/2)
             driver.set_page_load_timeout(timeout_time)
             time.sleep(sleep_time)
             continue
 
         try:
-            (btns, btns_dom),  (links, links_dom), \
-                (images, images_dom), (others, others_dom) = driver.get_all_clickable_elements()
+            (btns, btns_dom),  \
+                (links, links_dom), \
+                (images, images_dom), \
+                (others, others_dom) = driver.get_all_clickable_elements()
         except Exception as e:
             print(e)
             continue
@@ -105,7 +106,7 @@ if __name__ == "__main__":
             driver.quit()
             XDriver.set_headless()
             driver = XDriver.boot(chrome=True)
-            driver.set_script_timeout(timeout_time)
+            driver.set_script_timeout(timeout_time/2)
             driver.set_page_load_timeout(timeout_time)
             time.sleep(sleep_time)
 
