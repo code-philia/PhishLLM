@@ -60,24 +60,20 @@ def get_attribute_repr(node, max_value_length=5, max_length=20):
     attr_values_set = set()
     attr_values = ""
     for attr in [
+        "class",
+        "type",
+        "href",
+        "src",
+        "value",
         "role",
         "aria_role",
-        "type",
-        "alt",
-        "aria_description",
         "aria_label",
         "label",
         "title",
+        "aria_description",
         "name",
         "text_value",
-        "value",
-        "placeholder",
         "input_checked",
-        "input_value",
-        "option_selected",
-        "class",
-        "href",
-        "src"
     ]:
         if attr in node.attrib and node.attrib[attr] is not None:
             value = node.attrib[attr].lower()
@@ -88,68 +84,15 @@ def get_attribute_repr(node, max_value_length=5, max_length=20):
                 "presentation",
                 "null",
                 "undefined",
-            ] or value.startswith("http"):
+            ]:
                 continue
-            value = value.split()
-            value = " ".join([v for v in value if len(v) < 15][:max_value_length])
+            value = value.split() # split by space?
+            # value = " ".join([v for v in value if len(v) < 15][:max_value_length])
+            value = " ".join([v for v in value][:max_value_length])
             if value and value not in attr_values_set:
                 attr_values_set.add(value)
                 attr_values += value + " "
-    return attr_values_set
-
-def get_tree_repr(
-    tree, max_value_length=5, max_length=20, id_mapping={}, keep_html_brackets=False
-):
-    if isinstance(tree, str):
-        tree = etree.fromstring(tree)
-    else:
-        tree = copy.deepcopy(tree)
-
-    for node in tree.xpath("//*"):
-        if node.tag != "text":
-            if "backend_node_id" in node.attrib:
-                if node.attrib["backend_node_id"] not in id_mapping:
-                    id_mapping[node.attrib["backend_node_id"]] = len(id_mapping)
-                node.attrib["backend_node_id"] = str(
-                    id_mapping[node.attrib["backend_node_id"]]
-                )
-            get_attribute_repr(node, max_value_length, max_length)
-        else:
-            node.text = " ".join(node.text.split()[:max_length])
-    tree_repr = etree.tostring(tree, encoding="unicode")
-
-    tree_repr = tree_repr.replace('"', " ")
-    tree_repr = (
-        tree_repr.replace("meta= ", "").replace("id= ", "id=").replace(" >", ">")
-    )
-    tree_repr = re.sub(r"<text>(.*?)</text>", r"\1", tree_repr)
-    if not keep_html_brackets:
-        tree_repr = tree_repr.replace("/>", "$/$>")
-        tree_repr = re.sub(r"</(.+?)>", r")", tree_repr)
-        tree_repr = re.sub(r"<(.+?)>", r"(\1", tree_repr)
-        tree_repr = tree_repr.replace("$/$", ")")
-
-    html_escape_table = [
-        ("&quot;", '"'),
-        ("&amp;", "&"),
-        ("&lt;", "<"),
-        ("&gt;", ">"),
-        ("&nbsp;", " "),
-        ("&ndash;", "-"),
-        ("&rsquo;", "'"),
-        ("&lsquo;", "'"),
-        ("&ldquo;", '"'),
-        ("&rdquo;", '"'),
-        ("&#39;", "'"),
-        ("&#40;", "("),
-        ("&#41;", ")"),
-    ]
-    for k, v in html_escape_table:
-        tree_repr = tree_repr.replace(k, v)
-    tree_repr = re.sub(r"\s+", " ", tree_repr).strip()
-
-    return tree_repr, id_mapping
-
+    return attr_values
 
 
 def clean_tree(dom_tree, all_candidate_ids):
@@ -212,44 +155,42 @@ def clean_tree(dom_tree, all_candidate_ids):
 
 def prune_tree(
     dom_tree,
-    dom_path_list,
+    dom_path,
     max_depth=5,
     max_children=50,
     max_sibling=3,
 ):
     ''' get the context DOM tree for interested nodes'''
-    all_nodes_to_keep = []
-    for dom_path in dom_path_list:
-
+    outerhtml = ''
+    try:
         candidate_node = dom_tree.xpath(dom_path.lower())[0]
-        nodes_to_keep.append(get_outerhtml(candidate_node))) # the dom path itself, content
+    except (IndexError, etree.XPathEvalError):
+        return
+    outerhtml += '(' + candidate_node.tag  + ' ' + get_attribute_repr(candidate_node) # the dom path itself, content
 
-        # get descendants with max depth
-        for x in get_descendants(candidate_node, max_depth)[:max_children]:
-            nodes_to_keep.append(
-                (
-                    get_dom_path(x),
-                    get_outerhtml(x) # descendent and its content
-                )
-            )
-        # get siblings within range
-        # parent = candidate_node.getparent()
-        # if parent is not None:
-        #     siblings = [x for x in parent.getchildren() if x.tag != "text"]
-        #     idx_in_sibling = siblings.index(candidate_node)
-        #     for x in siblings[
-        #              max(0, idx_in_sibling - max_sibling): min(idx_in_sibling + max_sibling + 1, len(siblings))
-        #              ]:
-        #         nodes_to_keep.append(
-        #             (
-        #                 get_dom_path(x),
-        #                 get_outerhtml(x)
-        #             )
-        #         )
-        all_nodes_to_keep.append(nodes_to_keep)
+    ct = 1
+    # get descendants with max depth
+    for x in get_descendants(candidate_node, max_depth)[:max_children]:
+        if not isinstance(x.tag, str):
+            continue
+        outerhtml += '(' + x.tag + ' ' + get_attribute_repr(x)
+        ct += 1
+    # fixme: get siblings within range
+    # parent = candidate_node.getparent()
+    # if parent is not None:
+    #     siblings = [x for x in parent.getchildren() if x.tag != "text"]
+    #     idx_in_sibling = siblings.index(candidate_node)
+    #     for x in siblings[
+    #              max(0, idx_in_sibling - max_sibling): min(idx_in_sibling + max_sibling + 1, len(siblings))
+    #              ]:
+    #         nodes_to_keep.append(
+    #             (
+    #                 get_dom_path(x),
+    #                 get_outerhtml(x)
+    #             )
+    #         )
 
-
-    return all_nodes_to_keep
+    return outerhtml+')'*ct
 
 
 

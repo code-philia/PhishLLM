@@ -12,8 +12,6 @@ from selenium.webdriver.common.by import By
 
 if __name__ == "__main__":
     sleep_time = 5; timeout_time = 60
-    PhishIntentionWrapper._RETRIES = 1
-    phishintention_cls = PhishIntentionWrapper()
 
     XDriver.set_headless()
     Logger.set_debug_on()
@@ -26,7 +24,7 @@ if __name__ == "__main__":
     for folder in tqdm(os.listdir('./datasets/alexa_login')):
         ct += 1
         target = 'https://{}'.format(folder)
-        if os.path.exists(os.path.join('./datasets/alexa_login', folder, 'index.html')):
+        if os.path.exists(os.path.join('./datasets/alexa_login', folder, 'shot.png')):
             continue
 
         Logger.spit('Target URL = {}'.format(target),
@@ -48,8 +46,10 @@ if __name__ == "__main__":
             continue
 
         try:
-            with open(os.path.join('./datasets/alexa_login', folder, 'index.html'), "w", encoding='utf-8') as f:
-                f.write(driver.page_source())
+            # with open(os.path.join('./datasets/alexa_login', folder, 'index.html'), "w", encoding='utf-8') as f:
+            #     f.write(driver.page_source())
+            driver.save_screenshot(os.path.join('./datasets/alexa_login', folder, 'shot.png'))
+            print(folder)
         except Exception as e:
             Logger.spit('Error {} when saving page source, exit..'.format(e),
                         warning=True,
@@ -65,3 +65,4 @@ if __name__ == "__main__":
             time.sleep(sleep_time)
 
     driver.quit()
+
