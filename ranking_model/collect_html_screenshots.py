@@ -11,7 +11,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 
 if __name__ == "__main__":
-    sleep_time = 5; timeout_time = 60
+    sleep_time = 3; timeout_time = 60
 
     XDriver.set_headless()
     Logger.set_debug_on()
@@ -23,6 +23,9 @@ if __name__ == "__main__":
     ct = 0
     for folder in tqdm(os.listdir('./datasets/alexa_login')):
         ct += 1
+
+        # if ct < 1640:
+        #     continue
         target = 'https://{}'.format(folder)
         if os.path.exists(os.path.join('./datasets/alexa_login', folder, 'shot.png')):
             continue
@@ -32,7 +35,7 @@ if __name__ == "__main__":
                     caller_prefix=PhishIntentionWrapper._caller_prefix)
         try:
             driver.get(target, accept_cookie=True, click_popup=True)
-            time.sleep(1)
+            time.sleep(sleep_time)
         except Exception as e:
             Logger.spit('Error {} when getting the URL, exit..'.format(e),
                         warning=True,
