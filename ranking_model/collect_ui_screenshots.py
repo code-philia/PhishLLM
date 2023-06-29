@@ -13,7 +13,6 @@ from selenium.webdriver.common.by import By
 if __name__ == "__main__":
     sleep_time = 5; timeout_time = 60
     PhishIntentionWrapper._RETRIES = 1
-    phishintention_cls = PhishIntentionWrapper()
 
     XDriver.set_headless()
     Logger.set_debug_on()
