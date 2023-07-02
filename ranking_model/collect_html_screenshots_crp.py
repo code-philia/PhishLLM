@@ -27,7 +27,7 @@ if __name__ == "__main__":
         target = 'https://{}'.format(folder)
         if os.path.exists(os.path.join('./datasets/alexa_login_crp', folder, 'shot.png')):
             continue
-
+        os.makedirs(os.path.join('./datasets/alexa_login_crp', folder), exist_ok=True)
         Logger.spit('Target URL = {}'.format(target),
                     debug=True,
                     caller_prefix=PhishIntentionWrapper._caller_prefix)
@@ -50,8 +50,7 @@ if __name__ == "__main__":
             # redirect to CRP page if staying on a non-CRP
             sa = StateAction(driver, phishintention_cls)  # execute certain action
             _, _, current_url = sa.CRP_transition()
-            os.makedirs(os.path.join('./datasets/alexa_login_crp', folder), exist_ok=True)
-            with open(os.path.join('./datasets/alexa_login_crp', folder, 'info.txt')) as f:
+            with open(os.path.join('./datasets/alexa_login_crp', folder, 'info.txt'), "w") as f:
                 f.write(driver.current_url())
             with open(os.path.join('./datasets/alexa_login_crp', folder, 'index.html'), "w", encoding='utf-8') as f:
                 f.write(driver.page_source())
