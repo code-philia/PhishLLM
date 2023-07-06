@@ -24,9 +24,11 @@ if __name__ == "__main__":
     ct = 0
     for folder in tqdm(os.listdir('./datasets/alexa_login')):
         ct += 1
-        target = 'https://{}'.format(folder)
-        if os.path.exists(os.path.join('./datasets/alexa_login_crp', folder, 'shot.png')):
+        if ct <= 130:
             continue
+        target = 'https://{}'.format(folder)
+        # if os.path.exists(os.path.join('./datasets/alexa_login_crp', folder, 'shot.png')):
+        #     continue
 
         Logger.spit('Target URL = {}'.format(target),
                     debug=True,
@@ -48,15 +50,16 @@ if __name__ == "__main__":
 
         try:
             # redirect to CRP page if staying on a non-CRP
-            sa = StateAction(driver, phishintention_cls)  # execute certain action
-            _, _, current_url = sa.CRP_transition()
-            os.makedirs(os.path.join('./datasets/alexa_login_crp', folder), exist_ok=True)
-            with open(os.path.join('./datasets/alexa_login_crp', folder, 'info.txt')) as f:
-                f.write(driver.current_url())
-            with open(os.path.join('./datasets/alexa_login_crp', folder, 'index.html'), "w", encoding='utf-8') as f:
-                f.write(driver.page_source())
-            driver.save_screenshot(os.path.join('./datasets/alexa_login_crp', folder, 'shot.png'))
-            print(folder)
+            if driver.current_url() != target:
+                phishintention_cls.dynamic_analysis_reimplement(driver)
+                time.sleep(2)
+                os.makedirs(os.path.join('./datasets/alexa_login_crp', folder), exist_ok=True)
+                with open(os.path.join('./datasets/alexa_login_crp', folder, 'info.txt'), "w") as f:
+                    f.write(driver.current_url())
+                with open(os.path.join('./datasets/alexa_login_crp', folder, 'index.html'), "w", encoding='utf-8') as f:
+                    f.write(driver.page_source())
+                driver.save_screenshot(os.path.join('./datasets/alexa_login_crp', folder, 'shot.png'))
+                print(folder)
         except Exception as e:
             Logger.spit('Error {} when saving page source, exit..'.format(e),
                         warning=True,
