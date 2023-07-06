@@ -22,7 +22,7 @@ if __name__ == '__main__':
     dataset = ShotDataset(annot_path='./datasets/alexa_screenshots_orig.txt')
     print(len(dataset))
     model = "gpt-3.5-turbo-16k"
-    result_file = './datasets/alexa_brand_testllm.txt'
+    result_file = './datasets/alexa_brand_testllm_u.txt'
     #
     for it in tqdm(range(len(dataset))):
         start_time = time.time()
@@ -46,7 +46,7 @@ if __name__ == '__main__':
                     model=model,
                     messages=new_prompt,
                     temperature=0,
-                    max_tokens=10,  # we're only counting input tokens here, so let's not waste tokens on the output
+                    max_tokens=50,  # we're only counting input tokens here, so let's not waste tokens on the output
                 )
                 inference_done = True
             except Exception as e:
@@ -59,4 +59,18 @@ if __name__ == '__main__':
         print(answer)
         with open(result_file, 'a+') as f:
             f.write(url+'\t'+domain+'\t'+answer+'\t'+str(total_time)+'\n')
-#
+
+    # correct_lines = []
+    # ct = 0
+    # result_file_v2 = './datasets/alexa_brand_testllm_u.txt'
+    # result_lines = open(result_file).readlines()
+    # pbar = tqdm(result_lines, leave=False)
+    # for line in pbar:
+    #     data = line.strip().split('\t')
+    #     url, gt, pred, time = data
+    #     if gt in pred:
+    #         ct += 1
+    #         with open(result_file_v2, 'a+') as f:
+    #             f.write(line)
+    #
+    # print(ct)
