@@ -98,7 +98,7 @@ class BrandKnowledgeConstruction():
         try:  # check gooogle search returned publication time
             pub_date = parse(search_item.get('pagemap').get('metatags')[0].get('article:published_time')).replace(
                 tzinfo=None)
-        except (TypeError, AttributeError, dateutil.parser.ParserError):
+        except:
             pub_date = ''
         return pub_date
 
