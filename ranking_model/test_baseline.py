@@ -203,20 +203,16 @@ if __name__ == '__main__':
             continue
 
         gt_dom = np.asarray(dom)[ind]
-        dom_element_list_heu = crp_locator(driver, url, topk=1, heuristic=True)
-        if dom_element_list_heu and len(dom_element_list_heu):
-            dom_element_list_heu = dom_element_list_heu[0]
-        else:
+        dom_element_list_heu = crp_locator(driver, url, topk=10, heuristic=True)
+        if not dom_element_list_heu:
             dom_element_list_heu = ''
 
-        dom_element_list_cv = crp_locator(driver, url, topk=1, heuristic=False)
-        if dom_element_list_cv and len(dom_element_list_cv):
-            dom_element_list_cv = dom_element_list_cv[0]
-        else:
+        dom_element_list_cv = crp_locator(driver, url, topk=10, heuristic=False)
+        if not dom_element_list_cv:
             dom_element_list_cv = ''
 
         with open(result_file, 'a+') as f:
-            f.write(url+'\t'+gt_dom[0]+'\t'+dom_element_list_heu+'\t'+dom_element_list_cv+'\n')
+            f.write(url+'\t'+gt_dom[0]+'\t'+str(dom_element_list_heu)+'\t'+str(dom_element_list_cv)+'\n')
 
         # select one: another model
         if (ct + 1) % 100 == 0:
