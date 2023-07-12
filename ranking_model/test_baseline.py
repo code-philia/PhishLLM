@@ -47,7 +47,7 @@ def heuristic_find_dom(driver, topk):
     return dom_element_list
 
 
-
+@torch.no_grad()
 def cv_find_dom(driver, crp_locator_model, topk):
     # CV-based login finder predict elements
     old_screenshot_img = Image.open(io.BytesIO(base64.b64decode(driver.get_screenshot_encoding())))
