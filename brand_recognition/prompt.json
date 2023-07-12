@@ -1,5 +1,5 @@
 [{"role": "system",
-  "content": "Given the webpage HTML, your task is to decide the brand of the webpage. Just give the brand's domain, do not output any explanation."},
+  "content": "Given the webpage HTML, your task is to decide the brand of the webpage. Just give the brand's domain in English, do not output any explanation. The returned domain must be alive. If you are unsure, do not give prediction."},
 
   {"role": "user",
     "content": "Given the HTML webpage text: <start>MAX BOUNTY Affiliate Login: Email address Password Sign in +Forgot your password? MaxBounty Inci[2]<end>, Question: What is the brand's domain? Answer: "},

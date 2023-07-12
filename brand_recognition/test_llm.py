@@ -16,6 +16,42 @@ os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read()
 
 
 
+def test(result_file):
+
+    ct = 0
+    total = 0
+    reported = 0
+    runtime = []
+
+    result_lines = open(result_file).readlines()
+    pbar = tqdm(result_lines, leave=False)
+    for line in pbar:
+        data = line.strip().split('\t')
+        url, gt, pred, time = data
+        total += 1
+        runtime.append(float(time))
+
+        if len(pred) < 30 and len(pred) > 0 and ('N/A' not in pred): # has prediction
+            reported += 1
+            try:
+                translated_domain = idna.encode(pred).decode('utf-8')
+            except idna.core.InvalidCodepoint:
+                translated_domain = pred
+            if gt in pred or tldextract.extract(gt).domain in pred:
+                ct += 1
+            elif gt in translated_domain:
+                ct += 1
+            elif tldextract.extract(pred).domain in gt:
+                ct += 1
+
+        pbar.set_description(f"Recall (% brand recognized) = {ct/total} "
+                             f"Precision (brand reported correct) = {ct/reported} ", refresh=True)
+
+    print(f"Recall, i.e. % brand recognized = {ct/total} "
+          f"Precision, i.e. % brand reported correct = {ct/reported} "
+          f"Median runtime {np.median(runtime)}, Mean runtime {np.mean(runtime)}")
+
+
 if __name__ == '__main__':
     openai.api_key = os.getenv("OPENAI_API_KEY")
     openai.proxy = "http://127.0.0.1:7890" # proxy
@@ -23,8 +59,8 @@ if __name__ == '__main__':
     dataset = ShotDataset(annot_path='./datasets/alexa_screenshots_orig.txt')
     print(len(dataset))
     model = "gpt-3.5-turbo-16k"
-    result_file = './datasets/alexa_brand_testllm_u.txt'
-    #
+    result_file = './datasets/alexa_brand_testllm_u2.txt'
+
     # for it in tqdm(range(len(dataset))):
     #     start_time = time.time()
     # #
@@ -61,28 +97,24 @@ if __name__ == '__main__':
     #     with open(result_file, 'a+') as f:
     #         f.write(url+'\t'+domain+'\t'+answer+'\t'+str(total_time)+'\n')
 
-    correct_lines = []
-    ct = 0
-    total = 0
-    # result_file_v2 = './datasets/alexa_brand_testllm_u.txt'
-    result_lines = open(result_file).readlines()
-    pbar = tqdm(result_lines, leave=False)
-    for line in pbar:
-        data = line.strip().split('\t')
-        url, gt, pred, time = data
-        total += 1
-        if gt in pred:
-            ct += 1
-            # with open(result_file_v2, 'a+') as f:
-            #     f.write(line)
-        elif 'google' in gt and 'google' in pred:
-            ct += 1
-        else:
-            try:
-                translated_domain = idna.encode(pred).decode('utf-8')
-                if gt in translated_domain:
-                    ct += 1
-            except idna.core.InvalidCodepoint:
-                pass
+    test(result_file) # Recall, i.e. % brand recognized = 0.7283540802213001 Precision, i.e. % brand reported correct = 0.8409453848610667
 
-    print(ct, total)
+    # result_lines = open(result_file).readlines()
+    # pbar = tqdm(result_lines, leave=False)
+    # correct = []
+    # for line in pbar:
+    #     data = line.strip().split('\t')
+    #     url, gt, pred, time = data
+    #     if gt in pred:
+    #         pass
+    #         correct.append(line)
+    #     elif tldextract.extract(gt).domain in pred:
+    #         pass
+    #         correct.append(line)
+
+        # else:
+        #     print(line)
+
+    # for line in correct:
+    #     with open('./datasets/alexa_brand_testllm_u2.txt', 'a+') as f:
+    #         f.write(line)
