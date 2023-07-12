@@ -16,7 +16,7 @@ import dateutil
 import requests
 from phishintention.src.OCR_aided_siamese import pred_siamese_OCR, phishpedia_config_OCR_easy
 from phishintention.src.AWL_detector import element_config, element_recognition, find_element_type
-from brand_recognition.gsb_baseline import SafeBrowsing
+from brand_recognition.baseline_utils import SafeBrowsing
 import torch
 
 class BrandKnowledgeConstruction():
@@ -454,6 +454,10 @@ class BrandKnowledgeConstruction():
         else:
             company_domains = []
         return company_domains, company_logos, brand_name, comment
+
+
+
+
 
 
     def knowledge_cleansing(self, reference_logo, logo_list,
