@@ -404,14 +404,17 @@ if __name__ == '__main__':
     result = './datasets/dynapd_wo_validation.txt'
     os.makedirs(root_folder, exist_ok=True)
 
-    for target in all_links:
+    for ct, target in enumerate(all_links):
+        if ct <= 1110:
+            continue
         url = target
-        print(target)
         hash = target.split('/')[3]
         target_folder = os.path.join(root_folder, hash)
         os.makedirs(target_folder, exist_ok=True)
         if os.path.exists(result) and hash in open(result).read():
             continue
+
+        print(target)
 
         try:
             driver.get(target, click_popup=True, allow_redirections=False)
@@ -422,7 +425,12 @@ if __name__ == '__main__':
             shutil.rmtree(target_folder)
             continue
 
-        white_page = web_func.page_white_screen(driver, ts=0.9)
+        try:
+            white_page = web_func.page_white_screen(driver, ts=0.9)
+        except Exception as e:
+            Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
+            shutil.rmtree(target_folder)
+            continue
         # if (error_free == False) and (white_page == True):
         if (white_page == True):
             time.sleep(5)
@@ -438,13 +446,6 @@ if __name__ == '__main__':
                 shutil.rmtree(target_folder)
                 continue
 
-        # skip URL which redirects to benign
-        if tldextract.extract(target).domain != '127.0.0.5':
-            shutil.rmtree(target_folder)
-            continue
-        if driver.current_url().endswith('https/') or driver.current_url().endswith('genWeb/'):
-            shutil.rmtree(target_folder)
-            continue
 
         try:
             shot_path = os.path.join(target_folder, 'shot.png')
