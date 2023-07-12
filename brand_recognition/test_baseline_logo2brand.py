@@ -16,10 +16,11 @@ import pickle
 from brand_recognition.kb_baseline import BrandKnowledgeConstruction
 from xdriver.XDriver import XDriver
 from xdriver.xutils.Logger import Logger
+import idna
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = './brand_recognition/google_cloud.json'
-os.environ['https_proxy'] = "http://127.0.0.1:7890" # proxy
+# os.environ['https_proxy'] = "http://127.0.0.1:7890" # proxy
 
 def expand_targetlist(domain_map_path, targetlist_path,
                       SIAMESE_MODEL, OCR_MODEL,
@@ -240,45 +241,83 @@ def brand_recognition_logo2brand(screenshot_path, url,
         return domain_this[0]
 
 
+def test(result_file):
+
+    ct = 0
+    total = 0
+    reported = 0
+    runtime = []
+
+    result_lines = open(result_file).readlines()
+    pbar = tqdm(result_lines, leave=False)
+    for line in pbar:
+        data = line.strip().split('\t')
+        url, gt, pred, time = data
+        total += 1
+        runtime.append(float(time))
+
+        if len(pred) > 1:
+            reported += 1
+            try:
+                translated_domain = idna.encode(pred).decode('utf-8')
+            except idna.core.InvalidCodepoint:
+                translated_domain = pred
+            if gt in pred or tldextract.extract(gt).domain in pred:
+                ct += 1
+            elif gt in translated_domain:
+                ct += 1
+            elif tldextract.extract(pred).domain in gt:
+                ct += 1
+            else:
+                print(data)
+
+        # pbar.set_description(f"Recall (% brand recognized) = {ct / total} "
+        #                      f"Precision (brand reported correct) = {ct / reported} ", refresh=True)
+
+    print(f"Recall, i.e. % brand recognized = {ct / total} "
+          f"Precision, i.e. % brand reported correct = {ct / reported} "
+          f"Median runtime {np.median(runtime)}, Mean runtime {np.mean(runtime)}")
+
 if __name__ == '__main__':
 
     dataset = ShotDataset(annot_path='./datasets/alexa_screenshots_orig.txt')
 
     result_file = './datasets/alexa_brand_baseline.txt'
-
-    print(len(dataset))
-    SEARCH_ENGINE_ID, API_KEY = [x.strip() for x in open('./brand_recognition/google_search_key.txt').readlines()]
-    AWL_MODEL, CRP_CLASSIFIER, CRP_LOCATOR_MODEL, SIAMESE_MODEL, OCR_MODEL, SIAMESE_THRE, LOGO_FEATS, LOGO_FILES, DOMAIN_MAP_PATH = load_config()
-    SIAMESE_THRE_RELAX = 0.83
-    kb_cls = BrandKnowledgeConstruction(API_KEY, SEARCH_ENGINE_ID,
-                                        AWL_MODEL, SIAMESE_MODEL, OCR_MODEL,
-                                                          SIAMESE_THRE_RELAX)
-
-    sleep_time = 3; timeout_time = 60
-    XDriver.set_headless()
-    Logger.set_debug_on()
-    kb_driver = XDriver.boot(chrome=True)
-    kb_driver.set_script_timeout(timeout_time/2)
-    kb_driver.set_page_load_timeout(timeout_time)
-    time.sleep(sleep_time)  # fixme: you have to sleep sometime, otherwise the browser will keep crashing
-
-
-    for url, shot_path, label in tqdm(zip(dataset.urls, dataset.shot_paths, dataset.labels)):
-        if os.path.exists(result_file) and url in open(result_file).read():
-            continue
-
-        while True:
-            try:
-                start_time = time.time()
-                html_path = shot_path.replace('shot.png', 'index.html')
-                domain = tldextract.extract(url).domain + '.' + tldextract.extract(url).suffix
-                answer = brand_recognition_logo2brand(shot_path, url, kb_cls, kb_driver,
-                                                      AWL_MODEL, CRP_CLASSIFIER, CRP_LOCATOR_MODEL, SIAMESE_MODEL, OCR_MODEL, SIAMESE_THRE, LOGO_FEATS, LOGO_FILES, DOMAIN_MAP_PATH)
-                total_time = time.time() - start_time
-                break
-            except Exception as e:
-                print(e)
-                time.sleep(10)
-
-        with open(result_file, 'a+') as f:
-            f.write(url+'\t'+domain+'\t'+answer+'\t'+str(total_time)+'\n')
+    #
+    # print(len(dataset))
+    # SEARCH_ENGINE_ID, API_KEY = [x.strip() for x in open('./brand_recognition/google_search_key.txt').readlines()]
+    # AWL_MODEL, CRP_CLASSIFIER, CRP_LOCATOR_MODEL, SIAMESE_MODEL, OCR_MODEL, SIAMESE_THRE, LOGO_FEATS, LOGO_FILES, DOMAIN_MAP_PATH = load_config()
+    # SIAMESE_THRE_RELAX = 0.83
+    # kb_cls = BrandKnowledgeConstruction(API_KEY, SEARCH_ENGINE_ID,
+    #                                     AWL_MODEL, SIAMESE_MODEL, OCR_MODEL,
+    #                                                       SIAMESE_THRE_RELAX)
+    #
+    # sleep_time = 3; timeout_time = 60
+    # XDriver.set_headless()
+    # Logger.set_debug_on()
+    # kb_driver = XDriver.boot(chrome=True)
+    # kb_driver.set_script_timeout(timeout_time/2)
+    # kb_driver.set_page_load_timeout(timeout_time)
+    # time.sleep(sleep_time)  # fixme: you have to sleep sometime, otherwise the browser will keep crashing
+    #
+    #
+    # for url, shot_path, label in tqdm(zip(dataset.urls, dataset.shot_paths, dataset.labels)):
+    #     if os.path.exists(result_file) and url in open(result_file).read():
+    #         continue
+    #
+    #     while True:
+    #         try:
+    #             start_time = time.time()
+    #             html_path = shot_path.replace('shot.png', 'index.html')
+    #             domain = tldextract.extract(url).domain + '.' + tldextract.extract(url).suffix
+    #             answer = brand_recognition_logo2brand(shot_path, url, kb_cls, kb_driver,
+    #                                                   AWL_MODEL, CRP_CLASSIFIER, CRP_LOCATOR_MODEL, SIAMESE_MODEL, OCR_MODEL, SIAMESE_THRE, LOGO_FEATS, LOGO_FILES, DOMAIN_MAP_PATH)
+    #             total_time = time.time() - start_time
+    #             break
+    #         except Exception as e:
+    #             print(e)
+    #             time.sleep(10)
+    #
+    #     with open(result_file, 'a+') as f:
+    #         f.write(url+'\t'+domain+'\t'+answer+'\t'+str(total_time)+'\n')
+    test(result_file) ## Recall, i.e. % brand recognized = 0.28926991150442477 Precision, i.e. % brand reported correct = 0.934763181411975
