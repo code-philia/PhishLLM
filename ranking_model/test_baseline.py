@@ -96,133 +96,117 @@ def crp_locator(driver, url, topk, heuristic=False):
             configs = yaml.load(file, Loader=yaml.FullLoader)
         _, CRP_LOCATOR_MODEL = login_config(
             rcnn_weights_path=configs['CRP_LOCATOR']['WEIGHTS_PATH'],
-            rcnn_cfg_path=configs['CRP_LOCATOR']['CFG_PATH'],
-            device=device)
+            rcnn_cfg_path=configs['CRP_LOCATOR']['CFG_PATH'])
         dom_element_list = cv_find_dom(driver, CRP_LOCATOR_MODEL, topk)
 
     return dom_element_list
 
 
-
 @torch.no_grad()
-def tester_rank(model, test_dataset, preprocess, device):
-    try:
-        shutil.rmtree('./datasets/debug')
-    except:
-        pass
-    model.eval()
-    correct = 0
+def tester_rank(test_result, topk):
     total = 0
+    ct_heu = 0
+    ct_cv = 0
+    ct_heu_or_cv = 0
 
-    df = pd.DataFrame({'url': test_dataset.urls,
-                       'path':  test_dataset.img_paths,
-                       'label': test_dataset.labels})
-    grp = df.groupby('url')
-    grp = dict(list(grp), keys=lambda x: x[0])  # {url: List[dom_path, save_path]}
+    for line in open(test_result).readlines():
+        data = line.strip().split('\t')
+        if len(data) == 2:
+            url, gt_dom = data
+        elif len(data) == 3:
+            url, gt_dom, heu_dom = data
+            heu_dom = eval(heu_dom)
+            if gt_dom in heu_dom[:min(len(heu_dom), topk)]:
+                ct_heu += 1
+                ct_heu_or_cv += 1
+        else:
+            url, gt_dom, heu_dom, cv_dom = data
+            if len(heu_dom):
+                heu_dom = eval(heu_dom)
+                heu_dom = heu_dom[:min(len(heu_dom), topk)]
+            if len(cv_dom):
+                cv_dom = eval(cv_dom)
+                cv_dom = cv_dom[:min(len(cv_dom), topk)]
 
-    for url, data in tqdm(grp.items()):
-        try:
-            img_paths = data.path
-            labels = data.label
-        except:
-            continue
-        labels = torch.tensor(np.asarray(labels))
-        images = []
-        for path in img_paths:
-            img_process = preprocess(Image.open(path))
-            images.append(img_process)
+            if gt_dom in heu_dom:
+                ct_heu += 1
+            if gt_dom in cv_dom:
+                ct_cv += 1
+            if gt_dom in heu_dom or gt_dom in cv_dom:
+                ct_heu_or_cv += 1
 
-        images = torch.stack(images).to(device)
-        texts = clip.tokenize(["not a login button", "a login button"]).to(device)
-        logits_per_image, logits_per_text = model(images, texts)
-        probs = logits_per_image.softmax(dim=-1) # (N, C)
-        conf = probs[torch.arange(probs.shape[0]), 1] # take the confidence (N, 1)
-        _, ind = torch.topk(conf, min(10, len(conf))) # top1 index
+        total += 1
 
-        if (labels == 1).sum().item(): # has login button
-            if (labels[ind] == 1).sum().item(): # has login button and it is reported
-                correct += 1
-            # visualize
-            # os.makedirs('./datasets/debug', exist_ok=True)
-            # f, axarr = plt.subplots(4, 1)
-            # for it in range(min(3, len(conf))):
-            #     img_path_sorted = np.asarray(img_paths)[ind.cpu()]
-            #     axarr[it].imshow(Image.open(img_path_sorted[it]))
-            #     axarr[it].set_title(str(conf[ind][it].item()))
-            #
-            # gt_ind = torch.where(labels == 1)[0]
-            # if len(gt_ind) > 1:
-            #     gt_ind = gt_ind[0]
-            # axarr[3].imshow(Image.open(np.asarray(img_paths)[gt_ind.cpu()]))
-            # axarr[3].set_title('ground_truth'+str(conf[gt_ind].item()))
-            #
-            # plt.savefig(
-            #     f"./datasets/debug/{url.split('https://')[1]}.png")
-            # plt.close()
-
-            total += 1
-
-    print(correct, total)
+    print(f'Heuristic correct = {ct_heu/total}')
+    print(f'CV correct = {ct_cv/total}')
+    print(f'Heuristic or CV correct = {ct_heu_or_cv/total}')
 
 
 
 if __name__ == '__main__':
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    _, preprocess = clip.load("ViT-B/32", device=device)
+    '''testing script'''
+    # device = "cuda" if torch.cuda.is_available() else "cpu"
+    # _, preprocess = clip.load("ViT-B/32", device=device)
+    #
+    # test_dataset = ButtonDataset(annot_path='./datasets/alexa_login_test.txt',
+    #                              root='./datasets/alexa_login',
+    #                              preprocess=preprocess)
+    #
+    # df = pd.DataFrame({'url': test_dataset.urls,
+    #                    'dom': test_dataset.dom_paths,
+    #                    'path': test_dataset.img_paths,
+    #                    'label': test_dataset.labels})
+    # grp = df.groupby('url')
+    # grp = dict(list(grp), keys=lambda x: x[0])  # {url: List[dom_path, save_path]}
+    #
+    # # initiate driver
+    # XDriver.set_headless()
+    # Logger.set_debug_on()
+    # driver = XDriver.boot(chrome=True)
+    # driver.set_script_timeout(30)
+    # driver.set_page_load_timeout(30)
+    # time.sleep(3)  # fixme: you have to sleep sometime, otherwise the browser will keep crashing
+    # result_file = './datasets/crp_locator_baseline.txt'
+    #
+    # print(len(list(grp.keys())))
+    # for ct, (url, data) in enumerate(grp.items()):
+    #     if url == 'keys':
+    #         continue
+    #     if os.path.exists(result_file) and url in open(result_file).read():
+    #         continue
+    #
+    #     dom, label = list(data.dom), list(data.label)
+    #     ind = np.where(np.asarray(label) == 1)[0]
+    #     if len(ind) == 0:
+    #         continue
+    #
+    #     gt_dom = np.asarray(dom)[ind]
+    #     dom_element_list_heu = crp_locator(driver, url, topk=1, heuristic=True)
+    #     if dom_element_list_heu and len(dom_element_list_heu):
+    #         dom_element_list_heu = dom_element_list_heu[0]
+    #     else:
+    #         dom_element_list_heu = ''
+    #
+    #     dom_element_list_cv = crp_locator(driver, url, topk=1, heuristic=False)
+    #     if dom_element_list_cv and len(dom_element_list_cv):
+    #         dom_element_list_cv = dom_element_list_cv[0]
+    #     else:
+    #         dom_element_list_cv = ''
+    #
+    #     with open(result_file, 'a+') as f:
+    #         f.write(url+'\t'+gt_dom[0]+'\t'+dom_element_list_heu+'\t'+dom_element_list_cv+'\n')
+    #
+    #     # select one: another model
+    #     if (ct + 1) % 100 == 0:
+    #         driver.quit()
+    #         XDriver.set_headless()
+    #         driver = XDriver.boot(chrome=True)
+    #         driver.set_script_timeout(30)
+    #         driver.set_page_load_timeout(30)
+    #         time.sleep(3)
 
-    test_dataset = ButtonDataset(annot_path='./datasets/alexa_login_test.txt',
-                                 root='./datasets/alexa_login',
-                                 preprocess=preprocess)
-
-    df = pd.DataFrame({'url': test_dataset.urls,
-                       'dom': test_dataset.dom_paths,
-                       'path': test_dataset.img_paths,
-                       'label': test_dataset.labels})
-    grp = df.groupby('url')
-    grp = dict(list(grp), keys=lambda x: x[0])  # {url: List[dom_path, save_path]}
-
-    # initiate driver
-    XDriver.set_headless()
-    Logger.set_debug_on()
-    driver = XDriver.boot(chrome=True)
-    driver.set_script_timeout(30)
-    driver.set_page_load_timeout(30)
-    time.sleep(3)  # fixme: you have to sleep sometime, otherwise the browser will keep crashing
-    result_file = './datasets/crp_locator_baseline.txt'
-
-    print(len(list(grp.keys())))
-    for ct, (url, data) in enumerate(grp.items()):
-        if url == 'keys':
-            continue
-        if os.path.exists(result_file) and url in open(result_file).read():
-            continue
-
-        dom, label = list(data.dom), list(data.label)
-        ind = np.where(np.asarray(label) == 1)[0]
-        if len(ind) == 0:
-            continue
-
-        gt_dom = np.asarray(dom)[ind]
-        dom_element_list_heu = crp_locator(driver, url, topk=10, heuristic=True)
-        if not dom_element_list_heu:
-            dom_element_list_heu = ''
-
-        dom_element_list_cv = crp_locator(driver, url, topk=10, heuristic=False)
-        if not dom_element_list_cv:
-            dom_element_list_cv = ''
-
-        with open(result_file, 'a+') as f:
-            f.write(url+'\t'+gt_dom[0]+'\t'+str(dom_element_list_heu)+'\t'+str(dom_element_list_cv)+'\n')
-
-        # select one: another model
-        if (ct + 1) % 100 == 0:
-            driver.quit()
-            XDriver.set_headless()
-            driver = XDriver.boot(chrome=True)
-            driver.set_script_timeout(30)
-            driver.set_page_load_timeout(30)
-            time.sleep(3)
-
+    '''result evaluation'''
+    tester_rank('./datasets/crp_locator_baseline.txt', topk=10)
 
 
 

@@ -94,12 +94,6 @@ if __name__ == "__main__":
             with open(annotations, 'a+') as f:
                 f.write(target+'\t'+all_clickable_dom[it]+'\t'+save_path+'\n')
 
-        # the dom, the attributes? dom tree? the image => representation
-
-        # align with the task (login but not signup)
-
-        # rank
-
         # select one: another model
         if (ct+1) % 100 == 0:
             driver.quit()
