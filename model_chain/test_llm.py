@@ -22,6 +22,7 @@ import cv2
 from model_chain.web_utils import WebUtil
 from xdriver.xutils.Logger import Logger
 import shutil
+os.environ['CUDA_VISIBLE_DEVICES'] = "1"
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read()
 
 class TestLLM():
@@ -30,6 +31,8 @@ class TestLLM():
 
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.clip_model, self.clip_preprocess = clip.load("ViT-B/32", device=self.device)
+        state_dict = torch.load("./checkpoints/epoch{}_model.pt".format(4))
+        self.clip_model.load_state_dict(state_dict)
         self.LLM_model = "gpt-3.5-turbo-16k"
         self.prediction_prompt = './selection_model/prompt3.json'
         self.brand_prompt = './brand_recognition/prompt.json'
@@ -121,15 +124,13 @@ class TestLLM():
 
         return logo, 'success'
 
-    def click_and_save(self, driver, URL, dom, save_html_path, save_shot_path):
+    def click_and_save(self, driver, dom, save_html_path, save_shot_path):
         try:
-            driver.get(URL, allow_redirections=False)
-            time.sleep(3)  # fixme: must allow some loading time here
             element = driver.find_elements_by_xpath(dom)
             if element:
                 driver.move_to_element(element[0])
                 driver.click(element[0])
-                time.sleep(2)  # fixme: must allow some loading time here
+                time.sleep(7)  # fixme: must allow some loading time here
             current_url = driver.current_url()
         except Exception as e:
             Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
@@ -216,6 +217,7 @@ class TestLLM():
                 time.sleep(10)
         answer = ''.join([choice["message"]["content"] for choice in response['choices']])
         print('LLM prediction time:', time.time() - start_time)
+        print(f'Detected brand {answer}')
 
         if len(answer) > 0 and len(answer) < 30: # has prediction
             if do_validation:
@@ -275,6 +277,7 @@ class TestLLM():
                 time.sleep(10)
 
         answer = ''.join([choice["message"]["content"] for choice in response['choices']])
+        print(f'CRP prediction {answer}')
         if 'A.' in answer:
             return 0 # CRP
         else:
@@ -318,7 +321,7 @@ class TestLLM():
                 Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
                 continue
 
-            if x2 - x1 <= 0 or y2 - y1 <= 0 or y2 >= driver.get_window_size()['height']//2: # invisible or at the bottom
+            if x2 - x1 <= 0 or y2 - y1 <= 0: # or y2 >= driver.get_window_size()['height']//2: # invisible or at the bottom
                 continue
 
             try:
@@ -331,12 +334,17 @@ class TestLLM():
 
         # rank them
         if len(candidate_uis_imgs):
-            images = torch.stack(candidate_uis_imgs).to(self.device)
-            texts = clip.tokenize(["not a login button", "a login button"]).to(self.device)
+            final_probs = torch.tensor([], device='cpu')
 
-            logits_per_image, logits_per_text = self.clip_model(images, texts)
-            probs = logits_per_image.softmax(dim=-1)  # (N, C)
-            conf = probs[torch.arange(probs.shape[0]), 1]  # take the confidence (N, 1)
+            for batch in range(math.ceil(len(candidate_uis)/100)):
+                images = torch.stack(candidate_uis_imgs[batch*100 : min(len(candidate_uis), (batch+1)*100)]).to(self.device)
+                texts = clip.tokenize(["not a login button", "a login button"]).to(self.device)
+
+                logits_per_image, logits_per_text = self.clip_model(images, texts)
+                probs = logits_per_image.softmax(dim=-1)  # (N, C)
+                final_probs = torch.cat([final_probs, probs.detach().cpu()], dim=0)
+
+            conf = final_probs[torch.arange(final_probs.shape[0]), 1]  # take the confidence (N, 1)
             _, ind = torch.topk(conf, 1)  # top1 index
 
             return candidate_uis[ind], candidate_uis_imgs[ind]
@@ -344,9 +352,11 @@ class TestLLM():
             return [], []
 
 
-    def test(self, url, shot_path, html_path, driver, limit=3,
+    def test(self, url, shot_path, html_path, driver, limit=2,
              brand_recog_time=0, crp_prediction_time=0, crp_transition_time=0):
 
+        if limit == 0:
+            return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time
 
         html_text = self.detect_text(shot_path, html_path)
         _, reference_logo = self.phishintention_cls.predict_n_save_logo(shot_path)
@@ -362,7 +372,7 @@ class TestLLM():
             if crp_cls == 0: # CRP
                 if company_domain != tldextract.extract(url).domain+'.'+tldextract.extract(url).suffix:
                     return 'phish', company_domain, brand_recog_time, crp_prediction_time, crp_transition_time
-            elif limit > 0: # CRP transition
+            else: # CRP transition
                 start_time = time.time()
                 candidate_dom, candidate_img = self.ranking_model(url, driver)
                 crp_transition_time += time.time() - start_time
@@ -370,7 +380,8 @@ class TestLLM():
                 if len(candidate_dom):
                     save_html_path = re.sub("index[0-9]?.html", f"index{limit}.html", html_path)
                     save_shot_path = re.sub("shot[0-9]?.png", f"shot{limit}.png", shot_path)
-                    current_url, *_ = self.click_and_save(driver, url, candidate_dom, save_html_path, save_shot_path)
+                    print("Click login button")
+                    current_url, *_ = self.click_and_save(driver, candidate_dom, save_html_path, save_shot_path)
                     if current_url: # click success
                         return self.test(current_url, save_shot_path, save_html_path, driver, limit-1,
                                          brand_recog_time, crp_prediction_time, crp_transition_time)
@@ -384,7 +395,7 @@ if __name__ == '__main__':
     phishintention_cls = PhishIntentionWrapper()
     llm_cls = TestLLM(phishintention_cls)
     openai.api_key = os.getenv("OPENAI_API_KEY")
-    openai.proxy = "http://127.0.0.1:7890" # proxy
+    # openai.proxy = "http://127.0.0.1:7890" # proxy
     web_func = WebUtil()
 
     sleep_time = 3; timeout_time = 60
@@ -396,9 +407,9 @@ if __name__ == '__main__':
     Logger.set_debug_on()
 
     driver.get('http://phishing.localhost')
-    time.sleep(3)
-    driver.save_screenshot('./debug.png')
+    time.sleep(5)
     all_links = [x.strip().split(',')[-2] for x in open('./datasets/Brand_Labelled_130323.csv').readlines()[1:]]
+    # all_links = driver.get_all_links_orig()
 
     root_folder = './datasets/dynapd'
     result = './datasets/dynapd_wo_validation.txt'
@@ -407,17 +418,13 @@ if __name__ == '__main__':
 
 
     for ct, target in enumerate(all_links):
-        if ct <= 1110:
+        if ct <= 5470:
             continue
-        url = target
         hash = target.split('/')[3]
         target_folder = os.path.join(root_folder, hash)
         os.makedirs(target_folder, exist_ok=True)
         if os.path.exists(result) and hash in open(result).read():
             continue
-
-        target = target.replace('127.0.0.5', 'phishing.localhost')
-        print(target)
 
         try:
             driver.get(target, click_popup=True, allow_redirections=False)
@@ -429,19 +436,31 @@ if __name__ == '__main__':
             continue
 
         try:
-            white_page = web_func.page_white_screen(driver, ts=0.9)
+            page_text = driver.get_page_text()
         except Exception as e:
             Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
             shutil.rmtree(target_folder)
             continue
-        # if (error_free == False) and (white_page == True):
-        if (white_page == True):
-            time.sleep(5)
+
+        try:
+            error_free = web_func.page_error_checking(driver)
+            if not error_free:
+                Logger.spit('Error page or White page', caller_prefix=XDriver._caller_prefix, debug=True)
+                shutil.rmtree(target_folder)
+                continue
+        except Exception as e:
+            Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
+            shutil.rmtree(target_folder)
+            continue
+
+        if "Index of" in page_text:
             try:
                 # skip error URLs
                 error_free = web_func.page_interaction_checking(driver)
-                white_page = web_func.page_white_screen(driver, ts=0.9)
-                if (error_free == False) and (white_page == True):
+                white_page = web_func.page_white_screen(driver, 1)
+                if (error_free == False) or white_page:
+                    Logger.spit('Error page or White page', caller_prefix=XDriver._caller_prefix, debug=True)
+                    shutil.rmtree(target_folder)
                     continue
                 target = driver.current_url()
             except Exception as e:
@@ -449,6 +468,9 @@ if __name__ == '__main__':
                 shutil.rmtree(target_folder)
                 continue
 
+        if target.endswith('https/') or target.endswith('genWeb/'):
+            shutil.rmtree(target_folder)
+            continue
 
         try:
             shot_path = os.path.join(target_folder, 'shot.png')
@@ -471,7 +493,7 @@ if __name__ == '__main__':
             pass
 
         if os.path.exists(shot_path):
-            pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time = llm_cls.test(url, shot_path, html_path, driver)
+            pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time = llm_cls.test(target, shot_path, html_path, driver)
             with open(result, 'a+') as f:
                 f.write(hash+'\t'+pred+'\t'+brand+'\t'+str(brand_recog_time)+'\t'+str(crp_prediction_time)+'\t'+str(crp_transition_time)+'\n')
 
