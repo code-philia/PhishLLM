@@ -98,7 +98,7 @@ class WebUtil():
             sorted_index = np.argmin(likelihood_sort)
             sorted_link_by_likelihood = links[sorted_index]
             driver.click(sorted_link_by_likelihood[0])
-            time.sleep(0.5)
+            time.sleep(2)
             Logger.spit('After clicking URL={}'.format(driver.current_url()), debug=True)
             ct += 1
             if ct >= 10:
