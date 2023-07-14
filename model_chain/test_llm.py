@@ -404,6 +404,8 @@ if __name__ == '__main__':
     result = './datasets/dynapd_wo_validation.txt'
     os.makedirs(root_folder, exist_ok=True)
 
+
+
     for ct, target in enumerate(all_links):
         if ct <= 1110:
             continue
@@ -414,6 +416,7 @@ if __name__ == '__main__':
         if os.path.exists(result) and hash in open(result).read():
             continue
 
+        target = target.replace('127.0.0.5', 'phishing.localhost')
         print(target)
 
         try:
