@@ -4,7 +4,7 @@ from xdriver.XDriver import XDriver
 import time
 import os
 import pandas as pd
-
+from tqdm import tqdm
 class TestBaseline():
 
     def __init__(self, phishintention_cls):
@@ -46,7 +46,7 @@ if __name__ == '__main__':
     # result = './datasets/dynapd_phishpedia.txt'
     result = './datasets/dynapd_phishintention.txt'
 
-    for hash in all_folders:
+    for hash in tqdm(all_folders):
         target_folder = os.path.join(root_folder, hash)
         if os.path.exists(result) and hash in open(result).read():
             continue
