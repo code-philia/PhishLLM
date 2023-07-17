@@ -128,6 +128,11 @@ class TestLLM():
         try:
             element = driver.find_elements_by_xpath(dom)
             if element:
+                try:
+                    driver.execute_script("arguments[0].style.border='3px solid red'", element[0])
+                    time.sleep(0.5)
+                except:
+                    pass
                 driver.move_to_element(element[0])
                 driver.click(element[0])
                 time.sleep(7)  # fixme: must allow some loading time here
@@ -283,20 +288,21 @@ class TestLLM():
         else:
             return 1
 
-    def ranking_model(self, url, driver):
+    def ranking_model(self, url, driver, ranking_model_refresh_page):
 
-        try:
-            driver.get(url)
-            time.sleep(5)
-        except Exception as e:
-            Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
-            driver.quit()
-            XDriver.set_headless()
-            driver = XDriver.boot(chrome=True)
-            driver.set_script_timeout(30)
-            driver.set_page_load_timeout(60)
-            time.sleep(3)
-            return [], []
+        if ranking_model_refresh_page:
+            try:
+                driver.get(url)
+                time.sleep(5)
+            except Exception as e:
+                Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
+                driver.quit()
+                XDriver.set_headless()
+                driver = XDriver.boot(chrome=True)
+                driver.set_script_timeout(30)
+                driver.set_page_load_timeout(60)
+                time.sleep(3)
+                return [], []
 
         try:
             (btns, btns_dom),  \
@@ -321,7 +327,7 @@ class TestLLM():
                 Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
                 continue
 
-            if x2 - x1 <= 0 or y2 - y1 <= 0: # or y2 >= driver.get_window_size()['height']//2: # invisible or at the bottom
+            if x2 - x1 <= 0 or y2 - y1 <= 0 or y2 >= driver.get_window_size()['height']//2: # invisible or at the bottom
                 continue
 
             try:
@@ -353,7 +359,9 @@ class TestLLM():
 
 
     def test(self, url, shot_path, html_path, driver, limit=2,
-             brand_recog_time=0, crp_prediction_time=0, crp_transition_time=0):
+             brand_recog_time=0, crp_prediction_time=0, crp_transition_time=0,
+             ranking_model_refresh_page=True,
+             ):
 
         if limit == 0:
             return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time
@@ -364,17 +372,16 @@ class TestLLM():
         company_domain, company_logo = self.brand_recognition_llm(url, reference_logo, html_text, driver)
         brand_recog_time += time.time() - start_time
 
-        if company_domain:
+        if company_domain and tldextract.extract(company_domain).domain != tldextract.extract(url).domain:
             start_time = time.time()
             crp_cls = self.crp_prediction_llm(html_text)
             crp_prediction_time += time.time() - start_time
 
             if crp_cls == 0: # CRP
-                if company_domain != tldextract.extract(url).domain+'.'+tldextract.extract(url).suffix:
-                    return 'phish', company_domain, brand_recog_time, crp_prediction_time, crp_transition_time
+                return 'phish', company_domain, brand_recog_time, crp_prediction_time, crp_transition_time
             else: # CRP transition
                 start_time = time.time()
-                candidate_dom, candidate_img = self.ranking_model(url, driver)
+                candidate_dom, candidate_img = self.ranking_model(url, driver, ranking_model_refresh_page)
                 crp_transition_time += time.time() - start_time
 
                 if len(candidate_dom):
@@ -383,8 +390,10 @@ class TestLLM():
                     print("Click login button")
                     current_url, *_ = self.click_and_save(driver, candidate_dom, save_html_path, save_shot_path)
                     if current_url: # click success
+                        ranking_model_refresh_page = current_url != url
                         return self.test(current_url, save_shot_path, save_html_path, driver, limit-1,
-                                         brand_recog_time, crp_prediction_time, crp_transition_time)
+                                         brand_recog_time, crp_prediction_time, crp_transition_time,
+                                         ranking_model_refresh_page)
 
         return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time
 
