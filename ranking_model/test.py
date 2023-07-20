@@ -97,37 +97,42 @@ def tester_rank(model, test_dataset, preprocess, device):
             img_process = preprocess(Image.open(path))
             images.append(img_process)
 
+        if (labels == 1).sum().item():  # has login button
+            total += 1
+        else:
+            continue
+
         images = torch.stack(images).to(device)
         texts = clip.tokenize(["not a login button", "a login button"]).to(device)
         logits_per_image, logits_per_text = model(images, texts)
         probs = logits_per_image.softmax(dim=-1) # (N, C)
         conf = probs[torch.arange(probs.shape[0]), 1] # take the confidence (N, 1)
-        _, ind = torch.topk(conf, min(10, len(conf))) # top1 index
+        _, ind = torch.topk(conf, min(1, len(conf))) # top1 index
 
-        if (labels == 1).sum().item(): # has login button
-            if (labels[ind] == 1).sum().item(): # has login button and it is reported
-                correct += 1
-            # visualize
-            # os.makedirs('./datasets/debug', exist_ok=True)
-            # f, axarr = plt.subplots(4, 1)
-            # for it in range(min(3, len(conf))):
-            #     img_path_sorted = np.asarray(img_paths)[ind.cpu()]
-            #     axarr[it].imshow(Image.open(img_path_sorted[it]))
-            #     axarr[it].set_title(str(conf[ind][it].item()))
-            #
-            # gt_ind = torch.where(labels == 1)[0]
-            # if len(gt_ind) > 1:
-            #     gt_ind = gt_ind[0]
-            # axarr[3].imshow(Image.open(np.asarray(img_paths)[gt_ind.cpu()]))
-            # axarr[3].set_title('ground_truth'+str(conf[gt_ind].item()))
-            #
-            # plt.savefig(
-            #     f"./datasets/debug/{url.split('https://')[1]}.png")
-            # plt.close()
+        if (labels[ind] == 1).sum().item(): # has login button and it is reported
+            correct += 1
+        # visualize
+        # os.makedirs('./datasets/debug', exist_ok=True)
+        # f, axarr = plt.subplots(4, 1)
+        # for it in range(min(3, len(conf))):
+        #     img_path_sorted = np.asarray(img_paths)[ind.cpu()]
+        #     axarr[it].imshow(Image.open(img_path_sorted[it]))
+        #     axarr[it].set_title(str(conf[ind][it].item()))
+        #
+        # gt_ind = torch.where(labels == 1)[0]
+        # if len(gt_ind) > 1:
+        #     gt_ind = gt_ind[0]
+        # axarr[3].imshow(Image.open(np.asarray(img_paths)[gt_ind.cpu()]))
+        # axarr[3].set_title('ground_truth'+str(conf[gt_ind].item()))
+        #
+        # plt.savefig(
+        #     f"./datasets/debug/{url.split('https://')[1]}.png")
+        # plt.close()
 
-            total += 1
+        print(correct, total)
 
     print(correct, total)
+    print(correct/total)
 
 
 

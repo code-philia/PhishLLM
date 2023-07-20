@@ -72,9 +72,6 @@ class WebUtil():
             return False
         if source == "<html><head></head><body></body></html>":
             return False
-        error = "(not found)|(no such file or directory)|(failed opening)|(refused to connect)|(invalid argument)|(undefined index)|(undefined property)|(undefined variable)|(syntax error)|(site error)|(parse error)"
-        if re.search(error, source, re.IGNORECASE):
-            return False
         return True
 
 

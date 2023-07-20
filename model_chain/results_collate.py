@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+import os
+
 if __name__ == '__main__':
     df_llm = pd.read_table('./datasets/dynapd_wo_validation.txt', sep='\t', header=None)
     df_llm.columns = ["hash", 'pred', 'brand', 'brand_recog_time',  'crp_pred_time', 'crp_transit_time']
@@ -11,6 +13,7 @@ if __name__ == '__main__':
     df_tention.columns = ["hash", 'pred', 'brand', 'time']
 
     common_hashes = set(df_llm['hash']).intersection(set(df_pedia['hash'])).intersection(set(df_tention['hash']))
+    common_hashes = [x for x in common_hashes if os.path.exists(os.path.join('./datasets/dynapd', x))]
     df_llm = df_llm[df_llm['hash'].isin(common_hashes)]
     df_pedia = df_pedia[df_pedia['hash'].isin(common_hashes)]
     df_tention = df_tention[df_tention['hash'].isin(common_hashes)]
@@ -23,7 +26,6 @@ if __name__ == '__main__':
     print(np.median(df_llm['brand_recog_time'] + df_llm['crp_pred_time'] + df_llm['crp_transit_time']))
     print(np.median(df_pedia['time']))
     print(np.median(df_tention['time']))
-
 
 
     df_llm_b = pd.read_table('./datasets/alexa7k_wo_validation.txt', sep='\t', header=None)
