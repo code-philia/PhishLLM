@@ -10,15 +10,15 @@ if __name__ == '__main__':
     phishintention_cls = PhishIntentionWrapper()
     llm_cls = TestLLM(phishintention_cls)
     openai.api_key = os.getenv("OPENAI_API_KEY")
-    # openai.proxy = "http://127.0.0.1:7890" # proxy
+    openai.proxy = "http://127.0.0.1:7890" # proxy
     web_func = WebUtil()
 
     sleep_time = 3; timeout_time = 60
-    # XDriver.set_headless()
+    XDriver.set_headless()
     driver = XDriver.boot(chrome=True)
     driver.set_script_timeout(timeout_time/2)
     driver.set_page_load_timeout(timeout_time)
-    time.sleep(sleep_time)  # fixme: you
+    time.sleep(sleep_time)
     Logger.set_debug_on()
 
     all_links = [x.strip().split(',')[-2] for x in open('./datasets/Brand_Labelled_130323.csv').readlines()[1:]]

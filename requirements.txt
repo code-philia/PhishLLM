@@ -9,4 +9,6 @@ regex
 tqdm
 pandas
 git+https://github.com/openai/CLIP.git
-sentence-transformers
+openai
+backoff
+idna

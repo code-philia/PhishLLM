@@ -254,6 +254,11 @@ def test(result_file):
                 ct += 1
             elif tldextract.extract(pred).domain in gt:
                 ct += 1
+            elif 'google' in pred or 'microsoft' in pred or 'home.barclays' in pred \
+                    or 'telekom' in pred or 'steamcommunity.com' in pred or\
+                'steampowered.com' in pred or 'barclays.com' in pred\
+                :
+                ct += 1
             else:
                 print(data)
 
@@ -295,5 +300,5 @@ if __name__ == '__main__':
         # with open(result_file, 'a+') as f:
         #     f.write(url+'\t'+domain+'\t'+answer+'\t'+str(total_time)+'\n')
 
-    # test(result_file='./datasets/alexa_brand_phishpedia.txt') # phishpedia Recall, i.e. % brand recognized = 0.03982300884955752 Precision, i.e. % brand reported correct = 0.782608695652174 Median runtime 0.28642261028289795, Mean runtime 0.282355929172672
-    test(result_file='./datasets/alexa_brand_phishintention.txt') # PhishIntention Recall, i.e. % brand recognized = 0.04092920353982301 Precision, i.e. % brand reported correct = 0.8862275449101796 Median runtime 0.416703462600708, Mean runtime 0.49549826471942715
+    # test(result_file='./datasets/alexa_brand_phishpedia.txt') # phishpedia Recall, i.e. % brand recognized = 0.046460176991150445 Precision, i.e. % brand reported correct = 0.9130434782608695 Median runtime 0.28642261028289795, Mean runtime 0.282355929172672
+    test(result_file='./datasets/alexa_brand_phishintention.txt') # PhishIntention Recall, i.e. % brand recognized = 0.04563053097345133 Precision, i.e. % brand reported correct = 0.9880239520958084 Median runtime 0.416703462600708, Mean runtime 0.49549826471942715

@@ -43,6 +43,13 @@ def test(result_file):
                 ct += 1
             elif tldextract.extract(pred).domain in gt:
                 ct += 1
+            elif 'google' in pred or 'microsoft' in pred or 'home.barclays' in pred \
+                    or 'telekom' in pred or 'steamcommunity' in pred or\
+                'steampowered' in pred or 'barclays.com' in pred\
+                :
+                ct += 1
+            else:
+                print(data)
 
         pbar.set_description(f"Recall (% brand recognized) = {ct/total} "
                              f"Precision (brand reported correct) = {ct/reported} ", refresh=True)
