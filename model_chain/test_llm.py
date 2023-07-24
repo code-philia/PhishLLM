@@ -42,7 +42,14 @@ class TestLLM():
                              'sa', 'ta', 'nl', 'tr', 'ga']
 
     def detect_text(self, shot_path, html_path):
-        # ocr2text
+        '''
+            Run OCR
+            Args:
+                shot_path
+                html_path
+            Returns:
+                ocr_text
+        '''
         ocr_text = ''
         most_fit_lang = self.language_list[0]
         best_conf = 0
@@ -83,10 +90,13 @@ class TestLLM():
 
     def url2logo(self, driver, URL):
         '''
-            Get page's logo from an URL
+            URL2logo
             Args:
-                URL:
-                url4logo: the URL is a logo image already or not
+                driver: selenium driver
+                URL
+            Returns:
+                logo
+                success_state
         '''
         try:
             driver.get(URL, allow_redirections=False)
@@ -125,17 +135,29 @@ class TestLLM():
         return logo, 'success'
 
     def click_and_save(self, driver, dom, save_html_path, save_shot_path):
+        '''
+            Click an element and save the updated screenshot and HTML
+            Args:
+                driver: selenium driver
+                dom: dom path for the interested element
+                save_html_path: path to save HTML
+                save_shot_path: path to save screenshot
+            Returns:
+                current_url
+                save_html_path
+                save_shot_path
+        '''
         try:
             element = driver.find_elements_by_xpath(dom)
             if element:
                 try:
-                    driver.execute_script("arguments[0].style.border='3px solid red'", element[0])
+                    driver.execute_script("arguments[0].style.border='3px solid red'", element[0]) # hightlight the element to click
                     time.sleep(0.5)
                 except:
                     pass
                 driver.move_to_element(element[0])
                 driver.click(element[0])
-                time.sleep(7)  # fixme: must allow some loading time here
+                time.sleep(7)  # fixme: must allow some loading time here, dynapd is slow
             current_url = driver.current_url()
         except Exception as e:
             Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
@@ -162,8 +184,6 @@ class TestLLM():
                 reference_domain: domain for the testing website
                 reference_tld: top-level domain for the testing website
                 domain_list: list of domains to check
-                ts: logo matching threshold
-                strict: strict domain matching or not
             Returns:
                 domain_matched_indices
                 logo_matched_indices
@@ -194,7 +214,18 @@ class TestLLM():
                               driver,
                               do_validation=False
                               ):
-
+        '''
+            Use LLM to report targeted brand
+            Args:
+                url
+                reference_logo: the logo on the original webpage (for validation purpose)
+                html_text
+                driver
+                do_validation: do we validate the returned brand?
+            Returns:
+                company_domain
+                company_logo
+        '''
         company_domain, company_logo = None, None
         q_domain, q_tld = tldextract.extract(url).domain, tldextract.extract(url).suffix
         question = question_template_brand(html_text)
@@ -219,7 +250,7 @@ class TestLLM():
             except Exception as e:
                 Logger.spit('LLM Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
                 new_prompt[-1]['content'] = new_prompt[-1]['content'][:len(new_prompt[-1]['content']) // 2]
-                time.sleep(10)
+                time.sleep(43.2)
         answer = ''.join([choice["message"]["content"] for choice in response['choices']])
         print('LLM prediction time:', time.time() - start_time)
         print(f'Detected brand {answer}')
@@ -257,7 +288,13 @@ class TestLLM():
         return company_domain, company_logo
 
     def crp_prediction_llm(self, html_text):
-
+        '''
+            Use LLM to classify credential-requiring page v.s. non-credential-requiring page
+            Args:
+                html_text
+            Returns:
+                0 for CRP, 1 for non-CRP
+        '''
         question = question_template_prediction(html_text)
         with open(self.prediction_prompt, 'rb') as f:
             prompt = json.load(f)
@@ -277,9 +314,8 @@ class TestLLM():
                 inference_done = True
             except Exception as e:
                 Logger.spit('LLM Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
-                # new_prompt = new_prompt[:65540]
                 new_prompt[-1]['content'] = new_prompt[-1]['content'][:len(new_prompt[-1]['content']) // 2]
-                time.sleep(10)
+                time.sleep(43.2)
 
         answer = ''.join([choice["message"]["content"] for choice in response['choices']])
         print(f'CRP prediction {answer}')
@@ -289,7 +325,16 @@ class TestLLM():
             return 1
 
     def ranking_model(self, url, driver, ranking_model_refresh_page):
-
+        '''
+            Use CLIP to rank the UI elements to find the most probable login button
+            Args:
+                url
+                driver
+                ranking_model_refresh_page: do we need to refresh the webpage before running the model?
+            Returns:
+                candidate_uis: DOM paths for candidate uis
+                candidate_uis_imgs: screenshots for candidate uis
+        '''
         if ranking_model_refresh_page:
             try:
                 driver.get(url)
@@ -360,26 +405,52 @@ class TestLLM():
 
     def test(self, url, shot_path, html_path, driver, limit=2,
              brand_recog_time=0, crp_prediction_time=0, crp_transition_time=0,
-             ranking_model_refresh_page=True,
+             ranking_model_refresh_page=True, skip_brand_recognition=False,
+             company_domain=None, company_logo=None,
              ):
+        '''
+            PhishLLM
+            Args:
+                url
+                shot_path
+                html_path
+                driver
+                limit: depth limit to run CRP transition model (ranking model)
+                brand_recog_time
+                crp_prediction_time
+                crp_transition_time
+                ranking_model_refresh_page
+                skip_brand_recognition: whether to skip the brand recognition after CRP transition?
+                company_domain: the reported targeted brand domain
+                company_logo
+            Returns:
+                pred: 'benign' or 'phish'
+                target: company_domain or 'None'
+                brand_recog_time
+                crp_prediction_time
+                crp_transition_time
+        '''
 
         if limit == 0:
             return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time
 
         html_text = self.detect_text(shot_path, html_path)
-        _, reference_logo = self.phishintention_cls.predict_n_save_logo(shot_path)
-        start_time = time.time()
-        company_domain, company_logo = self.brand_recognition_llm(url, reference_logo, html_text, driver)
-        brand_recog_time += time.time() - start_time
+        if not skip_brand_recognition:
+            _, reference_logo = self.phishintention_cls.predict_n_save_logo(shot_path)
+            start_time = time.time()
+            company_domain, company_logo = self.brand_recognition_llm(url, reference_logo, html_text, driver)
+            brand_recog_time += time.time() - start_time
+        # domain-brand inconsistency
+        phish_condition = company_domain and tldextract.extract(company_domain).domain != tldextract.extract(url).domain
 
-        if company_domain and tldextract.extract(company_domain).domain != tldextract.extract(url).domain:
+        if phish_condition:
             start_time = time.time()
             crp_cls = self.crp_prediction_llm(html_text)
             crp_prediction_time += time.time() - start_time
 
             if crp_cls == 0: # CRP
                 return 'phish', company_domain, brand_recog_time, crp_prediction_time, crp_transition_time
-            else: # CRP transition
+            else: # do CRP transition
                 start_time = time.time()
                 candidate_dom, candidate_img = self.ranking_model(url, driver, ranking_model_refresh_page)
                 crp_transition_time += time.time() - start_time
@@ -393,7 +464,8 @@ class TestLLM():
                         ranking_model_refresh_page = current_url != url
                         return self.test(current_url, save_shot_path, save_html_path, driver, limit-1,
                                          brand_recog_time, crp_prediction_time, crp_transition_time,
-                                         ranking_model_refresh_page)
+                                         ranking_model_refresh_page=ranking_model_refresh_page, skip_brand_recognition=True,
+                                         company_domain=company_domain, company_logo=company_logo)
 
         return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time
 
@@ -404,7 +476,7 @@ if __name__ == '__main__':
     phishintention_cls = PhishIntentionWrapper()
     llm_cls = TestLLM(phishintention_cls)
     openai.api_key = os.getenv("OPENAI_API_KEY")
-    # openai.proxy = "http://127.0.0.1:7890" # proxy
+    openai.proxy = "http://127.0.0.1:7890" # proxy
     web_func = WebUtil()
 
     sleep_time = 3; timeout_time = 60
