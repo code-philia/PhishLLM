@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from ..attack import Attack
-
+from .protect import *
 
 class BIM(Attack):
     r"""
@@ -48,25 +48,25 @@ class BIM(Attack):
 
         loss = nn.CrossEntropyLoss()
 
-        ori_images = images.clone().detach()
-
         for _ in range(self.steps):
             images.requires_grad = True
+            self.model = reset_model('/home/ruofan/git_space/ScamDet/checkpoints/epoch4_model.pt', protect=True)
+
             outputs = self.get_logits(images)
 
             # Calculate loss
             cost = -loss(outputs, target_labels)
 
             # Update adversarial images
-            self.model.zero_grad()
             grad = torch.autograd.grad(cost, images,
                                        retain_graph=False,
                                        create_graph=False)[0]
 
-            adv_images = images + self.alpha*grad.sign()
-            a = torch.clamp(ori_images - self.eps, min=0)
-            b = (adv_images >= a).float()*adv_images + (adv_images < a).float()*a  # nopep8
-            c = (b > ori_images+self.eps).float()*(ori_images+self.eps) + (b <= ori_images + self.eps).float()*b  # nopep8
-            images = torch.clamp(c, max=1).detach()
+            adv_images = images + self.alpha * grad.sign()
+            # a = torch.clamp(ori_images - self.eps, min=0)
+            # b = (adv_images >= a).float() * adv_images + (adv_images < a).float() * a  # nopep8
+            # c = (b > ori_images+self.eps).float() * (ori_images+self.eps) + (b <= ori_images + self.eps).float() * b  # nopep8
+            # images = torch.clamp(c, max=1).detach()
+            images = adv_images.detach()
 
         return images

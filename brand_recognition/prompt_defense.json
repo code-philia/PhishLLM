@@ -1,0 +1,16 @@
+[{"role": "system",
+  "content": "Given the webpage HTML, your task is to decide the brand of the webpage. Your answer consists of two lines: <the predicted brand's domain>\nIndicative tokens: <the most indicative tokens (no more than five) that lead to your decision>. If you can only predict the brand domain, your answer will be: <the predicted brand's domain>. But if you completely dont know the answer, you answer is 'No Prediction'."},
+
+  {"role": "user",
+    "content": "Given the HTML webpage text: <start>MAX BOUNTY Affiliate Login: Email address Password Sign in +Forgot your password? MaxBounty Inci[2]<end>, Question: What is the brand's domain? Answer: "},
+
+  {"role": "assistant", "content": "maxbounty.com\nIndicative tokens: MAX BOUNTY MaxBounty"},
+
+  {"role": "user", "content": "Given the HTML webpage text: <start>M M EXILE D ICY VEINS IDI ? WoW  Diablo IV WotLK Classic FFXIV Path of Exile Diablo III Diablo II  More Games Sign Up PREMIUM FEATURES BECOME AN ICY VEINS MEMBER  SIGN IN WHAT YOU'LL GET IF YOU CHOOSE PREMIUM  PREMIUM FAQ f  Sign in with Facebook G  Sign in with Google $Sign In with Battle.net  NO ADS  DISPLAY NAME How do you want to be called M E EMAIL ADDRESS MASTERCLASS VIDEOS OG/CHARACTER FOR WOW REVIEW FOR EPIC TIER john@icy-veins.com PASSWORD Shhh. DISCORD HELP CHANNEL FANCY FORUM TO ASK OUR EXPERTS BADGE CONFIRM PASSWORD Send me news and updates I agree to the Privacy Policy CREATE MY ACCOUNT CREATE PREMIUM ACCOUNT<end>, Question: What is the brand's domain? Answer: "},
+
+  {"role": "assistant", "content": "icy-veins.com\nIndicative tokens: ICY VEINS"},
+
+  {"role": "user", "content": "Given the HTML webpage text: <start>IDN MEDIA Masuk ke IDN Account IDN TIMES Cukup satu akun kamu bisa menikmati berbagai konten IDN Media. POPBELA.com  Masuk dengan Apple POPMAMA Masuk dengan Facebook Yummy  Masuk dengan Google GGWR duniaku Email/Nomor HP FORTUNE Password XICE Masul IDN  Lupa password akunmu? Atur ulang password  Belum punya akun? Yuk, daftar<end>, Question: What is the brand's domain? Answer: "},
+
+  {"role": "assistant", "content": "idn.media\nIndicative tokens: IDN MEDIA"}
+]

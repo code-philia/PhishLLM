@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from tqdm import tqdm
 from ..attack import Attack
-
+from .protect import *
 
 class JSMA(Attack):
     r"""
@@ -59,6 +59,7 @@ class JSMA(Attack):
     def compute_jacobian(self, image):
         var_image = image.clone().detach()
         var_image.requires_grad = True
+        self.model = reset_model('/home/ruofan/git_space/ScamDet/checkpoints/epoch4_model.pt', protect=True)
         output = self.get_logits(var_image)
 
         num_features = int(np.prod(var_image.shape[1:]))
@@ -70,10 +71,13 @@ class JSMA(Attack):
             # Copy the derivative to the target place
             jacobian[i] = var_image.grad.squeeze().view(-1, num_features).clone()  # nopep8
 
-        return jacobian.to(self.device)
+        return jacobian
 
     @torch.no_grad()
     def saliency_map(self, jacobian, target_label, increasing, search_space, nb_features):
+        target_label = target_label.to(jacobian.device)
+        search_space = search_space.to(jacobian.device)
+
         # The search domain
         domain = torch.eq(search_space, 1).float()
         # The sum of all features' derivative with respect to each class
@@ -150,7 +154,8 @@ class JSMA(Attack):
         shape = var_image.shape
 
         # Perturb two pixels in one iteration, thus max_iters is divided by 2
-        max_iters = int(np.ceil(num_features * self.gamma / 2.0))
+        # max_iters = int(np.ceil(num_features * self.gamma / 2.0))
+        max_iters = 1 # control time budget
 
         # Masked search domain, if the pixel has already reached the top or bottom, we don't bother to modify it
         if increasing:
@@ -166,7 +171,7 @@ class JSMA(Attack):
         while (iter < max_iters) and (current_pred != target_label) and (search_domain.sum() != 0):
             # Calculate Jacobian matrix of forward derivative
             jacobian = self.compute_jacobian(var_image)
-            jacobian = jacobian.detach()
+            jacobian = jacobian.detach().cpu()
             # Get the saliency map and calculate the two pixels that have the greatest influence
             p1, p2 = self.saliency_map(jacobian, var_label,
                                        increasing, search_domain, num_features)

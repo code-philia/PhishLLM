@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from ..attack import Attack
-
+from .protect import *
 
 class DeepFool(Attack):
     r"""
@@ -21,7 +21,7 @@ class DeepFool(Attack):
         >>> attack = torchattacks.DeepFool(model, steps=50, overshoot=0.02)
         >>> adv_images = attack(images, labels)
     """
-    def __init__(self, model, device=None, steps=50, overshoot=0.02):
+    def __init__(self, model, device=None, steps=5, overshoot=0.02):
         super().__init__('DeepFool', model, device)
         self.steps = steps
         self.overshoot = overshoot
@@ -53,7 +53,8 @@ class DeepFool(Attack):
 
         while (True in correct) and (curr_steps < self.steps):
             for idx in range(batch_size):
-                if not correct[idx]: continue
+                if not correct[idx]:
+                    continue
                 early_stop, pre, adv_image = self._forward_indiv(adv_images[idx], labels[idx])
                 adv_images[idx] = adv_image
                 target_labels[idx] = pre
@@ -66,12 +67,14 @@ class DeepFool(Attack):
 
     def _forward_indiv(self, image, label):
         image.requires_grad = True
-        fs = self.get_logits(image)[0]
+        self.model = reset_model('/home/ruofan/git_space/ScamDet/checkpoints/epoch4_model.pt', protect=True)
+
+        fs = self.get_logits(image)[0] # output
         _, pre = torch.max(fs, dim=0)
         if pre != label:
             return (True, pre, image)
 
-        ws = self._construct_jacobian(fs, image)
+        ws = self._construct_jacobian(fs, image) # output to image
         image = image.detach()
 
         f_0 = fs[label]
@@ -84,16 +87,16 @@ class DeepFool(Attack):
         f_prime = f_k - f_0
         w_prime = w_k - w_0
         value = torch.abs(f_prime) \
-                / torch.norm(nn.Flatten()(w_prime), p=2, dim=1)
+                / (torch.norm(nn.Flatten()(w_prime), p=2, dim=1) + 1e-8)
         _, hat_L = torch.min(value, 0)
 
         delta = (torch.abs(f_prime[hat_L])*w_prime[hat_L] \
-                 / (torch.norm(w_prime[hat_L], p=2)**2))
+                 / (torch.norm(w_prime[hat_L], p=2)**2 + 1e-8)) # project to the boundary
 
         target_label = hat_L if hat_L < label else hat_L+1
 
-        adv_image = image + (1+self.overshoot)*delta
-        adv_image = torch.clamp(adv_image, min=0, max=1).detach()
+        adv_image = image + (1+self.overshoot) * delta
+        adv_image = adv_image.detach()
         return (False, target_label, adv_image)
 
     # https://stackoverflow.com/questions/63096122/pytorch-is-it-possible-to-differentiate-a-matrix

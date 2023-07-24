@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from ..attack import Attack
-
+from .protect import *
 
 class PGD(Attack):
     r"""
@@ -29,7 +29,7 @@ class PGD(Attack):
 
     """
 
-    def __init__(self, model, device=None, eps=8/255, alpha=2/255, steps=10, random_start=True):
+    def __init__(self, model, device=None, eps=8/255, alpha=2/255, steps=10, random_start=False):
         super().__init__('PGD', model, device)
         self.eps = eps
         self.alpha = alpha
@@ -56,6 +56,7 @@ class PGD(Attack):
 
         for _ in range(self.steps):
             adv_images.requires_grad = True
+            self.model = reset_model('/home/ruofan/git_space/ScamDet/checkpoints/epoch4_model.pt', protect=True)
             outputs = self.get_logits(adv_images)
 
             # Calculate loss
@@ -65,9 +66,6 @@ class PGD(Attack):
             grad = torch.autograd.grad(cost, adv_images,
                                        retain_graph=False, create_graph=False)[0]
 
-            adv_images = adv_images.detach() + self.alpha*grad.sign()
-            delta = torch.clamp(adv_images - images,
-                                min=-self.eps, max=self.eps)
-            adv_images = torch.clamp(images + delta, min=0, max=1).detach()
+            adv_images = adv_images.detach() + self.alpha * grad.sign()
 
         return adv_images
