@@ -48,7 +48,6 @@ class FGSM(Attack):
         cost = -loss(outputs, target_labels)
 
         # Update adversarial images
-        self.model.zero_grad()
         grad = torch.autograd.grad(cost, images,
                                    retain_graph=False, create_graph=False)[0]
 
