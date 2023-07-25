@@ -19,7 +19,7 @@ class TestBaseline():
 
         return phish_category, phish_target, str(phishpedia_runtime)
 
-    def test_phishintention(self, URL, screenshot_path):
+    def test_phishintention(self, URL, screenshot_path, obfuscate=False):
         XDriver.set_headless()
         ph_driver = XDriver.boot(chrome=True)
         time.sleep(5)
@@ -28,7 +28,7 @@ class TestBaseline():
 
         start_time = time.time()
         phish_category, phish_target, plotvis, siamese_conf, dynamic, time_breakdown, pred_boxes, pred_classes = \
-            self.phishintention_cls.test_orig_phishintention(URL, screenshot_path, ph_driver)
+            self.phishintention_cls.test_orig_phishintention(URL, screenshot_path, ph_driver, obfuscate=obfuscate)
         phishintention_runtime = time.time() - start_time
         ph_driver.quit()
         return phish_category, phish_target, str(phishintention_runtime)
