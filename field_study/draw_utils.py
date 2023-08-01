@@ -13,8 +13,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import timedelta
 import random
-os.environ['ipinfo_token'] = open('./datasets/ipinfo_token.txt').read()
-os.environ['webshrinker_token'] = open('./datasets/webshrinker_token.txt').read()
 from PIL import Image, ImageDraw, ImageFont
 
 def draw_annotated_image_nobox(image: Image.Image, txt: str):
@@ -108,6 +106,7 @@ class BrandAnalysis():
     def __init__(self, url_list, brand_list):
         self.url_list = url_list
         self.brand_list = brand_list
+        os.environ['webshrinker_token'] = open('./datasets/webshrinker_token.txt').read()
 
     @staticmethod
     def classify_url(url):
@@ -169,6 +168,7 @@ class IPAnalysis():
 
     def __init__(self, url_list):
         self.url_list = url_list
+        os.environ['ipinfo_token'] = open('./datasets/ipinfo_token.txt').read()
 
     @staticmethod
     def resolve_urls_to_ips(urls):
