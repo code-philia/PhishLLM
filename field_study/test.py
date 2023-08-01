@@ -6,30 +6,28 @@ import cv2
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--verbose", action='store_true')
-    parser.add_argument("--folder", required=True)
+    parser.add_argument("--folder", default="./datasets/field_study/2023-08-01/")
+    parser.add_argument("--date", default="2023-08-01", help="%Y-%m-%d")
     args = parser.parse_args()
 
+    # PhishLLM
     phishintention_cls = PhishIntentionWrapper()
     llm_cls = TestLLM(phishintention_cls)
     openai.api_key = os.getenv("OPENAI_API_KEY")
-    openai.proxy = "http://127.0.0.1:7890" # proxy
-    web_func = WebUtil()
+    openai.proxy = "http://127.0.0.1:7890" # set openai proxy
 
+    # Xdriver
     sleep_time = 3; timeout_time = 60
     XDriver.set_headless()
     driver = XDriver.boot(chrome=True)
     driver.set_script_timeout(timeout_time/2)
     driver.set_page_load_timeout(timeout_time)
-    time.sleep(sleep_time)  # fixme: you
+    time.sleep(sleep_time)
+    Logger.set_debug_on()
 
     os.makedirs('./field_study/results/', exist_ok=True)
-    if args.verbose:
-        Logger.set_debug_on()
 
-    today = datetime.today()
-    today_date = today.strftime("%Y-%m-%d")
-    result_txt = './field_study/results/{}_phishllm.txt'.format(today_date)
+    result_txt = './field_study/results/{}_phishllm.txt'.format(args.date)
 
     if not os.path.exists(result_txt):
         with open(result_txt, "w+") as f:
@@ -46,6 +44,7 @@ if __name__ == '__main__':
             continue
 
         info_path = os.path.join(args.folder, folder, 'info.txt')
+        html_path = os.path.join(args.folder, folder, 'html.txt')
         shot_path = os.path.join(args.folder, folder, 'shot.png')
         visualized_ocr_path = os.path.join(args.folder, folder, 'ocr.png')
         if not os.path.exists(shot_path):
@@ -59,7 +58,7 @@ if __name__ == '__main__':
         except:
             url = 'https://' + folder
 
-        pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis = llm_cls.test(target, shot_path, html_path, driver)
+        pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis = llm_cls.test(url, shot_path, html_path, driver, limit=1)
         try:
             with open(result_txt, "a+", encoding='ISO-8859-1') as f:
                 f.write(folder + "\t")
@@ -68,9 +67,18 @@ if __name__ == '__main__':
                 f.write(str(brand_recog_time) + "\t")
                 f.write(str(crp_prediction_time) + "\t")
                 f.write(str(crp_transition_time) + "\n")
-            cv2.imwrite(os.path.join(args.folder, folder, "predict_llm.png"), plotvis)
+            if plotvis:
+                plotvis.save(visualized_ocr_path)
 
         except UnicodeEncodeError:
             continue
+
+        if (ct + 501) % 500 == 0:
+            driver.quit()
+            XDriver.set_headless()
+            driver = XDriver.boot(chrome=True)
+            driver.set_script_timeout(timeout_time / 2)
+            driver.set_page_load_timeout(timeout_time)
+            time.sleep(sleep_time)
 
     driver.quit()
