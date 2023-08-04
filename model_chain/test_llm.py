@@ -22,6 +22,7 @@ import cv2
 from model_chain.web_utils import WebUtil
 from xdriver.xutils.Logger import Logger
 import shutil
+from field_study.draw_utils import draw_annotated_image, draw_annotated_image_nobox
 os.environ['CUDA_VISIBLE_DEVICES'] = "1"
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read()
 
@@ -35,11 +36,51 @@ class TestLLM():
         self.clip_model.load_state_dict(state_dict)
         self.LLM_model = "gpt-3.5-turbo-16k"
         self.prediction_prompt = './selection_model/prompt3.json'
-        self.brand_prompt = './brand_recognition/prompt.json'
+        self.brand_prompt = './brand_recognition/prompt_field.json'
         self.phishintention_cls = phishintention_cls
         self.language_list = ['en', 'ch', 'ru', 'japan', 'fa', 'ar', 'korean', 'vi', 'ms',
                              'fr', 'german', 'it', 'es', 'pt', 'uk', 'be', 'te',
                              'sa', 'ta', 'nl', 'tr', 'ga']
+
+    @staticmethod
+    def is_valid_domain_no_spaces(domain):
+        """Check if the provided string is a valid domain name without any spaces."""
+        # Regular expression to check if the string is a valid domain without spaces
+        pattern = re.compile(
+            r'^(?!-)'  # Cannot start with a hyphen
+            r'(?!.*--)'  # Cannot have two consecutive hyphens
+            r'(?!.*\.\.)'  # Cannot have two consecutive periods
+            r'(?!.*\s)'  # Cannot contain any spaces
+            r'[a-zA-Z0-9-]{1,63}'  # Valid characters are alphanumeric and hyphen
+            r'(?:\.[a-zA-Z]{2,})+$'  # Ends with a valid top-level domain
+        )
+        return bool(pattern.fullmatch(domain))
+
+    def check_webhosting_domain(self, domain):
+        prompt = [{"role": "system",
+                   "content": "You are a helpful assistant who is knowledgable about brands."},
+                    {  "role": "user",
+                    "content": f"Question: Is this domain {domain} a web hosting (e.g. webmail, cpanel, shopify, afrihost, zimbra), a cloud service (e.g. zabbix, okta), a VPN service (e.g. firezone), a web development framework (e.g. dolibarr, laravel, 1jabber, stdesk, firezone), a domain hosting (e.g. godaddy), a domain parking, or an online betting domain? Answer Yes or No. Answer:"
+                  }]
+        inference_done = False
+        while not inference_done:
+            try:
+                response = openai.ChatCompletion.create(
+                    model=self.LLM_model,
+                    messages=prompt,
+                    temperature=0,
+                    max_tokens=50,  # we're only counting input tokens here, so let's not waste tokens on the output
+                )
+                inference_done = True
+            except Exception as e:
+                Logger.spit('LLM Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
+                prompt[-1]['content'] = prompt[-1]['content'][:len(prompt[-1]['content']) // 2]
+                time.sleep(10)
+        answer = ''.join([choice["message"]["content"] for choice in response['choices']])
+        print(answer)
+        if 'yes' in answer:
+            return True
+        return False
 
     def detect_text(self, shot_path, html_path):
         '''
@@ -55,8 +96,12 @@ class TestLLM():
         best_conf = 0
         most_fit_results = ''
         for lang in self.language_list:
-            ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False)  # need to run only once to download and load model into memory
-            result = ocr.ocr(shot_path, cls=True)
+            try:
+                ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False)  # need to run only once to download and load model into memory
+                result = ocr.ocr(shot_path, cls=True)
+            except MemoryError:
+                ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False, use_gpu=False)  # need to run only once to download and load model into memory
+                result = ocr.ocr(shot_path, cls=True)
             median_conf = np.median([x[-1][1] for x in result[0]])
             if math.isnan(median_conf):
                 break
@@ -70,6 +115,8 @@ class TestLLM():
             if best_conf > 0:
                 if self.language_list.index(lang) - self.language_list.index(most_fit_lang) >= 2:  # local best
                     break
+
+
         if len(most_fit_results):
             most_fit_results = most_fit_results[0]
             ocr_text = ' '.join([line[1][0] for line in most_fit_results])
@@ -96,7 +143,7 @@ class TestLLM():
                 URL
             Returns:
                 logo
-                success_state
+                exception
         '''
         try:
             driver.get(URL, allow_redirections=False)
@@ -124,15 +171,15 @@ class TestLLM():
                                                        pred_classes=pred_classes,
                                                        bbox_type='logo')
             if all_logos_coords is None:
-                return None, 'no_logo_prediction'
+                return None, None
             else:
                 logo_coord = all_logos_coords[0]
                 logo = screenshot_img.crop((int(logo_coord[0]), int(logo_coord[1]), int(logo_coord[2]), int(logo_coord[3])))
         except Exception as e:
             Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
-            return None, str(e)
+            return None, None
 
-        return logo, 'success'
+        return logo, None
 
     def click_and_save(self, driver, dom, save_html_path, save_shot_path):
         '''
@@ -160,64 +207,29 @@ class TestLLM():
                 time.sleep(7)  # fixme: must allow some loading time here, dynapd is slow
             current_url = driver.current_url()
         except Exception as e:
+            print(e)
             Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
             return None, None, None
 
         try:
             driver.save_screenshot(save_shot_path)
+            print('new screenshot saved')
             with open(save_html_path, "w", encoding='utf-8') as f:
                 f.write(driver.page_source())
             return current_url, save_html_path, save_shot_path
         except Exception as e:
+            print(e)
             Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
             return None, None, None
 
-    def knowledge_cleansing(self, reference_logo, logo_list,
-                            reference_domain, domain_list,
-                            reference_tld, tld_list,
-                            ):
-        '''
-            Knowledge cleansing with Logo matcher and Domain matcher
-            Args:
-                reference_logo: logo on the testing website as reference
-                logo_list: list of logos to check, logos_status
-                reference_domain: domain for the testing website
-                reference_tld: top-level domain for the testing website
-                domain_list: list of domains to check
-            Returns:
-                domain_matched_indices
-                logo_matched_indices
-        '''
 
-        domain_matched_indices = []
-        for ct in range(len(domain_list)):
-            if domain_list[ct] == reference_domain and tld_list[ct] == reference_tld:
-                domain_matched_indices.append(ct)
 
-        logo_matched_indices = []
-        if reference_logo is not None:
-            reference_logo_feat = pred_siamese_OCR(img=reference_logo,
-                                                 model=self.phishintention_cls.SIAMESE_MODEL,
-                                                 ocr_model=self.phishintention_cls.OCR_MODEL)
-            for ct in range(len(logo_list)):
-                if logo_list[ct] is not None:
-                    logo_feat = pred_siamese_OCR(img=logo_list[ct],
-                                                 model=self.phishintention_cls.SIAMESE_MODEL,
-                                                 ocr_model=self.phishintention_cls.OCR_MODEL)
-                    if reference_logo_feat @ logo_feat >= self.phishintention_cls.SIAMESE_THRE_RELAX:  # logo similarity exceeds a threshold
-                        logo_matched_indices.append(ct)
-
-        return domain_matched_indices, logo_matched_indices
-
-    def brand_recognition_llm(self, url,
+    def brand_recognition_llm(self,
                               reference_logo, html_text,
-                              driver,
-                              do_validation=False
                               ):
         '''
             Use LLM to report targeted brand
             Args:
-                url
                 reference_logo: the logo on the original webpage (for validation purpose)
                 html_text
                 driver
@@ -227,7 +239,6 @@ class TestLLM():
                 company_logo
         '''
         company_domain, company_logo = None, None
-        q_domain, q_tld = tldextract.extract(url).domain, tldextract.extract(url).suffix
         question = question_template_brand(html_text)
 
         with open(self.brand_prompt, 'rb') as f:
@@ -250,38 +261,13 @@ class TestLLM():
             except Exception as e:
                 Logger.spit('LLM Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
                 new_prompt[-1]['content'] = new_prompt[-1]['content'][:len(new_prompt[-1]['content']) // 2]
-                time.sleep(43.2)
+                time.sleep(10)
         answer = ''.join([choice["message"]["content"] for choice in response['choices']])
         print('LLM prediction time:', time.time() - start_time)
         print(f'Detected brand {answer}')
 
-        if len(answer) > 0 and len(answer) < 30: # has prediction
-            if do_validation:
-                # get the logos from knowledge sites
-                start_time = time.time()
-                logo, status = self.url2logo(driver=driver, URL='https://'+answer)
-                print('Crop the logo time:', time.time() - start_time)
-
-                if logo:
-                    # Domain matching OR Logo matching
-                    start_time = time.time()
-                    logo_domains = [tldextract.extract(answer).domain]
-                    logo_tlds = [tldextract.extract(answer).suffix]
-
-                    domain_matched_indices, logo_matched_indices = self.knowledge_cleansing(reference_logo=reference_logo,
-                                                                                            logo_list=[logo],
-                                                                                            reference_domain=q_domain,
-                                                                                            domain_list=logo_domains,
-                                                                                            reference_tld=q_tld,
-                                                                                            tld_list=logo_tlds)
-
-                    domain_or_logo_matched_indices = list(set(domain_matched_indices + logo_matched_indices))
-
-                    if len(domain_or_logo_matched_indices) > 0:
-                        company_logo = logo
-                        company_domain = answer
-                    print('Logo matching or domain matching time:', time.time()-start_time)
-            else:
+        if len(answer) > 0 and self.is_valid_domain_no_spaces(answer):
+            if not self.check_webhosting_domain(answer):
                 company_logo = reference_logo
                 company_domain = answer
 
@@ -315,7 +301,7 @@ class TestLLM():
             except Exception as e:
                 Logger.spit('LLM Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
                 new_prompt[-1]['content'] = new_prompt[-1]['content'][:len(new_prompt[-1]['content']) // 2]
-                time.sleep(43.2)
+                time.sleep(10)
 
         answer = ''.join([choice["message"]["content"] for choice in response['choices']])
         print(f'CRP prediction {answer}')
@@ -340,6 +326,7 @@ class TestLLM():
                 driver.get(url)
                 time.sleep(5)
             except Exception as e:
+                print(e)
                 Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
                 driver.quit()
                 XDriver.set_headless()
@@ -355,6 +342,7 @@ class TestLLM():
                 (images, images_dom), \
                 (others, others_dom) = driver.get_all_clickable_elements()
         except Exception as e:
+            print(e)
             Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
             return [], []
 
@@ -369,6 +357,7 @@ class TestLLM():
                 driver.scroll_to_top()
                 x1, y1, x2, y2 = driver.get_location(all_clickable[it])
             except Exception as e:
+                print(e)
                 Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
                 continue
 
@@ -380,11 +369,13 @@ class TestLLM():
                 candidate_uis_imgs.append(self.clip_preprocess(ele_screenshot_img))
                 candidate_uis.append(all_clickable_dom[it])
             except Exception as e:
+                print(e)
                 Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
                 continue
 
         # rank them
         if len(candidate_uis_imgs):
+            print(f'Find {len(candidate_uis_imgs)} candidate UIs')
             final_probs = torch.tensor([], device='cpu')
 
             for batch in range(math.ceil(len(candidate_uis)/100)):
@@ -403,9 +394,12 @@ class TestLLM():
             return [], []
 
 
-    def test(self, url, shot_path, html_path, driver, limit=2,
+    def test(self, url, reference_logo,
+             shot_path, html_path, driver, limit=2,
              brand_recog_time=0, crp_prediction_time=0, crp_transition_time=0,
-             ranking_model_refresh_page=True, skip_brand_recognition=False,
+             ranking_model_refresh_page=True,
+             skip_brand_recognition=False,
+             brand_recognition_do_validation=False,
              company_domain=None, company_logo=None,
              ):
         '''
@@ -431,26 +425,60 @@ class TestLLM():
                 crp_transition_time
         '''
 
-        if limit == 0:
-            return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time
-
         html_text = self.detect_text(shot_path, html_path)
+        plotvis = Image.open(shot_path)
+
         if not skip_brand_recognition:
-            _, reference_logo = self.phishintention_cls.predict_n_save_logo(shot_path)
             start_time = time.time()
-            company_domain, company_logo = self.brand_recognition_llm(url, reference_logo, html_text, driver)
+            company_domain, company_logo = self.brand_recognition_llm(reference_logo, html_text)
             brand_recog_time += time.time() - start_time
+            time.sleep(1) # fixme: allow the openai api to rest, not sure whether this help
         # domain-brand inconsistency
         phish_condition = company_domain and tldextract.extract(company_domain).domain != tldextract.extract(url).domain
+
+        if phish_condition and brand_recognition_do_validation:
+            validation_success = False
+            start_time = time.time()
+            logo, exception = self.url2logo(driver=driver, URL='https://'+company_domain)
+            if exception:
+                driver.quit()
+                XDriver.set_headless()
+                driver = XDriver.boot(chrome=True)
+                driver.set_script_timeout(30)
+                driver.set_page_load_timeout(60)
+                time.sleep(3)
+            print('Crop the logo time:', time.time() - start_time)
+
+            if logo and reference_logo:
+                # Domain matching OR Logo matching
+                start_time = time.time()
+                reference_logo_feat = pred_siamese_OCR(img=reference_logo,
+                                                       model=self.phishintention_cls.SIAMESE_MODEL,
+                                                       ocr_model=self.phishintention_cls.OCR_MODEL)
+                logo_feat = pred_siamese_OCR(img=logo,
+                                             model=self.phishintention_cls.SIAMESE_MODEL,
+                                             ocr_model=self.phishintention_cls.OCR_MODEL)
+
+                matched_sim = reference_logo_feat @ logo_feat
+                if matched_sim >= self.phishintention_cls.SIAMESE_THRE_RELAX:  # logo similarity exceeds a threshold
+                    validation_success = True
+                print('Logo matching time:', time.time() - start_time)
+            if not validation_success:
+                phish_condition = False
 
         if phish_condition:
             start_time = time.time()
             crp_cls = self.crp_prediction_llm(html_text)
             crp_prediction_time += time.time() - start_time
+            time.sleep(1) # fixme: allow the openai api to rest, not sure whether this help
 
             if crp_cls == 0: # CRP
-                return 'phish', company_domain, brand_recog_time, crp_prediction_time, crp_transition_time
+                plotvis = draw_annotated_image_nobox(plotvis, company_domain)
+                return 'phish', company_domain, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
             else: # do CRP transition
+                if limit == 0:  # reach interaction limit -> just return
+                    return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
+
                 start_time = time.time()
                 candidate_dom, candidate_img = self.ranking_model(url, driver, ranking_model_refresh_page)
                 crp_transition_time += time.time() - start_time
@@ -462,12 +490,13 @@ class TestLLM():
                     current_url, *_ = self.click_and_save(driver, candidate_dom, save_html_path, save_shot_path)
                     if current_url: # click success
                         ranking_model_refresh_page = current_url != url
-                        return self.test(current_url, save_shot_path, save_html_path, driver, limit-1,
+                        return self.test(current_url, reference_logo, save_shot_path, save_html_path, driver, limit-1,
                                          brand_recog_time, crp_prediction_time, crp_transition_time,
-                                         ranking_model_refresh_page=ranking_model_refresh_page, skip_brand_recognition=True,
+                                         ranking_model_refresh_page=ranking_model_refresh_page,
+                                         skip_brand_recognition=True, brand_recognition_do_validation=brand_recognition_do_validation,
                                          company_domain=company_domain, company_logo=company_logo)
 
-        return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time
+        return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
 
 
 
@@ -573,7 +602,7 @@ if __name__ == '__main__':
             pass
 
         if os.path.exists(shot_path):
-            pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time = llm_cls.test(target, shot_path, html_path, driver)
+            pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, _ = llm_cls.test(target, None, shot_path, html_path, driver)
             with open(result, 'a+') as f:
                 f.write(hash+'\t'+pred+'\t'+brand+'\t'+str(brand_recog_time)+'\t'+str(crp_prediction_time)+'\t'+str(crp_transition_time)+'\n')
 

@@ -106,7 +106,7 @@ if __name__ == '__main__':
             pass
 
         if os.path.exists(shot_path):
-            pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time = llm_cls.test(target, shot_path, html_path, driver)
+            pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, _ = llm_cls.test(target, None, shot_path, html_path, driver)
             with open(result, 'a+') as f:
                 f.write(hash+'\t'+pred+'\t'+brand+'\t'+str(brand_recog_time)+'\t'+str(crp_prediction_time)+'\t'+str(crp_transition_time)+'\n')
 

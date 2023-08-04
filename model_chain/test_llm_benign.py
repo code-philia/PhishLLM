@@ -35,7 +35,7 @@ if __name__ == '__main__':
         html_path = os.path.join(target_folder, 'index.html')
 
         if os.path.exists(shot_path):
-            pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time = llm_cls.test(URL, shot_path, html_path, driver)
+            pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, _ = llm_cls.test(URL, None, shot_path, html_path, driver)
             with open(result, 'a+') as f:
                 f.write(target+'\t'+pred+'\t'+brand+'\t'+str(brand_recog_time)+'\t'+str(crp_prediction_time)+'\t'+str(crp_transition_time)+'\n')
 
