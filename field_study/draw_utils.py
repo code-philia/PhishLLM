@@ -7,13 +7,21 @@ from tldextract import tldextract
 import os
 import numpy as np
 import whois # pip install python-whois
-from datetime import datetime
+from datetime import datetime, date
 from collections import Counter
 import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import timedelta
 import random
 from PIL import Image, ImageDraw, ImageFont
+from field_study.monitor_url_status import *
+from field_study.results_statistics import get_pos_site, daterange
+import numpy as np
+from skimage.transform import rescale, resize
+import os
+from tqdm import tqdm
+from sklearn.metrics.pairwise import cosine_similarity
+from scipy.cluster.hierarchy import fcluster
 
 def draw_annotated_image_nobox(image: Image.Image, txt: str):
     # Convert the image to RGBA for transparent overlay
@@ -23,7 +31,7 @@ def draw_annotated_image_nobox(image: Image.Image, txt: str):
     draw = ImageDraw.Draw(image)
 
     # Load a larger font for text annotations
-    font = ImageFont.truetype(font="./selection_model/fonts/arialbd.ttf", size=18)
+    font = ImageFont.truetype(font="./selection_model/fonts/arialbd.ttf", size=25)
 
     # Calculate the width and height of the text
     text_width, text_height = draw.textsize("Output: "+txt, font=font)
@@ -65,7 +73,6 @@ def draw_annotated_image(image: Image.Image, boxes: list, txts: list, scores: li
 
     # Define light red color with 80% transparency
     light_red = (128, 0, 0, int(0.4 * 255))  # RGBA
-    light_red_t = (128, 0, 0, 255)  # RGBA
 
     for box, txt, score in zip(boxes, txts, scores):
         # Draw the bounding box with 80% transparent fill
@@ -102,33 +109,17 @@ def draw_annotated_image(image: Image.Image, boxes: list, txts: list, scores: li
 
     return final_image
 
-class BrandAnalysis():
-    def __init__(self, url_list, brand_list):
-        self.url_list = url_list
-        self.brand_list = brand_list
-        os.environ['webshrinker_token'] = open('./datasets/webshrinker_token.txt').read()
 
-    @staticmethod
-    def classify_url(url):
-        BASE_URL = 'https://api.webshrinker.com/categories/v3/'
+class BrandAnalysis:
 
-        """Classify a URL using the Webshrinker API."""
-        headers = {
-            'Authorization': f'Bearer {os.getenv("webshrinker_token")}'
-        }
-        response = requests.get(f'{BASE_URL}{url}', headers=headers)
-        data = response.json()
+    def visualize_brands(brand_list):
+        brand_counts = Counter(brand_list)
+        del brand_counts['firezone.com']
 
-        # Extract the primary category (You can modify this as per your needs)
-        category = data.get('data', [{}])[0].get('categories', ['Unknown'])[0]
-        return category
-
-    def visualize_brands(self):
-        brand_counts = Counter(self.brand_list)
         # Sort brands by frequency in descending order
         sorted_brands = sorted(brand_counts.items(), key=lambda x: x[1], reverse=True)
-        brands_sorted = [item[0] for item in sorted_brands]
-        counts_sorted = [item[1] for item in sorted_brands]
+        brands_sorted = [item[0] for item in sorted_brands][:5]
+        counts_sorted = [item[1] for item in sorted_brands][:5]
 
         color = 'lightgray'
         plt.figure(figsize=(12, 6))
@@ -143,15 +134,14 @@ class BrandAnalysis():
         plt.grid(False)  # Turn off the grid
         plt.savefig('./debug.png')
 
-    def visualize_sectors(self):
+    def visualize_sectors(sectors):
         '''Visualize brand sectors'''
-        """Generate a pie chart of sectors from a list of URLs."""
-        # Classify each URL
-        sectors = [self.classify_url(url) for url in self.url_list]
 
         # Aggregate the sectors
         sector_counts = {}
         for sector in sectors:
+            if sector == 'None':
+                sector = 'Uncategorized'
             sector_counts[sector] = sector_counts.get(sector, 0) + 1
 
         # Visualize the results
@@ -164,90 +154,60 @@ class BrandAnalysis():
         plt.title('Distribution of URLs by Sector')
         plt.savefig('./debug.png')
 
-class IPAnalysis():
+class IPAnalysis:
 
-    def __init__(self, url_list):
-        self.url_list = url_list
-        os.environ['ipinfo_token'] = open('./datasets/ipinfo_token.txt').read()
-
-    @staticmethod
-    def resolve_urls_to_ips(urls):
-        ip_dict = {}
-        for url in urls:
-            try:
-                ip_addresses = socket.getaddrinfo(url, None, proto=socket.IPPROTO_TCP)
-                unique_ips = set([addr[4][0] for addr in ip_addresses])
-                ip_dict[url] = list(unique_ips)
-            except socket.gaierror:
-                ip_dict[url] = []
-        return ip_dict
-
-    @staticmethod
-    def get_ip_geolocation(ip):
-        access_token = os.getenv("ipinfo_token")
-        url = f"https://ipinfo.io/{ip}/json?token={access_token}"
-        # Make the request
-        response = requests.get(url)
-        data = response.json()
-        print(data)
-        return data['country']
-
-    def geoplot(self):
-        ip_dict = self.resolve_urls_to_ips(self.url_list)
-        ip_list = []
-        for k, v in ip_dict.items():
-            ip_list.extend(v)
-        country_list = []
-        for ip in ip_list:
-            response = self.get_ip_geolocation(ip)
-            country_list.append(response)
-
-        country_counts = Counter(country_list)
-
-        # Load the world map
+    def geoplot(coordinates):
+        import geopandas as gpd
+        from shapely.geometry import Point
+        import cartopy.crs as ccrs  # Import the required module for the Robinson projection
         world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
-        # Filter out Antarctica from the world dataset
+
+        # Filter out Antarctica
         world = world[world['continent'] != "Antarctica"]
 
-        # Add a new column to the dataframe for IP counts, default to 0
-        world['ip_counts'] = world['name'].map(country_counts).fillna(0)
+        # Count the occurrences of coordinates for each country
+        country_points = []
+        for coord in coordinates:
+            country = world[world.geometry.contains(Point(coord[1], coord[0]))]['name'].values
+            if len(country) > 0:
+                country_points.append(country[0])
+            else:
+                country_points.append("Unknown")
 
-        # Create a custom black and white colormap
-        cmap_bw = mcolors.LinearSegmentedColormap.from_list(
-            "custom bw", [(1, 1, 1), (0, 0, 0)], N=256
-        )
-        # Set up a new figure with modified aspect ratio
-        fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+        country_counts = Counter(country_points)
+        if "Unknown" in country_counts:
+            del country_counts["Unknown"]
 
-        # Remove axis and set title with better typography
-        ax.axis('off')
-        # Plot world boundaries in black
-        world.boundary.plot(ax=ax, color='black', linewidth=0.5)
+        world['counts'] = world['name'].map(country_counts).fillna(0)
 
-        # Plot heatmap using the black and white colormap
-        world_map = world.plot(column='ip_counts', cmap=cmap_bw, linewidth=0.8, ax=ax, edgecolor='0.8',
-                               legend=True, legend_kwds={'orientation': "horizontal", 'label': "IP counts", 'shrink': 0.9, 'pad': 0.01})
+        fig, ax = plt.subplots(1, 1, figsize=(15, 10),
+                               subplot_kw={'projection': ccrs.Robinson()})  # Set the projection to Robinson
 
-        # Adjust the aspect ratio of the plot
-        ax.set_aspect('equal', adjustable='datalim')
+        # Color countries based on counts
+        world = world.to_crs(ccrs.Robinson().proj4_init)
+        world.plot(column='counts', cmap='OrRd', edgecolor='#bbbbbb', legend=False, ax=ax)
 
-        # Fine-tuned layout
-        plt.tight_layout(pad=0.1)
+        # Plot the provided coordinates
+        x_coords = [coord[1] for coord in coordinates]
+        y_coords = [coord[0] for coord in coordinates]
+        ax.scatter(x_coords, y_coords, color='red', s=15, edgecolor='white', linewidth=0.5,
+                   zorder=5, transform=ccrs.PlateCarree())  # Use PlateCarree for the scatter points
+
+        # Enhancements
+        ax.set_xlabel("Longitude", fontsize=14)
+        ax.set_ylabel("Latitude", fontsize=14)
+        ax.grid(True, which='both', linestyle='--', linewidth=0.5, color='#d9d9d9')  # Subtle grid
+
+        plt.tight_layout()
         plt.savefig('./debug.png')
 
-class CampaignAnalysis():
-    def __init__(self, screenshot_path_list):
-        self.screenshot_path_list = screenshot_path_list
+class CampaignAnalysis:
 
-    #TODO continuous request the status of the webpage
-    @staticmethod
-    def get_status_code(url):
-        try:
-            response = requests.get(url)
-            return response.status_code
-        except requests.RequestException as e:
-            print(f"Error fetching the URL {url}: {e}")
-            return None
+    def cache_shot_representations(self, shot_path_list):
+        pass
+
+    def cluster_shot_representations(self, shot_path_list):
+        pass
 
     def visualize_campaign(self):
         start_date_simulation = datetime(2023, 1, 1)
@@ -298,4 +258,22 @@ class CampaignAnalysis():
         plt.savefig('./debug.png')
 
 if __name__ == '__main__':
-    pass
+    base = "/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples"
+    '''geolocation'''
+    gs_sheet = gwrapper_monitor()
+    rows = gs_sheet.get_records()
+    # geo_loc_list = list(map(lambda x: tuple(map(float, x['geo_loc'].split(','))), filter(lambda x: x['geo_loc'] != 0, rows)))
+    # IPAnalysis.geoplot(geo_loc_list)
+
+    '''brand'''
+    # brands = list(map(lambda x: x['brand'], rows))
+    # BrandAnalysis.visualize_brands(brands)
+
+    '''sector'''
+    # sectors = list(map(lambda x: x['sector'], rows))
+    # BrandAnalysis.visualize_sectors(sectors)
+
+    '''phishing campaign'''
+    shot_path_list = list(map(lambda x: os.path.join(base, x['date'], x['foldername'], 'shot.png'), rows))
+    campaign = CampaignAnalysis()
+    campaign.cluster_shot_representations(shot_path_list)
