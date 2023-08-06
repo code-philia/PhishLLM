@@ -17,11 +17,23 @@ from PIL import Image, ImageDraw, ImageFont
 from field_study.monitor_url_status import *
 from field_study.results_statistics import get_pos_site, daterange
 import numpy as np
-from skimage.transform import rescale, resize
 import os
 from tqdm import tqdm
+from skimage import io, transform
+from skimage.metrics import structural_similarity as ssim
+import networkx as nx
 from sklearn.metrics.pairwise import cosine_similarity
-from scipy.cluster.hierarchy import fcluster
+import torch
+import torchvision.models as models
+import torchvision.transforms as transforms
+from PIL import Image
+import matplotlib.pyplot as plt
+import numpy as np
+import random
+from collections import Counter
+from operator import itemgetter
+from datetime import datetime, timedelta
+import seaborn as sns
 
 def draw_annotated_image_nobox(image: Image.Image, txt: str):
     # Convert the image to RGBA for transparent overlay
@@ -126,15 +138,15 @@ class BrandAnalysis:
         plt.bar(brands_sorted, counts_sorted, color=color, edgecolor='black')
         plt.xlabel('Brands')
         plt.ylabel('Number of Times Targeted')
-        plt.title('Frequency of Brands being Targeted for Phishing')
+        plt.title('Frequency of Phishing Targets')
         plt.xticks(rotation=45)
         plt.tight_layout()
         plt.gca().spines['top'].set_visible(False)
         plt.gca().spines['right'].set_visible(False)
         plt.grid(False)  # Turn off the grid
-        plt.savefig('./debug.png')
+        plt.savefig('./field_study/brand_freq.png')
 
-    def visualize_sectors(sectors):
+    def visualize_sectors(sectors, threshold=2.0):
         '''Visualize brand sectors'''
 
         # Aggregate the sectors
@@ -144,15 +156,56 @@ class BrandAnalysis:
                 sector = 'Uncategorized'
             sector_counts[sector] = sector_counts.get(sector, 0) + 1
 
+        # Remove 'Uncategorized' class if present
+        if 'Uncategorized' in sector_counts:
+            del sector_counts['Uncategorized']
+
+        # Combine small percentages into "Other" category
+        total = sum(sector_counts.values())
+        other_count = 0
+        for sector, count in list(sector_counts.items()):
+            if 100.0 * count / total < threshold:
+                other_count += count
+                del sector_counts[sector]
+        if other_count > 0:
+            sector_counts['Other'] = other_count
+
         # Visualize the results
         labels = list(sector_counts.keys())
         sizes = list(sector_counts.values())
 
-        plt.figure(figsize=(10, 6))
-        plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
+        fig, ax = plt.subplots(figsize=(10, 6))
+        colors = sns.color_palette("husl", len(labels))  # Professional color palette
+        wedges, texts, autotexts = ax.pie(
+            sizes,
+            labels=None,
+            autopct='%1.1f%%',
+            startangle=140,
+            colors=colors,
+            pctdistance=0.85,
+            wedgeprops={'edgecolor': 'grey'},
+        )
+
+        # Draw a circle at the center to make it a donut chart
+        centre_circle = plt.Circle((0, 0), 0.70, fc='white')
+        fig.gca().add_artist(centre_circle)
+
+        # Annotate each pie slice with corresponding label and draw a line
+        for i, (w, t) in enumerate(zip(wedges, texts)):
+            ang = (w.theta2 - w.theta1) / 2. + w.theta1
+            y = np.sin(np.deg2rad(ang))
+            x = np.cos(np.deg2rad(ang))
+            horizontalalignment = {-1: "right", 1: "left"}[int(np.sign(x))]
+            connectionstyle = "angle,angleA=0,angleB={}".format(ang)
+            ax.annotate(labels[i], xy=(x, y), xytext=(1.35 * np.sign(x), 1.4 * y),
+                        horizontalalignment=horizontalalignment,
+                        fontsize=10, weight="bold",
+                        arrowprops=dict(arrowstyle="-", connectionstyle=connectionstyle))
+
         plt.axis('equal')  # Equal aspect ratio ensures pie is drawn as a circle.
-        plt.title('Distribution of URLs by Sector')
-        plt.savefig('./debug.png')
+        plt.title('Distribution of Phishing Targets by Sector')
+        plt.tight_layout()
+        plt.savefig('./field_study/brand_sector.png')
 
 class IPAnalysis:
 
@@ -199,63 +252,112 @@ class IPAnalysis:
         ax.grid(True, which='both', linestyle='--', linewidth=0.5, color='#d9d9d9')  # Subtle grid
 
         plt.tight_layout()
-        plt.savefig('./debug.png')
+        plt.title('Geolocation Distribution of Phishing IPs')
+        plt.savefig('./field_study/geo.png')
 
 class CampaignAnalysis:
+    @staticmethod
+    def similarity_threshold_clustering(similarity_matrix, threshold):
+        # Create a graph from the similarity matrix
+        G = nx.Graph()
+        n = len(similarity_matrix)
 
-    def cache_shot_representations(self, shot_path_list):
-        pass
+        for i in range(n):
+            for j in range(i + 1, n):
+                if similarity_matrix[i, j] >= threshold:
+                    G.add_edge(i, j)
+
+        # Use NetworkX's connected_components function to get the clusters
+        clusters = list(nx.connected_components(G))
+
+        return clusters
+
+    @staticmethod
+    def cluster_to_timeseries(cluster, all_dates):
+        # Extract the dates from the cluster and count the number of screenshots for each date.
+        dates = [screenshot_date for screenshot, screenshot_date in cluster]
+        date_counts = Counter(dates)
+
+        # Fill in any missing dates with zero counts.
+        full_counts = [date_counts.get(date, 0) for date in all_dates]
+
+        # Compute the cumulative counts.
+        cumulative_counts = np.cumsum(full_counts)
+
+        return all_dates, cumulative_counts
 
     def cluster_shot_representations(self, shot_path_list):
-        pass
+        # Load and resize all images.
+        model = models.resnet50(pretrained=True)
+        model = model.eval()
 
-    def visualize_campaign(self):
-        start_date_simulation = datetime(2023, 1, 1)
-        end_date_simulation = datetime(2023, 1, 31)
+        # Use the layer before the final fully-connected layer for feature extraction.
+        feature_extractor = torch.nn.Sequential(*list(model.children())[:-1])
 
-        phishing_data_simulation = [
-            {
-                'cluster_id': random.randint(1, 50),  # Assuming there are 50 potential clusters
-                'first_seen': (start_date_simulation + timedelta(days=random.randint(0, 29))).strftime('%Y-%m-%d'),
-                'last_seen': (start_date_simulation + timedelta(days=random.randint(1, 30))).strftime('%Y-%m-%d')
-            }
-            for _ in range(1000)
-        ]
+        # Define the image transforms.
+        transform = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
 
-        # Convert simulated data to a DataFrame
-        df_simulation = pd.DataFrame(phishing_data_simulation)
-        df_simulation['first_seen'] = pd.to_datetime(df_simulation['first_seen'])
-        df_simulation['last_seen'] = pd.to_datetime(df_simulation['last_seen'])
+        # Extract features for all images.
+        features = []
+        for image_path in shot_path_list:
+            image = Image.open(image_path).convert('RGB')
+            image = transform(image).unsqueeze(0)
+            with torch.no_grad():
+                feature = feature_extractor(image).squeeze().numpy()
+            features.append(feature)
 
-        # Filter out clusters with only one sample
-        clusters_counts_simulation = df_simulation['cluster_id'].value_counts()
-        valid_clusters = clusters_counts_simulation[clusters_counts_simulation > 1].index.tolist()
+        # Compute pairwise distances between the features.
+        similarity_matrix = cosine_similarity(features)
+        clusters = self.similarity_threshold_clustering(similarity_matrix, 0.99)
 
-        df_simulation = df_simulation[df_simulation['cluster_id'].isin(valid_clusters)]
+        clusters_path = []
+        for it, cls in enumerate(clusters):
+            shots_under_cls = [(shot_path_list[ind], os.path.basename(os.path.dirname(os.path.dirname(shot_path_list[ind])))) for ind in cls]
+            clusters_path.append(shots_under_cls)
+        return clusters_path
 
-        # Create a timeline of dates
-        timeline_simulation = pd.date_range(start_date_simulation, end_date_simulation)
+    def visualize_campaign(self, clusters):
 
-        # Create a dictionary to store the count of phishing sites in each cluster for each date
-        clusters = df_simulation['cluster_id'].unique()
-        cluster_counts = {cluster: [0] * len(timeline_simulation) for cluster in clusters}
-        total_counts = {cluster: sum(counts) for cluster, counts in cluster_counts.items()}
-        top_5_clusters = sorted(total_counts, key=total_counts.get, reverse=True)[:5]
+        # Create a new figure.
+        plt.figure(figsize=(10, 6))
 
-        # Plotting the data for only the top 5 clusters
-        plt.figure(figsize=(12, 6))
-        for cluster in top_5_clusters:
-            plt.plot(timeline_simulation, cluster_counts[cluster], label=f'Cluster {cluster}', linewidth=1.5)
+        # Use a professional color palette
+        colors = sns.color_palette("husl", len(clusters))
+
+        # Collect all unique dates
+        all_dates = set()
+        for cluster in clusters:
+            _, dates = zip(*cluster)
+            all_dates.update(dates)
+        all_dates = sorted(list(all_dates), key=lambda date: datetime.strptime(date, '%Y-%m-%d'))
+
+        # Convert each cluster into a timeseries and plot it.
+        for i, (cluster, color) in enumerate(zip(clusters, colors)):
+            # Skip clusters with fewer than 3 items or only seen on a single date
+            _, dates = zip(*cluster)
+            if len(cluster) < 4 or len(set(dates)) == 1:
+                continue
+
+            dates, counts = self.cluster_to_timeseries(cluster, all_dates)
+            plt.plot(dates, counts, marker='o', color=color, label=f'Cluster {i + 1}')
+
+        # Add a legend and labels.
+        plt.xticks(range(len(all_dates)), all_dates)
+        plt.legend()
         plt.xlabel('Date')
-        plt.ylabel('Number of Phishing Sites')
-        plt.title('Top 5 Phishing Campaigns Over Time')
-        plt.legend(frameon=True, loc='upper left')
-        plt.tight_layout()
+        plt.ylabel('Cumulative number of screenshots')
+        plt.title('Phishing Campaign over Time')
 
-        # Removing the right and top spines for a cleaner look
-        plt.gca().spines['top'].set_visible(False)
-        plt.gca().spines['right'].set_visible(False)
-        plt.savefig('./debug.png')
+        plt.tight_layout()
+        plt.grid(True)  # Adding a grid for better readability
+        sns.despine(left=True, bottom=True)  # Remove the top and right spines
+
+        # Save the figure.
+        plt.savefig('./field_study/campaign.png')
 
 if __name__ == '__main__':
     base = "/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples"
@@ -276,4 +378,6 @@ if __name__ == '__main__':
     '''phishing campaign'''
     shot_path_list = list(map(lambda x: os.path.join(base, x['date'], x['foldername'], 'shot.png'), rows))
     campaign = CampaignAnalysis()
-    campaign.cluster_shot_representations(shot_path_list)
+    clusters_path = campaign.cluster_shot_representations(shot_path_list)
+    print(clusters_path)
+    campaign.visualize_campaign(clusters_path)

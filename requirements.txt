@@ -12,3 +12,5 @@ git+https://github.com/openai/CLIP.git
 openai
 backoff
 idna
+geopandas
+python-whois

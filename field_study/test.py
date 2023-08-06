@@ -6,8 +6,8 @@ import cv2
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--folder", default="./datasets/field_study/2023-08-01/")
-    parser.add_argument("--date", default="2023-08-01", help="%Y-%m-%d")
+    parser.add_argument("--folder", default="./datasets/field_study/2023-08-05/")
+    parser.add_argument("--date", default="2023-08-05", help="%Y-%m-%d")
     args = parser.parse_args()
 
     # PhishLLM
@@ -39,9 +39,9 @@ if __name__ == '__main__':
             f.write("crp_transition_time" + "\n")
 
     for ct, folder in tqdm(enumerate(os.listdir(args.folder))):
-        # if folder in [x.split('\t')[0] for x in open(result_txt, encoding='ISO-8859-1').readlines()]:
-        #     continue
-        # if folder not in []:
+        if folder in [x.split('\t')[0] for x in open(result_txt, encoding='ISO-8859-1').readlines()]:
+            continue
+        # if folder not in ['g2.suupportfb-q.click']:
         #     continue
 
         info_path = os.path.join(args.folder, folder, 'info.txt')

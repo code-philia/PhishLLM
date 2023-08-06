@@ -16,7 +16,7 @@ from tqdm import tqdm
 from paddleocr import PaddleOCR
 import math
 from collections import Counter
-from selection_model.draw_utils import draw_ocr
+from selection_model.draw_utils import draw_ocr, draw_annotated_image
 
 def get_ocr_text(img_path, html_path):
     language_list = ['en', 'ch', 'ru', 'japan', 'fa', 'ar', 'korean', 'vi', 'ms',
@@ -178,39 +178,24 @@ if __name__ == '__main__':
     dataset = ShotDataset(annot_path='./datasets/alexa_screenshots.txt')
     print(len(dataset))
     print(Counter(dataset.labels))
+    language_list = ['en', 'ch', 'ru', 'japan', 'fa', 'ar', 'korean', 'vi', 'ms',
+                     'fr', 'german', 'it', 'es', 'pt', 'uk', 'be', 'te',
+                     'sa', 'ta', 'nl', 'tr', 'ga']
 
     # draw result
-    # img_path = dataset.shot_paths[0]
-    # most_fit_lang = dataset.language_list[0]
-    # best_conf = 0
-    # most_fit_results = ''
-    # for lang in dataset.language_list:
-    #     ocr = PaddleOCR(use_angle_cls=True, lang=lang,
-    #                     show_log=False)  # need to run only once to download and load model into memory
-    #     result = ocr.ocr(img_path, cls=True)
-    #     median_conf = np.median([x[-1][1] for x in result[0]])
-    #     # print(lang, median_conf)
-    #     if math.isnan(median_conf):
-    #         break
-    #     if median_conf > best_conf and median_conf >= 0.9:
-    #         best_conf = median_conf
-    #         most_fit_lang = lang
-    #         most_fit_results = result
-    #     if median_conf >= 0.98:
-    #         most_fit_results = result
-    #         break
-    #     if best_conf > 0:
-    #         if dataset.language_list.index(lang) - dataset.language_list.index(most_fit_lang) >= 2:  # local best
-    #             break
-    # most_fit_results = most_fit_results[0]
-    # image = Image.open(img_path).convert('RGB')
-    # boxes = [line[0] for line in most_fit_results]
-    # txts = [line[1][0] for line in most_fit_results]
-    # scores = [line[1][1] for line in most_fit_results]
-    # im_show = draw_ocr(image, boxes, txts, scores, font_path='./selection_model/fonts/simfang.ttf')
-    # im_show = Image.fromarray(im_show)
-    # im_show.save('./debug.png')
-    # exit()
+    img_path = dataset.shot_paths[0]
+    ocr = PaddleOCR(use_angle_cls=True, lang='en',
+                    show_log=False)  # need to run only once to download and load model into memory
+    ocr.drop_score = 0
+    result = ocr.ocr(img_path, cls=True)
+    result = result[0]
+    image = Image.open(img_path).convert('RGB')
+    boxes = [line[0] for line in result]
+    txts = [line[1][0] for line in result]
+    scores = [line[1][1] for line in result]
+    im_show = draw_annotated_image(image, boxes, txts, scores)
+    im_show.save('./debug.png')
+    exit()
 
     # prompt = construct_prompt(dataset, 2, True)
     # with open('./selection_model/prompt.json', 'w', encoding='utf-8') as f:

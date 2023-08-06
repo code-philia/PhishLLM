@@ -3,6 +3,8 @@ import cv2
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 
+
+
 def resize_img(img, input_size=600):
     """
     resize img and limit the longest side of the image to input_size

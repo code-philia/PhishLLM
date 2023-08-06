@@ -8,8 +8,8 @@ from xdriver.xutils.Logger import Logger
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--folder", default="./datasets/field_study/2023-08-04/")
-    parser.add_argument("--date", default="2023-08-04", help="%Y-%m-%d")
+    parser.add_argument("--folder", default="./datasets/field_study/2023-08-06/")
+    parser.add_argument("--date", default="2023-08-06", help="%Y-%m-%d")
     parser.add_argument("--method", default='phishintention', choices=['phishpedia', 'phishintention'])
     args = parser.parse_args()
 
@@ -32,7 +32,6 @@ if __name__ == '__main__':
     if not os.path.exists(result_txt):
         with open(result_txt, "w+") as f:
             f.write("folder" + "\t")
-            f.write("url" + "\t")
             f.write("phish_prediction" + "\t")
             f.write("target_prediction" + "\t")  # write top1 prediction only
             f.write("runtime" + "\n")
