@@ -2,6 +2,7 @@ import torch
 import clip
 from ranking_model.train import *
 import shutil
+import time
 
 @torch.no_grad()
 def tester(model, test_dataloader, device):
@@ -78,6 +79,7 @@ def tester_rank(model, test_dataset, preprocess, device):
     model.eval()
     correct = 0
     total = 0
+    runtime = []
 
     df = pd.DataFrame({'url': test_dataset.urls,
                        'path':  test_dataset.img_paths,
@@ -104,11 +106,14 @@ def tester_rank(model, test_dataset, preprocess, device):
 
         images = torch.stack(images).to(device)
         texts = clip.tokenize(["not a login button", "a login button"]).to(device)
+        start_time = time.time()
         logits_per_image, logits_per_text = model(images, texts)
+        total_time = time.time() - start_time
         probs = logits_per_image.softmax(dim=-1) # (N, C)
         conf = probs[torch.arange(probs.shape[0]), 1] # take the confidence (N, 1)
         _, ind = torch.topk(conf, min(1, len(conf))) # top1 index
 
+        runtime.append(total_time)
         if (labels[ind] == 1).sum().item(): # has login button and it is reported
             correct += 1
         # visualize
@@ -133,6 +138,7 @@ def tester_rank(model, test_dataset, preprocess, device):
 
     print(correct, total)
     print(correct/total)
+    print(np.median(runtime))
 
 
 

@@ -50,7 +50,7 @@ if __name__ == '__main__':
           f"LLM recall = {count_llm/total}, "
           f"LLM HTML obfuscation recall = {count_llm_adv/total} \n"
           f"Phishpedia recall = {count_pedia/total}, " 
-          f"PhishIntention recall = {count_tention/total}\n"
+          f"PhishIntention recall = {count_tention/total}"
           f"LLM precision = {count_llm/(count_llm_b+count_llm)}, "
           f"Phishpedia precision = {count_pedia/(count_pedia_b+count_pedia)}, "
           f"PhishIntention precision = {count_tention/(count_tention_b+count_tention)}, ")

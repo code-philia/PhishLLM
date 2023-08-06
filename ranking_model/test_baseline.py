@@ -86,9 +86,10 @@ def crp_locator(driver, url, topk, heuristic=False):
         Logger.spit(f'URL = {url}', debug=True)
     except Exception as e:
         Logger.spit(e, debug=True)
-        return
+        return None, 0
 
     if heuristic:
+        start_time = time.time()
         dom_element_list = heuristic_find_dom(driver, topk)
     else:
         from distutils.sysconfig import get_python_lib
@@ -97,9 +98,10 @@ def crp_locator(driver, url, topk, heuristic=False):
         _, CRP_LOCATOR_MODEL = login_config(
             rcnn_weights_path=configs['CRP_LOCATOR']['WEIGHTS_PATH'],
             rcnn_cfg_path=configs['CRP_LOCATOR']['CFG_PATH'])
+        start_time = time.time()
         dom_element_list = cv_find_dom(driver, CRP_LOCATOR_MODEL, topk)
 
-    return dom_element_list
+    return dom_element_list, time.time() - start_time
 
 
 @torch.no_grad()
@@ -145,68 +147,78 @@ def tester_rank(test_result, topk):
 
 if __name__ == '__main__':
     '''testing script'''
-    # device = "cuda" if torch.cuda.is_available() else "cpu"
-    # _, preprocess = clip.load("ViT-B/32", device=device)
-    #
-    # test_dataset = ButtonDataset(annot_path='./datasets/alexa_login_test.txt',
-    #                              root='./datasets/alexa_login',
-    #                              preprocess=preprocess)
-    #
-    # df = pd.DataFrame({'url': test_dataset.urls,
-    #                    'dom': test_dataset.dom_paths,
-    #                    'path': test_dataset.img_paths,
-    #                    'label': test_dataset.labels})
-    # grp = df.groupby('url')
-    # grp = dict(list(grp), keys=lambda x: x[0])  # {url: List[dom_path, save_path]}
-    #
-    # # initiate driver
-    # XDriver.set_headless()
-    # Logger.set_debug_on()
-    # driver = XDriver.boot(chrome=True)
-    # driver.set_script_timeout(30)
-    # driver.set_page_load_timeout(30)
-    # time.sleep(3)  # fixme: you have to sleep sometime, otherwise the browser will keep crashing
-    # result_file = './datasets/crp_locator_baseline.txt'
-    #
-    # print(len(list(grp.keys())))
-    # for ct, (url, data) in enumerate(grp.items()):
-    #     if url == 'keys':
-    #         continue
-    #     if os.path.exists(result_file) and url in open(result_file).read():
-    #         continue
-    #
-    #     dom, label = list(data.dom), list(data.label)
-    #     ind = np.where(np.asarray(label) == 1)[0]
-    #     if len(ind) == 0:
-    #         continue
-    #
-    #     gt_dom = np.asarray(dom)[ind]
-    #     dom_element_list_heu = crp_locator(driver, url, topk=1, heuristic=True)
-    #     if dom_element_list_heu and len(dom_element_list_heu):
-    #         dom_element_list_heu = dom_element_list_heu[0]
-    #     else:
-    #         dom_element_list_heu = ''
-    #
-    #     dom_element_list_cv = crp_locator(driver, url, topk=1, heuristic=False)
-    #     if dom_element_list_cv and len(dom_element_list_cv):
-    #         dom_element_list_cv = dom_element_list_cv[0]
-    #     else:
-    #         dom_element_list_cv = ''
-    #
-    #     with open(result_file, 'a+') as f:
-    #         f.write(url+'\t'+gt_dom[0]+'\t'+dom_element_list_heu+'\t'+dom_element_list_cv+'\n')
-    #
-    #     # select one: another model
-    #     if (ct + 1) % 100 == 0:
-    #         driver.quit()
-    #         XDriver.set_headless()
-    #         driver = XDriver.boot(chrome=True)
-    #         driver.set_script_timeout(30)
-    #         driver.set_page_load_timeout(30)
-    #         time.sleep(3)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    _, preprocess = clip.load("ViT-B/32", device=device)
+
+    test_dataset = ButtonDataset(annot_path='./datasets/alexa_login_test.txt',
+                                 root='./datasets/alexa_login',
+                                 preprocess=preprocess)
+
+    df = pd.DataFrame({'url': test_dataset.urls,
+                       'dom': test_dataset.dom_paths,
+                       'path': test_dataset.img_paths,
+                       'label': test_dataset.labels})
+    grp = df.groupby('url')
+    grp = dict(list(grp), keys=lambda x: x[0])  # {url: List[dom_path, save_path]}
+
+    # initiate driver
+    XDriver.set_headless()
+    Logger.set_debug_on()
+    driver = XDriver.boot(chrome=True)
+    driver.set_script_timeout(30)
+    driver.set_page_load_timeout(30)
+    time.sleep(3)  # fixme: you have to sleep sometime, otherwise the browser will keep crashing
+    result_file = './datasets/crp_locator_baseline.txt'
+
+    runtime = []
+    print(len(list(grp.keys())))
+    for ct, (url, data) in enumerate(grp.items()):
+        if url == 'keys':
+            continue
+        # if os.path.exists(result_file) and url in open(result_file).read():
+        #     continue
+
+        dom, label = list(data.dom), list(data.label)
+        ind = np.where(np.asarray(label) == 1)[0]
+        if len(ind) == 0:
+            continue
+
+        gt_dom = np.asarray(dom)[ind]
+        total_time = 0
+        dom_element_list_heu, heu_time = crp_locator(driver, url, topk=1, heuristic=True)
+        total_time += heu_time
+        if dom_element_list_heu and len(dom_element_list_heu):
+            dom_element_list_heu = dom_element_list_heu[0]
+        else:
+            dom_element_list_heu = ''
+
+        dom_element_list_cv, cv_time = crp_locator(driver, url, topk=1, heuristic=False)
+        total_time += cv_time
+        if dom_element_list_cv and len(dom_element_list_cv):
+            dom_element_list_cv = dom_element_list_cv[0]
+        else:
+            dom_element_list_cv = ''
+
+        runtime.append(total_time)
+        print('median runtime :', np.median(runtime))
+
+        # with open(result_file, 'a+') as f:
+        #     f.write(url+'\t'+gt_dom[0]+'\t'+dom_element_list_heu+'\t'+dom_element_list_cv+'\n')
+
+        # select one: another model
+        if (ct + 1) % 100 == 0:
+            driver.quit()
+            XDriver.set_headless()
+            driver = XDriver.boot(chrome=True)
+            driver.set_script_timeout(30)
+            driver.set_page_load_timeout(30)
+            time.sleep(3)
+
+    driver.quit()
+    exit()
 
     '''result evaluation'''
-    tester_rank('./datasets/crp_locator_baseline.txt', topk=10)
+    tester_rank('./datasets/crp_locator_baseline.txt', topk=1)
 
 
 

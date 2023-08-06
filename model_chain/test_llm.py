@@ -22,6 +22,7 @@ import cv2
 from model_chain.web_utils import WebUtil
 from xdriver.xutils.Logger import Logger
 import shutil
+import requests
 from field_study.draw_utils import draw_annotated_image, draw_annotated_image_nobox
 os.environ['CUDA_VISIBLE_DEVICES'] = "1"
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read()
@@ -43,7 +44,7 @@ class TestLLM():
                              'sa', 'ta', 'nl', 'tr', 'ga']
 
     @staticmethod
-    def is_valid_domain_no_spaces(domain):
+    def is_valid_domain(domain):
         """Check if the provided string is a valid domain name without any spaces."""
         # Regular expression to check if the string is a valid domain without spaces
         pattern = re.compile(
@@ -54,12 +55,24 @@ class TestLLM():
             r'[a-zA-Z0-9-]{1,63}'  # Valid characters are alphanumeric and hyphen
             r'(?:\.[a-zA-Z]{2,})+$'  # Ends with a valid top-level domain
         )
-        return bool(pattern.fullmatch(domain))
+        it_is_a_domain = bool(pattern.fullmatch(domain))
+        if it_is_a_domain:
+            try:
+                proxies = {
+                    "http": "http://127.0.0.1:7890",
+                    "https": "http://127.0.0.1:7890",
+                }
+                response = requests.get('https://'+domain, timeout=30, proxies=proxies)
+                if response.status_code >= 200 and response.status_code < 400: # it is alive
+                    return True
+            except Exception as err:
+                print(f'Error {err} when checking the aliveness of domain {domain}')
+        return False
 
     def check_webhosting_domain(self, domain):
         prompt = [{"role": "system",
                    "content": "You are a helpful assistant who is knowledgable about brands."},
-                    {  "role": "user",
+                    {"role": "user",
                     "content": f"Question: Is this domain {domain} a web hosting (e.g. webmail, cpanel, shopify, afrihost, zimbra), a cloud service (e.g. zabbix, okta), a VPN service (e.g. firezone), a web development framework (e.g. dolibarr, laravel, 1jabber, stdesk, firezone), a domain hosting (e.g. godaddy), a domain parking, or an online betting domain? Answer Yes or No. Answer:"
                   }]
         inference_done = False
@@ -78,7 +91,7 @@ class TestLLM():
                 time.sleep(10)
         answer = ''.join([choice["message"]["content"] for choice in response['choices']])
         print(answer)
-        if 'yes' in answer:
+        if 'yes' in answer.lower():
             return True
         return False
 
@@ -95,6 +108,9 @@ class TestLLM():
         most_fit_lang = self.language_list[0]
         best_conf = 0
         most_fit_results = ''
+        sure_thre = 0.98
+        unsure_thre = 0.9
+
         for lang in self.language_list:
             try:
                 ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False)  # need to run only once to download and load model into memory
@@ -103,19 +119,17 @@ class TestLLM():
                 ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False, use_gpu=False)  # need to run only once to download and load model into memory
                 result = ocr.ocr(shot_path, cls=True)
             median_conf = np.median([x[-1][1] for x in result[0]])
-            if math.isnan(median_conf):
+            if math.isnan(median_conf): # no text is detected
                 break
-            if median_conf > best_conf and median_conf >= 0.9:
+            if median_conf >= sure_thre: # confidence is so high
+                most_fit_results = result
+                break
+            if median_conf > best_conf and median_conf >= unsure_thre:
                 best_conf = median_conf
                 most_fit_lang = lang
                 most_fit_results = result
-            if median_conf >= 0.98:
-                most_fit_results = result
+            if best_conf > 0 and self.language_list.index(lang) - self.language_list.index(most_fit_lang) >= 2:  # local best language
                 break
-            if best_conf > 0:
-                if self.language_list.index(lang) - self.language_list.index(most_fit_lang) >= 2:  # local best
-                    break
-
 
         if len(most_fit_results):
             most_fit_results = most_fit_results[0]
@@ -262,14 +276,15 @@ class TestLLM():
                 Logger.spit('LLM Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
                 new_prompt[-1]['content'] = new_prompt[-1]['content'][:len(new_prompt[-1]['content']) // 2]
                 time.sleep(10)
+
         answer = ''.join([choice["message"]["content"] for choice in response['choices']])
         print('LLM prediction time:', time.time() - start_time)
         print(f'Detected brand {answer}')
 
-        if len(answer) > 0 and self.is_valid_domain_no_spaces(answer):
-            if not self.check_webhosting_domain(answer):
-                company_logo = reference_logo
-                company_domain = answer
+        if len(answer) > 0 and self.is_valid_domain(answer):
+            # if not self.check_webhosting_domain(answer):
+            company_logo = reference_logo
+            company_domain = answer
 
         return company_domain, company_logo
 
@@ -334,7 +349,7 @@ class TestLLM():
                 driver.set_script_timeout(30)
                 driver.set_page_load_timeout(60)
                 time.sleep(3)
-                return [], []
+                return [], [], driver
 
         try:
             (btns, btns_dom),  \
@@ -344,7 +359,7 @@ class TestLLM():
         except Exception as e:
             print(e)
             Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
-            return [], []
+            return [], [], driver
 
         all_clickable = btns + links + images + others
         all_clickable_dom = btns_dom + links_dom + images_dom + others_dom
@@ -389,9 +404,10 @@ class TestLLM():
             conf = final_probs[torch.arange(final_probs.shape[0]), 1]  # take the confidence (N, 1)
             _, ind = torch.topk(conf, 1)  # top1 index
 
-            return candidate_uis[ind], candidate_uis_imgs[ind]
+            return candidate_uis[ind], candidate_uis_imgs[ind], driver
         else:
-            return [], []
+            print('No candidate login button to click')
+            return [], [], driver
 
 
     def test(self, url, reference_logo,
@@ -434,7 +450,8 @@ class TestLLM():
             brand_recog_time += time.time() - start_time
             time.sleep(1) # fixme: allow the openai api to rest, not sure whether this help
         # domain-brand inconsistency
-        phish_condition = company_domain and tldextract.extract(company_domain).domain != tldextract.extract(url).domain
+        phish_condition = company_domain and (tldextract.extract(company_domain).domain != tldextract.extract(url).domain or
+                                              tldextract.extract(company_domain).suffix != tldextract.extract(url).suffix)
 
         if phish_condition and brand_recognition_do_validation:
             validation_success = False
@@ -480,7 +497,7 @@ class TestLLM():
                     return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
 
                 start_time = time.time()
-                candidate_dom, candidate_img = self.ranking_model(url, driver, ranking_model_refresh_page)
+                candidate_dom, candidate_img, driver = self.ranking_model(url, driver, ranking_model_refresh_page)
                 crp_transition_time += time.time() - start_time
 
                 if len(candidate_dom):
