@@ -8,8 +8,8 @@ from xdriver.xutils.Logger import Logger
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--folder", default="./datasets/field_study/2023-08-06/")
-    parser.add_argument("--date", default="2023-08-06", help="%Y-%m-%d")
+    parser.add_argument("--folder", default="./datasets/field_study/2023-08-09/")
+    parser.add_argument("--date", default="2023-08-09", help="%Y-%m-%d")
     parser.add_argument("--method", default='phishintention', choices=['phishpedia', 'phishintention'])
     args = parser.parse_args()
 

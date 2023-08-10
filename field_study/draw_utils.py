@@ -121,12 +121,76 @@ def draw_annotated_image(image: Image.Image, boxes: list, txts: list, scores: li
 
     return final_image
 
+class GeneralAnalysis:
+    def visualize_count(dates, phishLLM_counts, phishpedia_counts, phishIntention_counts):
+        # Create a DataFrame
+        data = {
+            'Date': dates,
+            'PhishLLM': phishLLM_counts,
+            'Phishpedia': phishpedia_counts,
+            'PhishIntention': phishIntention_counts
+        }
+        df = pd.DataFrame(data)
+
+        # Set Seaborn style for an academic look
+        sns.set_style("whitegrid")
+        colors = sns.color_palette("pastel")
+
+        # Plotting
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        # Width of a bar
+        width = 0.25
+
+        # Position of bars on x-axis
+        r1 = np.arange(len(df['Date']))
+        r2 = [x + width for x in r1]
+        r3 = [x + width for x in r2]
+
+        plt.bar(r1, df['PhishLLM'], width=width, color=colors[0], label='PhishLLM')
+        plt.bar(r2, df['Phishpedia'], width=width, color=colors[1], label='Phishpedia')
+        plt.bar(r3, df['PhishIntention'], width=width, color=colors[2], label='PhishIntention')
+
+        plt.xlabel('Date', fontsize=12)
+        plt.ylabel('Number of Phishing Reported', fontsize=12)
+        plt.title('Daily Phishing Reports by Solution', fontsize=14)
+        plt.xticks([r + width for r in range(len(df['Date']))], df['Date'], rotation=45)
+        plt.yticks(np.arange(0, max(df['PhishLLM'].max(), df['Phishpedia'].max(), df['PhishIntention'].max()) + 1, 1))
+        plt.legend(loc='upper left', bbox_to_anchor=(1, 1), ncol=1)
+
+        plt.tight_layout()
+        plt.savefig('./field_study/num_phish.png')
+        plt.close()
+
+class DomainAnalysis:
+    def tld_distribution(domain_list):
+        tld_list = list(map(lambda x: tldextract.extract(x).suffix, domain_list))
+        tld_counts = Counter(tld_list)
+
+        # Get the top 5 most frequent TLDs
+        top_5_tlds = tld_counts.most_common(5)
+
+        # Print the result or return it as needed
+        print("Top 5 frequently used top-level domains:")
+        for tld, count in top_5_tlds:
+            print(f"{tld}: {count} occurrences")
+
+    def domain_age_distribution(domain_age_list):
+        sns.set_style("whitegrid")
+        plt.hist(domain_age_list, bins=20, edgecolor='black', color='lightblue', alpha=0.7)
+        plt.xlabel('Domain Age (in years)')
+        plt.ylabel('Frequency')
+        plt.title('Distribution of Domain Ages')
+        plt.xlim(left=0)
+        plt.grid(axis='y', linestyle='--', linewidth=0.5, alpha=0.5)
+        plt.tight_layout()
+        plt.savefig('./field_study/domain_age.png')
+        plt.close()
 
 class BrandAnalysis:
 
     def visualize_brands(brand_list):
         brand_counts = Counter(brand_list)
-        del brand_counts['firezone.com']
 
         # Sort brands by frequency in descending order
         sorted_brands = sorted(brand_counts.items(), key=lambda x: x[1], reverse=True)
@@ -140,11 +204,13 @@ class BrandAnalysis:
         plt.ylabel('Number of Times Targeted')
         plt.title('Frequency of Phishing Targets')
         plt.xticks(rotation=45)
+        plt.yticks(np.arange(0, max(counts_sorted) + 1, 1))  # Set ytick labels at integer values
         plt.tight_layout()
         plt.gca().spines['top'].set_visible(False)
         plt.gca().spines['right'].set_visible(False)
         plt.grid(False)  # Turn off the grid
         plt.savefig('./field_study/brand_freq.png')
+        plt.close()
 
     def visualize_sectors(sectors, threshold=2.0):
         '''Visualize brand sectors'''
@@ -175,14 +241,14 @@ class BrandAnalysis:
         sizes = list(sector_counts.values())
 
         fig, ax = plt.subplots(figsize=(10, 6))
-        colors = sns.color_palette("husl", len(labels))  # Professional color palette
+        colors = sns.color_palette("husl", len(labels))
+
         wedges, texts, autotexts = ax.pie(
             sizes,
-            labels=None,
             autopct='%1.1f%%',
             startangle=140,
             colors=colors,
-            pctdistance=0.85,
+            pctdistance=0.85,  # Adjust this value to position the percentage labels
             wedgeprops={'edgecolor': 'grey'},
         )
 
@@ -190,22 +256,25 @@ class BrandAnalysis:
         centre_circle = plt.Circle((0, 0), 0.70, fc='white')
         fig.gca().add_artist(centre_circle)
 
-        # Annotate each pie slice with corresponding label and draw a line
-        for i, (w, t) in enumerate(zip(wedges, texts)):
-            ang = (w.theta2 - w.theta1) / 2. + w.theta1
-            y = np.sin(np.deg2rad(ang))
-            x = np.cos(np.deg2rad(ang))
-            horizontalalignment = {-1: "right", 1: "left"}[int(np.sign(x))]
-            connectionstyle = "angle,angleA=0,angleB={}".format(ang)
-            ax.annotate(labels[i], xy=(x, y), xytext=(1.35 * np.sign(x), 1.4 * y),
-                        horizontalalignment=horizontalalignment,
-                        fontsize=10, weight="bold",
-                        arrowprops=dict(arrowstyle="-", connectionstyle=connectionstyle))
+        # Enhance the appearance of the percentage labels
+        for autotext in autotexts:
+            autotext.set_color('black')
+            autotext.set_weight('bold')
+
+        # Add a legend with the sector labels
+        plt.legend(
+            loc="best",
+            labels=labels,
+            prop={'size': 10},
+            title="Sectors",
+            bbox_to_anchor=(1, 0, 0.5, 1)
+        )
 
         plt.axis('equal')  # Equal aspect ratio ensures pie is drawn as a circle.
         plt.title('Distribution of Phishing Targets by Sector')
         plt.tight_layout()
         plt.savefig('./field_study/brand_sector.png')
+        plt.close()
 
 class IPAnalysis:
 
@@ -254,6 +323,7 @@ class IPAnalysis:
         plt.tight_layout()
         plt.title('Geolocation Distribution of Phishing IPs')
         plt.savefig('./field_study/geo.png')
+        plt.close()
 
 class CampaignAnalysis:
     @staticmethod
@@ -358,22 +428,52 @@ class CampaignAnalysis:
 
         # Save the figure.
         plt.savefig('./field_study/campaign.png')
+        plt.close()
 
 if __name__ == '__main__':
     base = "/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples"
     '''geolocation'''
     gs_sheet = gwrapper_monitor()
     rows = gs_sheet.get_records()
-    # geo_loc_list = list(map(lambda x: tuple(map(float, x['geo_loc'].split(','))), filter(lambda x: x['geo_loc'] != 0, rows)))
-    # IPAnalysis.geoplot(geo_loc_list)
+    geo_loc_list = list(map(lambda x: tuple(map(float, x['geo_loc'].split(','))), filter(lambda x: x['geo_loc'] != 0, rows)))
+    IPAnalysis.geoplot(geo_loc_list)
+
+    '''phishing counts over time'''
+    start_date = date(2023, 8, 7)
+    today = datetime.today().date()
+    # end_date = today + timedelta(days=1)
+    end_date = today
+    dates = []
+    llm_counts = []
+    pedia_counts = []
+    intention_counts = []
+
+    for single_date in daterange(start_date, end_date):
+        date_ = single_date.strftime("%Y-%m-%d")
+        llm_pos = get_pos_site('./field_study/results/{}_phishllm.txt'.format(date_))
+        pedia_pos = get_pos_site('./field_study/results/{}_phishpedia.txt'.format(date_))
+        intention_pos = get_pos_site('./field_study/results/{}_phishintention.txt'.format(date_))
+        dates.append(date_)
+        llm_counts.append(len(llm_pos))
+        pedia_counts.append(len(pedia_pos))
+        intention_counts.append(len(intention_pos))
+
+    '''# of phishing over time'''
+    GeneralAnalysis.visualize_count(dates, llm_counts, pedia_counts, intention_counts)
+
+    '''tld distribution domain age distribution'''
+    domains = list(map(lambda x: x['foldername'], rows))
+    domain_ages = list(map(lambda x: x['domain_age'], rows))
+    DomainAnalysis.tld_distribution(domains)
+    DomainAnalysis.domain_age_distribution(domain_ages)
 
     '''brand'''
-    # brands = list(map(lambda x: x['brand'], rows))
-    # BrandAnalysis.visualize_brands(brands)
+    brands = list(map(lambda x: x['brand'], rows))
+    BrandAnalysis.visualize_brands(brands)
 
     '''sector'''
-    # sectors = list(map(lambda x: x['sector'], rows))
-    # BrandAnalysis.visualize_sectors(sectors)
+    sectors = list(map(lambda x: x['sector'], rows))
+    BrandAnalysis.visualize_sectors(sectors)
 
     '''phishing campaign'''
     shot_path_list = list(map(lambda x: os.path.join(base, x['date'], x['foldername'], 'shot.png'), rows))

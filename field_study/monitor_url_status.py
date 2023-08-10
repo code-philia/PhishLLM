@@ -77,7 +77,7 @@ def get_ip_geolocation(ip):
                 return data['country'], data['loc'], data['org']
             except KeyError:
                 return 0,0,0
-        except requests.exceptions.ProxyError:
+        except:
             time.sleep(5)
             continue
 
@@ -107,7 +107,7 @@ def classify_url(brand_url):
             inference_done = True
             data = json.loads(response.content.decode("utf-8"))
             return data["industry"]
-        except requests.exceptions.ProxyError:
+        except:
             time.sleep(5)
             continue
 
@@ -124,7 +124,7 @@ if __name__ == '__main__':
             to_update = []
             for i in os.listdir(base):
                 folder = os.path.join(base, i)
-                if datetime.strptime(i, "%Y-%m-%d").date() <= datetime.strptime('2023-08-03', "%Y-%m-%d").date():
+                if datetime.strptime(i, "%Y-%m-%d").date() <= datetime.strptime('2023-08-06', "%Y-%m-%d").date():
                     continue
                 df = pd.read_csv('/home/ruofan/git_space/ScamDet/field_study/results/{}_phishllm.txt'.format(i), sep='\t', encoding='ISO-8859-1')
                 for j in os.listdir(folder):
@@ -135,6 +135,8 @@ if __name__ == '__main__':
                         brand = df[df['folder'] == j]['target_prediction'].values
                         brand = brand[0]
                         if isinstance(brand, float) and (math.isinf(brand) or math.isnan(brand)):
+                            continue
+                        if brand in open('./datasets/hosting_blacklists.txt').read():
                             continue
                         info_file = os.path.join(data_folder, 'info.txt')
                         if os.path.exists(info_file):
