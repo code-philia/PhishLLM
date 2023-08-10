@@ -24,6 +24,7 @@ from xdriver.xutils.Logger import Logger
 import shutil
 import requests
 from field_study.draw_utils import draw_annotated_image, draw_annotated_image_nobox
+from concurrent.futures import ThreadPoolExecutor
 os.environ['CUDA_VISIBLE_DEVICES'] = "1"
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read()
 
@@ -42,9 +43,75 @@ class TestLLM():
         self.language_list = ['en', 'ch', 'ru', 'japan', 'fa', 'ar', 'korean', 'vi', 'ms',
                              'fr', 'german', 'it', 'es', 'pt', 'uk', 'be', 'te',
                              'sa', 'ta', 'nl', 'tr', 'ga']
+        self.proxies = {
+                    "http": "http://127.0.0.1:7890",
+                    "https": "http://127.0.0.1:7890",
+                }
 
-    @staticmethod
-    def is_valid_domain(domain):
+    def query2image(self, query, SEARCH_ENGINE_API, SEARCH_ENGINE_ID, num=10):
+        '''
+            Retrieve the images from Google image search
+            Args:
+                query: query string
+                num: number of results returned
+            Returns:
+                returned_urls
+                context_links: the source URLs for the images
+        '''
+        returned_urls = []
+        context_links = []
+        if len(query) == 0:
+            return returned_urls, context_links
+
+        URL = f"https://www.googleapis.com/customsearch/v1?key={SEARCH_ENGINE_API}&cx={SEARCH_ENGINE_ID}&q={query}&searchType=image&num={num}&filter=1"
+        while True:
+            try:
+                data = requests.get(URL, proxies=self.proxies).json()
+                break
+            except requests.exceptions.SSLError as e:
+                print(e)
+                time.sleep(2)
+        if 'error' in list(data.keys()):
+            if data['error']['code'] == 429:
+                raise RuntimeError("Google search exceeds quota limit")
+        search_items = data.get("items")
+        if search_items is None:
+            return returned_urls, context_links
+
+        # iterate over results found
+        for i, search_item in enumerate(search_items, start=1):
+            link = search_item.get("image")["thumbnailLink"]
+            context_link = search_item.get("image")['contextLink']
+            returned_urls.append(link)
+            context_links.append(context_link)
+
+        return returned_urls, context_links
+
+    def download_image(self, url):
+        try:
+            response = requests.get(url, proxies=self.proxies)
+            if response.status_code == 200:
+                img = Image.open(io.BytesIO(response.content))
+                return img
+            else:
+                print(f"Failed to download image: {response.status_code}")
+        except Exception as e:
+            print(f"An error occurred while downloading image: {e}")
+
+        return None
+
+    def get_images(self, image_urls):
+        images = []
+        with ThreadPoolExecutor() as executor:
+            futures = [executor.submit(self.download_image, url) for url in image_urls]
+            for future in futures:
+                img = future.result()
+                if img:
+                    images.append(img)
+
+        return images
+
+    def is_valid_domain(self, domain):
         """Check if the provided string is a valid domain name without any spaces."""
         # Regular expression to check if the string is a valid domain without spaces
         pattern = re.compile(
@@ -58,11 +125,7 @@ class TestLLM():
         it_is_a_domain = bool(pattern.fullmatch(domain))
         if it_is_a_domain:
             try:
-                proxies = {
-                    "http": "http://127.0.0.1:7890",
-                    "https": "http://127.0.0.1:7890",
-                }
-                response = requests.get('https://'+domain, timeout=30, proxies=proxies)
+                response = requests.get('https://'+domain, timeout=30, proxies=self.proxies)
                 if response.status_code >= 200 and response.status_code < 400: # it is alive
                     return True
             except Exception as err:
@@ -148,52 +211,6 @@ class TestLLM():
                 ocr_text = ' '.join([x for x in html_text if x])
 
         return ocr_text
-
-    def url2logo(self, driver, URL):
-        '''
-            URL2logo
-            Args:
-                driver: selenium driver
-                URL
-            Returns:
-                logo
-                exception
-        '''
-        try:
-            driver.get(URL, allow_redirections=False)
-            time.sleep(3)  # fixme: must allow some loading time here
-        except Exception as e:
-            Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
-            return None, str(e)
-
-        # the URL is for a webpage not the logo image
-        try:
-            screenshot_encoding = driver.get_screenshot_encoding()
-            screenshot_img = Image.open(io.BytesIO(base64.b64decode(screenshot_encoding)))
-            screenshot_img = screenshot_img.convert("RGB")
-            screenshot_img_arr = np.asarray(screenshot_img)
-            screenshot_img_arr = np.flip(screenshot_img_arr, -1)  # RGB2BGR
-            pred = self.phishintention_cls.AWL_MODEL(screenshot_img_arr)
-            pred_i = pred["instances"].to('cpu')
-            pred_classes = pred_i.pred_classes.detach().cpu()  # Boxes types
-            pred_boxes = pred_i.pred_boxes.tensor.detach().cpu()  # Boxes coords
-
-            if pred_boxes is None or len(pred_boxes) == 0:
-                all_logos_coords = None
-            else:
-                all_logos_coords, _ = find_element_type(pred_boxes=pred_boxes,
-                                                       pred_classes=pred_classes,
-                                                       bbox_type='logo')
-            if all_logos_coords is None:
-                return None, None
-            else:
-                logo_coord = all_logos_coords[0]
-                logo = screenshot_img.crop((int(logo_coord[0]), int(logo_coord[1]), int(logo_coord[2]), int(logo_coord[3])))
-        except Exception as e:
-            Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
-            return None, None
-
-        return logo, None
 
     def click_and_save(self, driver, dom, save_html_path, save_shot_path):
         '''
@@ -282,7 +299,6 @@ class TestLLM():
         print(f'Detected brand {answer}')
 
         if len(answer) > 0 and self.is_valid_domain(answer):
-            # if not self.check_webhosting_domain(answer):
             company_logo = reference_logo
             company_domain = answer
 
@@ -392,14 +408,15 @@ class TestLLM():
         if len(candidate_uis_imgs):
             print(f'Find {len(candidate_uis_imgs)} candidate UIs')
             final_probs = torch.tensor([], device='cpu')
+            batch_size = 64
+            texts = clip.tokenize(["not a login button", "a login button"]).to(self.device)
 
-            for batch in range(math.ceil(len(candidate_uis)/100)):
-                images = torch.stack(candidate_uis_imgs[batch*100 : min(len(candidate_uis), (batch+1)*100)]).to(self.device)
-                texts = clip.tokenize(["not a login button", "a login button"]).to(self.device)
-
+            for batch in range(math.ceil(len(candidate_uis)/batch_size)):
+                images = torch.stack(candidate_uis_imgs[batch*batch_size : min(len(candidate_uis), (batch+1)*batch_size)]).to(self.device)
                 logits_per_image, logits_per_text = self.clip_model(images, texts)
                 probs = logits_per_image.softmax(dim=-1)  # (N, C)
                 final_probs = torch.cat([final_probs, probs.detach().cpu()], dim=0)
+                del images
 
             conf = final_probs[torch.arange(final_probs.shape[0]), 1]  # take the confidence (N, 1)
             _, ind = torch.topk(conf, 1)  # top1 index
@@ -453,32 +470,31 @@ class TestLLM():
         phish_condition = company_domain and (tldextract.extract(company_domain).domain != tldextract.extract(url).domain or
                                               tldextract.extract(company_domain).suffix != tldextract.extract(url).suffix)
 
-        if phish_condition and brand_recognition_do_validation:
+        if phish_condition and brand_recognition_do_validation: # todo: Google Image
             validation_success = False
             start_time = time.time()
-            logo, exception = self.url2logo(driver=driver, URL='https://'+company_domain)
-            if exception:
-                driver.quit()
-                XDriver.set_headless()
-                driver = XDriver.boot(chrome=True)
-                driver.set_script_timeout(30)
-                driver.set_page_load_timeout(60)
-                time.sleep(3)
+            API_KEY, SEARCH_ENGINE_ID = [x.strip() for x in open('./datasets/google_api_key.txt').readlines()]
+            returned_urls, _ = self.query2image(query=company_domain + ' logo',
+                                                SEARCH_ENGINE_ID=SEARCH_ENGINE_ID, SEARCH_ENGINE_API=API_KEY,
+                                                num=5)
+            logos = self.get_images(returned_urls)
             print('Crop the logo time:', time.time() - start_time)
 
-            if logo and reference_logo:
-                # Domain matching OR Logo matching
-                start_time = time.time()
+            if reference_logo and len(logos)>0:
                 reference_logo_feat = pred_siamese_OCR(img=reference_logo,
                                                        model=self.phishintention_cls.SIAMESE_MODEL,
                                                        ocr_model=self.phishintention_cls.OCR_MODEL)
-                logo_feat = pred_siamese_OCR(img=logo,
-                                             model=self.phishintention_cls.SIAMESE_MODEL,
-                                             ocr_model=self.phishintention_cls.OCR_MODEL)
+                start_time = time.time()
 
-                matched_sim = reference_logo_feat @ logo_feat
-                if matched_sim >= self.phishintention_cls.SIAMESE_THRE_RELAX:  # logo similarity exceeds a threshold
-                    validation_success = True
+                for logo in logos:
+                    logo_feat = pred_siamese_OCR(img=logo,
+                                                 model=self.phishintention_cls.SIAMESE_MODEL,
+                                                 ocr_model=self.phishintention_cls.OCR_MODEL)
+                    matched_sim = reference_logo_feat @ logo_feat
+                    if matched_sim >= 0.83:  # logo similarity exceeds a threshold
+                        validation_success = True
+                        break
+
                 print('Logo matching time:', time.time() - start_time)
             if not validation_success:
                 phish_condition = False

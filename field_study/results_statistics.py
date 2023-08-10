@@ -18,15 +18,17 @@ def get_pos_site(result_txt):
     df = [x.strip().split('\t') for x in open(result_txt, encoding='ISO-8859-1').readlines()]
     df_pos = [x for x in df if (x[1] == 'phish' or x[1] == '1')]
     webhosting_domains = open('./datasets/hosting_blacklists.txt').readlines()
-    df_pos = [x for x in df_pos if not any([yy.strip().lower() in x[2].lower() for yy in webhosting_domains])]
-
+    df_pos = [x for x in df_pos if
+              (not any([x[0].startswith(yy) for yy in ['libreddit', 'ebay', 'autodiscover', 'outlook',
+                                                     'vineasx', 'office', 'onlyoffice',
+                                                     'portainer', 'rss']])) and
+              (not any([yy.strip().lower() in x[2].lower() for yy in webhosting_domains]))]
     return df_pos
-
 
 
 def compute_precision_recall(reported_folders, gt_folders):
     intersection = set(reported_folders).intersection(set(gt_folders))
-    print(list(set(reported_folders) - set(intersection)))
+    # print(list(set(reported_folders) - set(intersection)))
     # print(list(set(gt_folders) - set(intersection)))
     # [print(x) for x in list(set(gt_folders) - set(intersection))]
     recall = len(intersection) / len(gt_folders)
@@ -45,16 +47,15 @@ def compute_overall_precision_recall(reported_folders, gt_folders):
         precision = 1.
     return precision, recall
 
-def runtime(result_txt):
+def runtime_llm(result_txt):
     df = [x.strip().split('\t') for x in open(result_txt, encoding='ISO-8859-1').readlines()[1:]]
-    df = [x[-1].split('|') for x in df if (len(x) >= 3) if not ((x[-1].split('|')[0] == '0') and (x[-1].split('|')[1] == '0') and
-                                                                (x[-1].split('|')[2] == '0') and (x[-1].split('|')[3] == '0'))]
-    phishintention_time = [eval(x[0]) for x in df]
-    knowledge_time = [eval(x[1]) for x in df]
-    interaction_time = [eval(x[2]) for x in df]
-    return phishintention_time, knowledge_time, interaction_time
+    runtime = [eval(x[-1]) + eval(x[-2]) + eval(x[-3]) for x in df]
+    print(f'Median runtime LLM = {np.median(runtime)}')
 
-
+def runtime_base(result_txt):
+    df = [x.strip().split('\t') for x in open(result_txt, encoding='ISO-8859-1').readlines()[1:]]
+    runtime = [eval(x[-1]) for x in df]
+    print(f'Median runtime = {np.median(runtime)}')
 
 if __name__ == '__main__':
     '''Save reported phishing'''
@@ -88,19 +89,28 @@ if __name__ == '__main__':
 
         llm_precision, llm_recall = compute_precision_recall(llm_pos_folders, today_pos_folders)
         print(f'PhishLLM precision = {llm_precision}, PhishLLM recall = {llm_recall}')
+        runtime_llm('./field_study/results/{}_phishllm.txt'.format(date_))
         pedia_precision, pedia_recall = compute_precision_recall(pedia_pos_folders, today_pos_folders)
         print(f'Phishpedia precision = {pedia_precision}, Phishpedia recall = {pedia_recall}')
+        runtime_base('./field_study/results/{}_phishpedia.txt'.format(date_))
         intention_precision, intention_recall = compute_precision_recall(intention_pos_folders, today_pos_folders)
         print(f'PhishIntention precision = {intention_precision}, PhishIntention recall = {intention_recall}')
+        runtime_base('./field_study/results/{}_phishintention.txt'.format(date_))
 
     '''Move reported phishing into a seperate folder, for labeling'''
     os.makedirs('./datasets/phishing_TP_examples', exist_ok=True)
-    start_date = date(2023, 8, 1)
-    end_date = date(2023, 8, 7)
+    start_date = date(2023, 8, 7)
+    today = datetime.today().date()
+    end_date = today + timedelta(days=1)
     for single_date in daterange(start_date, end_date):
         today_date = single_date.strftime("%Y-%m-%d")
         df_pos = get_pos_site(f'./field_study/results/{today_date}_phishllm.txt')
         df_pos_folders = [x[0] for x in df_pos]
+
+        if os.path.exists('./field_study/results/{}_phishpedia.txt'.format(today_date)):
+            pedia_pos = get_pos_site('./field_study/results/{}_phishpedia.txt'.format(today_date))
+            intention_pos = get_pos_site('./field_study/results/{}_phishintention.txt'.format(today_date))
+            print(f'Date {today_date} Phishllm # phishing = {len(df_pos)}, Phishpedia # phishing = {len(pedia_pos)}, PhishIntention # phishing = {len(intention_pos)} \n')
 
         os.makedirs(os.path.join('./datasets/phishing_TP_examples', today_date), exist_ok=True)
         for folder in df_pos_folders:

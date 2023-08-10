@@ -6,8 +6,8 @@ import cv2
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--folder", default="./datasets/field_study/2023-08-05/")
-    parser.add_argument("--date", default="2023-08-05", help="%Y-%m-%d")
+    parser.add_argument("--folder", default="./datasets/field_study/2023-08-08/")
+    parser.add_argument("--date", default="2023-08-08", help="%Y-%m-%d")
     args = parser.parse_args()
 
     # PhishLLM
@@ -41,7 +41,7 @@ if __name__ == '__main__':
     for ct, folder in tqdm(enumerate(os.listdir(args.folder))):
         if folder in [x.split('\t')[0] for x in open(result_txt, encoding='ISO-8859-1').readlines()]:
             continue
-        # if folder not in ['g2.suupportfb-q.click']:
+        # if folder not in ['quintiong.club']:
         #     continue
 
         info_path = os.path.join(args.folder, folder, 'info.txt')
@@ -63,7 +63,7 @@ if __name__ == '__main__':
         pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis = llm_cls.test(url, reference_logo,
                                                                                                         shot_path, html_path, driver,
                                                                                                         limit=1,
-                                                                                                        # brand_recognition_do_validation=True
+                                                                                                        brand_recognition_do_validation=True
                                                                                                         )
 
         try:
