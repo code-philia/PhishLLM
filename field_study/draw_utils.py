@@ -481,3 +481,6 @@ if __name__ == '__main__':
     clusters_path = campaign.cluster_shot_representations(shot_path_list)
     print(clusters_path)
     campaign.visualize_campaign(clusters_path)
+
+    # alexa_urls = [x.strip().split(',')[1] for x in open('./datasets/top-1m.csv').readlines()]
+    # DomainAnalysis.tld_distribution(alexa_urls)
