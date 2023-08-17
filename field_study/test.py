@@ -6,8 +6,8 @@ import cv2
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--folder", default="./datasets/field_study/2023-08-08/")
-    parser.add_argument("--date", default="2023-08-08", help="%Y-%m-%d")
+    parser.add_argument("--folder", default="./datasets/field_study/2023-08-11/")
+    parser.add_argument("--date", default="2023-08-11", help="%Y-%m-%d")
     args = parser.parse_args()
 
     # PhishLLM
@@ -41,7 +41,9 @@ if __name__ == '__main__':
     for ct, folder in tqdm(enumerate(os.listdir(args.folder))):
         if folder in [x.split('\t')[0] for x in open(result_txt, encoding='ISO-8859-1').readlines()]:
             continue
-        # if folder not in ['quintiong.club']:
+        # if folder not in [
+        #                   'dashboard.nm.165-227-40-76.nip.io',
+        #                   ]:
         #     continue
 
         info_path = os.path.join(args.folder, folder, 'info.txt')
@@ -89,3 +91,14 @@ if __name__ == '__main__':
             time.sleep(sleep_time)
 
     driver.quit()
+    # 482.91236.top, requests unionpay.com doesnt work, need to request cn.unionpay.com
+    # device-54ddd6f1-5dc6-4480-8809-c75e99811e0d.remotewd.com: no text on the webpage that indicate the brand is bouyguestelecom.fr, also the phishing is using old version of logo
+    # demo.nuxproservices.com: no prediction from gpt
+    # cicd-13365-azure-devops-pipeline-portal-core.australiaeast.azurecontainer.io: phishintention didnt report the logo from the original webpage, therefore cannot do comparison
+
+    '''Google Image search problem'''
+    # kbr.appwork.info, didnt pass logo validation, because of the inaccuracies of Google Image Search API, it returns the logos for enodiatherapies.com, however we are interested in the enodia.com
+
+    '''OCR problem'''
+    # paperless.fungamers-online.de: OCR prediction has typo: 'perless -ng Please sign in. Username Password Sign in'
+    # dashboard.nm.165-227-40-76.nip.io: OCR miss information 'N MAKER Home ! Create an Admin Password* Password Confirmation* CREATE ADMIN'

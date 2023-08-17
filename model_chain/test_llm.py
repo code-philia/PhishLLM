@@ -9,6 +9,7 @@ import torch
 import clip
 import re
 from xdriver.XDriver import XDriver
+from selenium.webdriver.remote.webelement import WebElement
 from phishintention.src.AWL_detector import find_element_type
 from phishintention.src.OCR_aided_siamese import pred_siamese_OCR
 from model_chain.utils import *
@@ -25,8 +26,9 @@ import shutil
 import requests
 from field_study.draw_utils import draw_annotated_image, draw_annotated_image_nobox
 from concurrent.futures import ThreadPoolExecutor
+from typing import List, Tuple, Set, Dict, Optional
 os.environ['CUDA_VISIBLE_DEVICES'] = "1"
-os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read()
+os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key2.txt').read()
 
 class TestLLM():
 
@@ -48,22 +50,21 @@ class TestLLM():
                     "https": "http://127.0.0.1:7890",
                 }
 
-    def query2image(self, query, SEARCH_ENGINE_API, SEARCH_ENGINE_ID, num=10):
+    def query2image(self, query: str, SEARCH_ENGINE_API: str, SEARCH_ENGINE_ID: str, num: int=10) -> Tuple[List[str], List[str]]:
         '''
             Retrieve the images from Google image search
-            Args:
-                query: query string
-                num: number of results returned
-            Returns:
-                returned_urls
-                context_links: the source URLs for the images
+            :param query:
+            :param SEARCH_ENGINE_API:
+            :param SEARCH_ENGINE_ID:
+            :param num:
+            :return:
         '''
         returned_urls = []
         context_links = []
         if len(query) == 0:
             return returned_urls, context_links
 
-        URL = f"https://www.googleapis.com/customsearch/v1?key={SEARCH_ENGINE_API}&cx={SEARCH_ENGINE_ID}&q={query}&searchType=image&num={num}&filter=1"
+        URL = f"https://www.googleapis.com/customsearch/v1?key={SEARCH_ENGINE_API}&cx={SEARCH_ENGINE_ID}&q={query}&searchType=image&num={num}"
         while True:
             try:
                 data = requests.get(URL, proxies=self.proxies).json()
@@ -87,7 +88,12 @@ class TestLLM():
 
         return returned_urls, context_links
 
-    def download_image(self, url):
+    def download_image(self, url: str) -> Optional[Image]:
+        '''
+            Download images from given url (Google image context links)
+            :param url:
+            :return:
+        '''
         try:
             response = requests.get(url, proxies=self.proxies)
             if response.status_code == 200:
@@ -100,7 +106,12 @@ class TestLLM():
 
         return None
 
-    def get_images(self, image_urls):
+    def get_images(self, image_urls: List[str]) -> List[Image]:
+        '''
+            Run download_image in multiple threads
+            :param image_urls:
+            :return:
+        '''
         images = []
         with ThreadPoolExecutor() as executor:
             futures = [executor.submit(self.download_image, url) for url in image_urls]
@@ -111,8 +122,12 @@ class TestLLM():
 
         return images
 
-    def is_valid_domain(self, domain):
-        """Check if the provided string is a valid domain name without any spaces."""
+    def is_valid_domain(self, domain: str) -> bool:
+        '''
+            Check if the provided string is a valid domain
+            :param domain:
+            :return:
+        '''
         # Regular expression to check if the string is a valid domain without spaces
         pattern = re.compile(
             r'^(?!-)'  # Cannot start with a hyphen
@@ -124,48 +139,26 @@ class TestLLM():
         )
         it_is_a_domain = bool(pattern.fullmatch(domain))
         if it_is_a_domain:
-            try:
-                response = requests.get('https://'+domain, timeout=30, proxies=self.proxies)
-                if response.status_code >= 200 and response.status_code < 400: # it is alive
-                    return True
-            except Exception as err:
-                print(f'Error {err} when checking the aliveness of domain {domain}')
+            ct_limit = 1
+            while True:
+                if ct_limit == 3:
+                    break
+                try:
+                    response = requests.get('https://'+domain, timeout=60, proxies=self.proxies)
+                    if response.status_code >= 200 and response.status_code < 400: # it is alive
+                        return True
+                    break
+                except Exception as err:
+                    print(f'Error {err} when checking the aliveness of domain {domain}')
+                    ct_limit += 1
         return False
 
-    def check_webhosting_domain(self, domain):
-        prompt = [{"role": "system",
-                   "content": "You are a helpful assistant who is knowledgable about brands."},
-                    {"role": "user",
-                    "content": f"Question: Is this domain {domain} a web hosting (e.g. webmail, cpanel, shopify, afrihost, zimbra), a cloud service (e.g. zabbix, okta), a VPN service (e.g. firezone), a web development framework (e.g. dolibarr, laravel, 1jabber, stdesk, firezone), a domain hosting (e.g. godaddy), a domain parking, or an online betting domain? Answer Yes or No. Answer:"
-                  }]
-        inference_done = False
-        while not inference_done:
-            try:
-                response = openai.ChatCompletion.create(
-                    model=self.LLM_model,
-                    messages=prompt,
-                    temperature=0,
-                    max_tokens=50,  # we're only counting input tokens here, so let's not waste tokens on the output
-                )
-                inference_done = True
-            except Exception as e:
-                Logger.spit('LLM Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
-                prompt[-1]['content'] = prompt[-1]['content'][:len(prompt[-1]['content']) // 2]
-                time.sleep(10)
-        answer = ''.join([choice["message"]["content"] for choice in response['choices']])
-        print(answer)
-        if 'yes' in answer.lower():
-            return True
-        return False
-
-    def detect_text(self, shot_path, html_path):
+    def detect_text(self, shot_path: str, html_path: str) -> str:
         '''
             Run OCR
-            Args:
-                shot_path
-                html_path
-            Returns:
-                ocr_text
+            :param shot_path:
+            :param html_path:
+            :return:
         '''
         ocr_text = ''
         most_fit_lang = self.language_list[0]
@@ -212,18 +205,14 @@ class TestLLM():
 
         return ocr_text
 
-    def click_and_save(self, driver, dom, save_html_path, save_shot_path):
+    def click_and_save(self, driver: XDriver, dom: str, save_html_path: str, save_shot_path: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         '''
-            Click an element and save the updated screenshot and HTML
-            Args:
-                driver: selenium driver
-                dom: dom path for the interested element
-                save_html_path: path to save HTML
-                save_shot_path: path to save screenshot
-            Returns:
-                current_url
-                save_html_path
-                save_shot_path
+             Click an element and save the updated screenshot and HTML
+            :param driver:
+            :param dom:
+            :param save_html_path:
+            :param save_shot_path:
+            :return:
         '''
         try:
             element = driver.find_elements_by_xpath(dom)
@@ -255,19 +244,12 @@ class TestLLM():
 
 
 
-    def brand_recognition_llm(self,
-                              reference_logo, html_text,
-                              ):
+    def brand_recognition_llm(self, reference_logo: Optional[Image], html_text: str) -> Tuple[Optional[str], Optional[Image]]:
         '''
             Use LLM to report targeted brand
-            Args:
-                reference_logo: the logo on the original webpage (for validation purpose)
-                html_text
-                driver
-                do_validation: do we validate the returned brand?
-            Returns:
-                company_domain
-                company_logo
+            :param reference_logo:
+            :param html_text:
+            :return:
         '''
         company_domain, company_logo = None, None
         question = question_template_brand(html_text)
@@ -304,13 +286,11 @@ class TestLLM():
 
         return company_domain, company_logo
 
-    def crp_prediction_llm(self, html_text):
+    def crp_prediction_llm(self, html_text: str) -> int:
         '''
             Use LLM to classify credential-requiring page v.s. non-credential-requiring page
-            Args:
-                html_text
-            Returns:
-                0 for CRP, 1 for non-CRP
+            :param html_text:
+            :return:
         '''
         question = question_template_prediction(html_text)
         with open(self.prediction_prompt, 'rb') as f:
@@ -341,7 +321,8 @@ class TestLLM():
         else:
             return 1
 
-    def ranking_model(self, url, driver, ranking_model_refresh_page):
+    def ranking_model(self, url: str, driver: XDriver, ranking_model_refresh_page: bool) -> \
+                                Tuple[List[WebElement], List[torch.Tensor], XDriver]:
         '''
             Use CLIP to rank the UI elements to find the most probable login button
             Args:
@@ -351,6 +332,7 @@ class TestLLM():
             Returns:
                 candidate_uis: DOM paths for candidate uis
                 candidate_uis_imgs: screenshots for candidate uis
+                driver
         '''
         if ranking_model_refresh_page:
             try:
@@ -427,13 +409,13 @@ class TestLLM():
             return [], [], driver
 
 
-    def test(self, url, reference_logo,
-             shot_path, html_path, driver, limit=2,
-             brand_recog_time=0, crp_prediction_time=0, crp_transition_time=0,
-             ranking_model_refresh_page=True,
-             skip_brand_recognition=False,
-             brand_recognition_do_validation=False,
-             company_domain=None, company_logo=None,
+    def test(self, url: str, reference_logo: Optional[Image],
+             shot_path: str, html_path: str, driver: XDriver, limit: int=2,
+             brand_recog_time: float=0, crp_prediction_time: float=0, crp_transition_time: float=0,
+             ranking_model_refresh_page: bool=True,
+             skip_brand_recognition: bool=False,
+             brand_recognition_do_validation: bool=False,
+             company_domain: Optional[str]=None, company_logo: Optional[Image]=None,
              ):
         '''
             PhishLLM
@@ -458,19 +440,22 @@ class TestLLM():
                 crp_transition_time
         '''
 
+        ## Run OCR to extract text
         html_text = self.detect_text(shot_path, html_path)
         plotvis = Image.open(shot_path)
 
+        ## Brand recognition model
         if not skip_brand_recognition:
             start_time = time.time()
             company_domain, company_logo = self.brand_recognition_llm(reference_logo, html_text)
             brand_recog_time += time.time() - start_time
             time.sleep(1) # fixme: allow the openai api to rest, not sure whether this help
-        # domain-brand inconsistency
+        # check domain-brand inconsistency
         phish_condition = company_domain and (tldextract.extract(company_domain).domain != tldextract.extract(url).domain or
                                               tldextract.extract(company_domain).suffix != tldextract.extract(url).suffix)
 
         if phish_condition and brand_recognition_do_validation: # todo: Google Image
+            ## Brand recognition model : result validation
             validation_success = False
             start_time = time.time()
             API_KEY, SEARCH_ENGINE_ID = [x.strip() for x in open('./datasets/google_api_key.txt').readlines()]
@@ -491,7 +476,7 @@ class TestLLM():
                                                  model=self.phishintention_cls.SIAMESE_MODEL,
                                                  ocr_model=self.phishintention_cls.OCR_MODEL)
                     matched_sim = reference_logo_feat @ logo_feat
-                    if matched_sim >= 0.83:  # logo similarity exceeds a threshold
+                    if matched_sim >= 0.7:  # logo similarity exceeds a threshold
                         validation_success = True
                         break
 
@@ -500,18 +485,21 @@ class TestLLM():
                 phish_condition = False
 
         if phish_condition:
+            # CRP prediction model
             start_time = time.time()
             crp_cls = self.crp_prediction_llm(html_text)
             crp_prediction_time += time.time() - start_time
             time.sleep(1) # fixme: allow the openai api to rest, not sure whether this help
 
-            if crp_cls == 0: # CRP
+            if crp_cls == 0: # CRP page is detected
                 plotvis = draw_annotated_image_nobox(plotvis, company_domain)
                 return 'phish', company_domain, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
-            else: # do CRP transition
+            else:
+                # CRP transition
                 if limit == 0:  # reach interaction limit -> just return
                     return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
 
+                # Ranking model
                 start_time = time.time()
                 candidate_dom, candidate_img, driver = self.ranking_model(url, driver, ranking_model_refresh_page)
                 crp_transition_time += time.time() - start_time
