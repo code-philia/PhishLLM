@@ -50,8 +50,6 @@ class BIM(Attack):
 
         for _ in range(self.steps):
             images.requires_grad = True
-            self.model = reset_model('/home/ruofan/git_space/ScamDet/checkpoints/epoch4_model.pt', protect=True)
-
             outputs = self.get_logits(images)
 
             # Calculate loss
