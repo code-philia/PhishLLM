@@ -23,6 +23,7 @@ import torch
 from lavis.models import load_model_and_preprocess
 from PIL import Image
 import base64
+from PIL import Image, ImageDraw, ImageFont
 
 def get_caption(img):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -36,6 +37,28 @@ def get_caption(img):
     result = model.generate({"image": image})
     del model, vis_processors
     return ' '.join(result)
+
+def transparent_text_injection(image, text, margin=(10, 10)):
+
+    width, height = image.size
+    # Create a drawing context
+    draw = ImageDraw.Draw(image)
+
+    # Load a font
+    font = ImageFont.truetype("./fonts/simfang.ttf", size=int(min(width, height)/10))  # Change this if you have a specific font in mind
+    # Get text size
+    text_width, text_height = draw.textsize(text, font=font)
+
+    # Calculate position for the text to be in the bottom right corner with specified margin
+    position = (image.width - text_width - margin[0], image.height - text_height - margin[1])
+
+    # Ensure text does not exceed image boundaries
+    position = (max(0, position[0]), max(0, position[1]))
+
+    # Draw the text on the image with a thin edge
+    draw.text(position, text, fill='black', font=font)
+
+    return image
 
 def get_ocr_text_coord(img_path):
     language_list = ['en', 'ch', 'ru', 'japan', 'fa', 'ar', 'korean', 'vi', 'ms',
@@ -136,7 +159,7 @@ class ShotDataset_Caption(Dataset):
     def __len__(self):
         return len(self.labels)
 
-    def __getitem__(self, idx, use_ocr=True):
+    def __getitem__(self, idx, adv=False):
         img_path = self.shot_paths[idx]
         url = self.urls[idx]
         label = self.labels[idx]
@@ -153,8 +176,15 @@ class ShotDataset_Caption(Dataset):
             logo_box = logo_boxes[0] # get coordinate for logo
             x1, y1, x2, y2 = logo_box
             reference_logo = screenshot_img.crop((x1, y1, x2, y2)) # crop logo out
-            # generation caption for logo
-            caption = get_caption(reference_logo)
+            if adv: # adversarial text injection attack
+                injected_logo = transparent_text_injection(reference_logo.convert('RGB'), 'abc.com')
+                caption = get_caption(injected_logo)
+                screenshot_img.paste(injected_logo, (int(x1), int(y1)))
+                img_path = img_path.replace('shot', 'shot_adv')
+                screenshot_img.save(img_path)
+            else:
+                # generation caption for logo
+                caption = get_caption(reference_logo)
 
             # get extra description on the webpage
             ocr_text, ocr_coord = get_ocr_text_coord(img_path)
