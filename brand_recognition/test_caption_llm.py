@@ -15,7 +15,6 @@ import idna
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key3.txt').read()
 
 
-
 def test(result_file):
 
     ct = 0
@@ -72,7 +71,7 @@ if __name__ == '__main__':
 
         if os.path.exists(result_file) and dataset.urls[it] in open(result_file).read():
             continue
-        url, _, logo_caption, logo_ocr = dataset.__getitem__(it, True)
+        url, _, logo_caption, logo_ocr = dataset.__getitem__(it)
         domain = tldextract.extract(url).domain+'.'+tldextract.extract(url).suffix
         question = question_template_caption(logo_caption, logo_ocr)
 
