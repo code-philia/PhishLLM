@@ -16,7 +16,8 @@ from tqdm import tqdm
 from paddleocr import PaddleOCR
 import math
 from collections import Counter
-from selection_model.draw_utils import draw_ocr, draw_annotated_image
+from selection_model.draw_utils import draw_ocr
+
 
 def get_ocr_text(img_path, html_path):
     language_list = ['en', 'ch', 'ru', 'japan', 'fa', 'ar', 'korean', 'vi', 'ms',
@@ -63,6 +64,8 @@ def get_ocr_text(img_path, html_path):
             ocr_text = ''
 
     return ocr_text
+
+
 
 class ShotDataset(Dataset):
     def __init__(self, annot_path):
@@ -129,6 +132,8 @@ class ShotDataset(Dataset):
             else:
                 html_text = ''
             return url, label, html_text
+
+
 
 
 def question_template(html_text):

@@ -74,6 +74,9 @@ if __name__ == '__main__':
         url, _, logo_caption, logo_ocr = dataset.__getitem__(it)
         domain = tldextract.extract(url).domain+'.'+tldextract.extract(url).suffix
         question = question_template_caption(logo_caption, logo_ocr)
+        # ablation study
+        # question = question_template_caption('', logo_ocr)
+        # question = question_template_caption(logo_caption, '')
 
         with open('./brand_recognition/prompt_caption.json', 'rb') as f:
             prompt = json.load(f)
