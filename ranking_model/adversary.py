@@ -4,8 +4,6 @@ from ranking_model.train import *
 from ranking_model.torchattacks.attacks.fgsm import FGSM
 from ranking_model.torchattacks.attacks.bim import BIM
 from ranking_model.torchattacks.attacks.deepfool import DeepFool
-from ranking_model.torchattacks.attacks.pgd import PGD
-from ranking_model.torchattacks.attacks.jsma import JSMA
 from ranking_model.torchattacks.attacks.protect import *
 import math
 os.environ['CUDA_VISIBLE_DEVICES'] = '3'
@@ -48,7 +46,7 @@ def tester_rank(model, test_dataset, device, protect_enabled, adv_attack=True):
                 protect_act(model.visual)
                 protect_resnetblock(model.visual)
                 model = model.to(device)
-            attack_cls = JSMA(model, device=device)
+            attack_cls = DeepFool(model, device=device)
             adv_images = attack_cls(images, labels, target_labels)
             images.detach()
             del attack_cls
@@ -96,22 +94,18 @@ if __name__ == '__main__':
     state_dict = torch.load("./checkpoints/epoch{}_model.pt".format(4))
     model.load_state_dict(state_dict)
 
-    protect_act(model.visual) #
-    protect_resnetblock(model.visual)
+    # protect_act(model.visual) #
+    # protect_resnetblock(model.visual)
     model = model.to(device)
     freeze_params(model)
 
-    tester_rank(model, test_dataset, device, protect_enabled=True)
+    tester_rank(model, test_dataset, device, protect_enabled=False)
     # tester_rank(model, test_dataset, device, protect_enabled=True, adv_attack=False)
 
     # FGSM: After attack correct count = 210, Total = 321, Recall@K = 0.6542056074766355
-    # BIM (iterative FGSM, but gradually increasing the perturbation magnitude) After attack correct count = 224, Total = 321, Recall@K = 0.6978193146417445
+    # BIM (iterative FGSM, but gradually increasing the perturbation magnitude) After attack correct count = 28, Total = 321, Recall@K = 0.08722741433021806
     # DeepFool After attack correct count = 27, Total = 321, Recall@K = 0.08411214953271028
 
-    ### With step-relu
-    # FGSM After attack correct count = 291, Total = 321, Recall@K = 0.9065420560747663
-    # BIM After attack correct count = 282, Total = 321, Recall@K = 0.8816
-    # DeepFool After attack correct count = 109, Total = 321, Recall@K = 0.3395638629283489
 
 
 

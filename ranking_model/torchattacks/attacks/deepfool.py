@@ -67,7 +67,6 @@ class DeepFool(Attack):
 
     def _forward_indiv(self, image, label):
         image.requires_grad = True
-        self.model = reset_model('/home/ruofan/git_space/ScamDet/checkpoints/epoch4_model.pt', protect=True)
 
         fs = self.get_logits(image)[0] # output
         _, pre = torch.max(fs, dim=0)
