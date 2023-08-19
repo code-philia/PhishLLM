@@ -1,5 +1,5 @@
 [{"role": "system",
-  "content": "You are knowledgeable about brands and their associated logos. Given the description on logo, your task is to decide the brand of the logo. Just give the brand's domain in English, do not output any explanation. The returned domain must be alive. If you are unsure, do not give prediction."},
+  "content": "You are knowledgeable about brands and their associated logos. Given the description of a logo, your task is to decide the brand of the logo. Just give the brand's domain in English, do not output any explanation. The returned domain must be alive. If you are unsure, do not give prediction."},
 
   {"role": "user",
     "content": "Given the following description on the brand's logo: <start>a red and white sign that says max bounty<end>, Question: What is the brand's domain? Answer: "},

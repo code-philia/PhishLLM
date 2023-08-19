@@ -24,9 +24,10 @@ from model_chain.web_utils import WebUtil
 from xdriver.xutils.Logger import Logger
 import shutil
 import requests
-from field_study.draw_utils import draw_annotated_image, draw_annotated_image_nobox
+from field_study.draw_utils import draw_annotated_image_box
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Tuple, Set, Dict, Optional
+from typing import List, Tuple, Set, Dict, Optional, Union
+from lavis.models import load_model_and_preprocess
 os.environ['CUDA_VISIBLE_DEVICES'] = "1"
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key2.txt').read()
 
@@ -40,7 +41,8 @@ class TestLLM():
         self.clip_model.load_state_dict(state_dict)
         self.LLM_model = "gpt-3.5-turbo-16k"
         self.prediction_prompt = './selection_model/prompt3.json'
-        self.brand_prompt = './brand_recognition/prompt_field.json'
+        # self.brand_prompt = './brand_recognition/prompt_field.json'
+        self.brand_prompt = './brand_recognition/prompt_caption.json'
         self.phishintention_cls = phishintention_cls
         self.language_list = ['en', 'ch', 'ru', 'japan', 'fa', 'ar', 'korean', 'vi', 'ms',
                              'fr', 'german', 'it', 'es', 'pt', 'uk', 'be', 'te',
@@ -88,7 +90,7 @@ class TestLLM():
 
         return returned_urls, context_links
 
-    def download_image(self, url: str) -> Optional[Image]:
+    def download_image(self, url: str) -> Optional[Image.Image]:
         '''
             Download images from given url (Google image context links)
             :param url:
@@ -106,7 +108,7 @@ class TestLLM():
 
         return None
 
-    def get_images(self, image_urls: List[str]) -> List[Image]:
+    def get_images(self, image_urls: List[str]) -> List[Image.Image]:
         '''
             Run download_image in multiple threads
             :param image_urls:
@@ -153,14 +155,16 @@ class TestLLM():
                     ct_limit += 1
         return False
 
-    def detect_text(self, shot_path: str, html_path: str) -> str:
+    def detect_webpage_ocr(self, shot_path: str, html_path: str) -> Tuple[List[str], List[List[float]], str]:
         '''
             Run OCR
             :param shot_path:
             :param html_path:
             :return:
         '''
-        ocr_text = ''
+        detected_text = ''
+        ocr_text = []
+        ocr_coord = []
         most_fit_lang = self.language_list[0]
         best_conf = 0
         most_fit_results = ''
@@ -186,11 +190,14 @@ class TestLLM():
                 most_fit_results = result
             if best_conf > 0 and self.language_list.index(lang) - self.language_list.index(most_fit_lang) >= 2:  # local best language
                 break
-
+        # OCR can return results
         if len(most_fit_results):
             most_fit_results = most_fit_results[0]
-            ocr_text = ' '.join([line[1][0] for line in most_fit_results])
+            ocr_text = [line[1][0] for line in most_fit_results]
+            ocr_coord = [line[0][0] + line[0][2] for line in most_fit_results]
+            detected_text = ' '.join(ocr_text)
 
+        # if OCR does not work, use the raw HTML
         elif os.path.exists(html_path):
             with io.open(html_path, 'r', encoding='utf-8') as f:
                 page = f.read()
@@ -201,88 +208,97 @@ class TestLLM():
                     u.drop_tree()
                 html_text = ' '.join(dom_tree.itertext())
                 html_text = re.sub(r"\s+", " ", html_text).split(' ')
-                ocr_text = ' '.join([x for x in html_text if x])
+                detected_text = ' '.join([x for x in html_text if x])
 
-        return ocr_text
+        return ocr_text, ocr_coord, detected_text
 
-    def click_and_save(self, driver: XDriver, dom: str, save_html_path: str, save_shot_path: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    def generate_logo_caption(self, img: Image.Image) -> str:
+
+        raw_image = img.convert("RGB")
+
+        model, vis_processors, _ = load_model_and_preprocess(name="blip_caption",
+                                                             model_type="base_coco",
+                                                             is_eval=True,
+                                                             device=self.device)
+        image = vis_processors["eval"](raw_image).unsqueeze(0).to(self.device)
+        result = model.generate({"image": image})
+        del model, vis_processors
+        return ' '.join(result)
+
+    def detect_logo(self, save_shot_path):
+        # Logo detection
+        screenshot_img = Image.open(save_shot_path)
+        screenshot_img = screenshot_img.convert("RGB")
+        with open(save_shot_path, "rb") as image_file:
+            screenshot_encoding = base64.b64encode(image_file.read())
+        logo_boxes = self.phishintention_cls.return_all_bboxes4type(screenshot_encoding, 'logo')
+
+        if (logo_boxes is not None) and len(logo_boxes):
+            logo_box = logo_boxes[0]  # get coordinate for logo
+            x1, y1, x2, y2 = logo_box
+            reference_logo = screenshot_img.crop((x1, y1, x2, y2))  # crop logo out
+        else:
+            reference_logo = None
+            logo_box = None
+        return logo_box, reference_logo
+
+
+    def brand_recognition_llm(self, reference_logo: Optional[Image.Image],
+                              logo_box: Optional[List[float]],
+                              ocr_text: List[str], ocr_coord: List[List[float]],
+                              image_width: int, image_height: int) -> Tuple[Optional[str], Optional[Image.Image]]:
         '''
-             Click an element and save the updated screenshot and HTML
-            :param driver:
-            :param dom:
-            :param save_html_path:
-            :param save_shot_path:
-            :return:
-        '''
-        try:
-            element = driver.find_elements_by_xpath(dom)
-            if element:
-                try:
-                    driver.execute_script("arguments[0].style.border='3px solid red'", element[0]) # hightlight the element to click
-                    time.sleep(0.5)
-                except:
-                    pass
-                driver.move_to_element(element[0])
-                driver.click(element[0])
-                time.sleep(7)  # fixme: must allow some loading time here, dynapd is slow
-            current_url = driver.current_url()
-        except Exception as e:
-            print(e)
-            Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
-            return None, None, None
-
-        try:
-            driver.save_screenshot(save_shot_path)
-            print('new screenshot saved')
-            with open(save_html_path, "w", encoding='utf-8') as f:
-                f.write(driver.page_source())
-            return current_url, save_html_path, save_shot_path
-        except Exception as e:
-            print(e)
-            Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
-            return None, None, None
-
-
-
-    def brand_recognition_llm(self, reference_logo: Optional[Image], html_text: str) -> Tuple[Optional[str], Optional[Image]]:
-        '''
-            Use LLM to report targeted brand
+            Brand Recognition Model
             :param reference_logo:
-            :param html_text:
+            :param logo_box:
+            :param ocr_text:
+            :param ocr_coord:
+            :param image_width:
+            :param image_height:
             :return:
         '''
         company_domain, company_logo = None, None
-        question = question_template_brand(html_text)
+        if reference_logo:
+            # generation caption for logo
+            logo_caption = self.generate_logo_caption(reference_logo)
+            logo_ocr = ''
+            if len(ocr_coord):
+                # get the OCR text description surrounding the logo
+                expand_logo_box = expand_bbox(logo_box, image_width=image_width, image_height=image_height, expand_ratio=1.5)
+                overlap_areas = compute_overlap_areas_between_lists([expand_logo_box], ocr_coord)
+                logo_ocr = np.array(ocr_text)[overlap_areas[0] > 0].tolist()
+                logo_ocr = ' '.join(logo_ocr)
 
-        with open(self.brand_prompt, 'rb') as f:
-            prompt = json.load(f)
-        new_prompt = prompt
-        new_prompt.append(question)
+            question = question_template_caption(logo_caption, logo_ocr)
 
-        # example token count from the OpenAI API
-        inference_done = False
-        while not inference_done:
-            try:
-                start_time = time.time()
-                response = openai.ChatCompletion.create(
-                    model=self.LLM_model,
-                    messages=new_prompt,
-                    temperature=0,
-                    max_tokens=50,  # we're only counting input tokens here, so let's not waste tokens on the output
-                )
-                inference_done = True
-            except Exception as e:
-                Logger.spit('LLM Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
-                new_prompt[-1]['content'] = new_prompt[-1]['content'][:len(new_prompt[-1]['content']) // 2]
-                time.sleep(10)
+            with open(self.brand_prompt, 'rb') as f:
+                prompt = json.load(f)
+            new_prompt = prompt
+            new_prompt.append(question)
 
-        answer = ''.join([choice["message"]["content"] for choice in response['choices']])
-        print('LLM prediction time:', time.time() - start_time)
-        print(f'Detected brand {answer}')
+            inference_done = False
+            while not inference_done:
+                try:
+                    start_time = time.time()
+                    response = openai.ChatCompletion.create(
+                        model=self.LLM_model,
+                        messages=new_prompt,
+                        temperature=0,
+                        max_tokens=10,
+                    )
+                    inference_done = True
+                except Exception as e:
+                    Logger.spit('LLM Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
+                    time.sleep(10) # retry
 
-        if len(answer) > 0 and self.is_valid_domain(answer):
-            company_logo = reference_logo
-            company_domain = answer
+            answer = ''.join([choice["message"]["content"] for choice in response['choices']])
+            print('LLM prediction time:', time.time() - start_time)
+            print(f'Detected brand {answer}')
+
+            # check the validity of the returned domain, i.e. liveness
+            if len(answer) > 0 and self.is_valid_domain(answer):
+                company_logo = reference_logo
+                company_domain = answer
 
         return company_domain, company_logo
 
@@ -321,18 +337,52 @@ class TestLLM():
         else:
             return 1
 
+
+    def page_transition(self, driver: XDriver, dom: str, save_html_path: str, save_shot_path: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        '''
+            Click an element and save the updated screenshot and HTML
+            :param driver:
+            :param dom:
+            :param save_html_path:
+            :param save_shot_path:
+            :return:
+        '''
+        try:
+            element = driver.find_elements_by_xpath(dom)
+            if element:
+                try:
+                    driver.execute_script("arguments[0].style.border='3px solid red'", element[0]) # hightlight the element to click
+                    time.sleep(0.5)
+                except:
+                    pass
+                driver.move_to_element(element[0])
+                driver.click(element[0])
+                time.sleep(7)  # fixme: must allow some loading time here, dynapd is slow
+            current_url = driver.current_url()
+        except Exception as e:
+            print(e)
+            Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
+            return None, None, None
+
+        try:
+            driver.save_screenshot(save_shot_path)
+            print('new screenshot saved')
+            with open(save_html_path, "w", encoding='utf-8') as f:
+                f.write(driver.page_source())
+            return current_url, save_html_path, save_shot_path
+        except Exception as e:
+            print(e)
+            Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
+            return None, None, None
+
     def ranking_model(self, url: str, driver: XDriver, ranking_model_refresh_page: bool) -> \
-                                Tuple[List[WebElement], List[torch.Tensor], XDriver]:
+                                Tuple[Union[List, str], List[torch.Tensor], XDriver]:
         '''
             Use CLIP to rank the UI elements to find the most probable login button
-            Args:
-                url
-                driver
-                ranking_model_refresh_page: do we need to refresh the webpage before running the model?
-            Returns:
-                candidate_uis: DOM paths for candidate uis
-                candidate_uis_imgs: screenshots for candidate uis
-                driver
+            :param url:
+            :param driver:
+            :param ranking_model_refresh_page:
+            :return:
         '''
         if ranking_model_refresh_page:
             try:
@@ -409,52 +459,50 @@ class TestLLM():
             return [], [], driver
 
 
-    def test(self, url: str, reference_logo: Optional[Image],
+    def test(self, url: str, reference_logo: Optional[Image.Image],
+             logo_box: Optional[List[float]],
              shot_path: str, html_path: str, driver: XDriver, limit: int=2,
              brand_recog_time: float=0, crp_prediction_time: float=0, crp_transition_time: float=0,
              ranking_model_refresh_page: bool=True,
              skip_brand_recognition: bool=False,
              brand_recognition_do_validation: bool=False,
-             company_domain: Optional[str]=None, company_logo: Optional[Image]=None,
+             company_domain: Optional[str]=None, company_logo: Optional[Image.Image]=None,
              ):
         '''
             PhishLLM
-            Args:
-                url
-                shot_path
-                html_path
-                driver
-                limit: depth limit to run CRP transition model (ranking model)
-                brand_recog_time
-                crp_prediction_time
-                crp_transition_time
-                ranking_model_refresh_page
-                skip_brand_recognition: whether to skip the brand recognition after CRP transition?
-                company_domain: the reported targeted brand domain
-                company_logo
-            Returns:
-                pred: 'benign' or 'phish'
-                target: company_domain or 'None'
-                brand_recog_time
-                crp_prediction_time
-                crp_transition_time
+            :param url:
+            :param reference_logo:
+            :param shot_path:
+            :param html_path:
+            :param driver:
+            :param limit:
+            :param brand_recog_time:
+            :param crp_prediction_time:
+            :param crp_transition_time:
+            :param ranking_model_refresh_page:
+            :param skip_brand_recognition:
+            :param brand_recognition_do_validation:
+            :param company_domain:
+            :param company_logo:
+            :return:
         '''
 
         ## Run OCR to extract text
-        html_text = self.detect_text(shot_path, html_path)
+        ocr_text, ocr_coord, detected_text = self.detect_webpage_ocr(shot_path, html_path)
         plotvis = Image.open(shot_path)
+        image_width, image_height = plotvis.size
 
         ## Brand recognition model
         if not skip_brand_recognition:
             start_time = time.time()
-            company_domain, company_logo = self.brand_recognition_llm(reference_logo, html_text)
+            company_domain, company_logo = self.brand_recognition_llm(reference_logo, logo_box, ocr_text, ocr_coord, image_width, image_height)
             brand_recog_time += time.time() - start_time
             time.sleep(1) # fixme: allow the openai api to rest, not sure whether this help
         # check domain-brand inconsistency
         phish_condition = company_domain and (tldextract.extract(company_domain).domain != tldextract.extract(url).domain or
                                               tldextract.extract(company_domain).suffix != tldextract.extract(url).suffix)
 
-        if phish_condition and brand_recognition_do_validation: # todo: Google Image
+        if phish_condition and brand_recognition_do_validation:
             ## Brand recognition model : result validation
             validation_success = False
             start_time = time.time()
@@ -487,12 +535,12 @@ class TestLLM():
         if phish_condition:
             # CRP prediction model
             start_time = time.time()
-            crp_cls = self.crp_prediction_llm(html_text)
+            crp_cls = self.crp_prediction_llm(detected_text)
             crp_prediction_time += time.time() - start_time
             time.sleep(1) # fixme: allow the openai api to rest, not sure whether this help
 
             if crp_cls == 0: # CRP page is detected
-                plotvis = draw_annotated_image_nobox(plotvis, company_domain)
+                plotvis = draw_annotated_image_box(plotvis, company_domain, logo_box)
                 return 'phish', company_domain, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
             else:
                 # CRP transition
@@ -501,17 +549,20 @@ class TestLLM():
 
                 # Ranking model
                 start_time = time.time()
-                candidate_dom, candidate_img, driver = self.ranking_model(url, driver, ranking_model_refresh_page)
+                candidate_ele, candidate_img, driver = self.ranking_model(url, driver, ranking_model_refresh_page)
                 crp_transition_time += time.time() - start_time
 
-                if len(candidate_dom):
+                if len(candidate_ele):
                     save_html_path = re.sub("index[0-9]?.html", f"index{limit}.html", html_path)
                     save_shot_path = re.sub("shot[0-9]?.png", f"shot{limit}.png", shot_path)
                     print("Click login button")
-                    current_url, *_ = self.click_and_save(driver, candidate_dom, save_html_path, save_shot_path)
+                    current_url, *_ = self.page_transition(driver, candidate_ele, save_html_path, save_shot_path)
                     if current_url: # click success
                         ranking_model_refresh_page = current_url != url
-                        return self.test(current_url, reference_logo, save_shot_path, save_html_path, driver, limit-1,
+                        # logo detection
+                        logo_box, reference_logo = self.detect_logo(save_shot_path)
+                        return self.test(current_url, reference_logo, logo_box,
+                                         save_shot_path, save_html_path, driver, limit-1,
                                          brand_recog_time, crp_prediction_time, crp_transition_time,
                                          ranking_model_refresh_page=ranking_model_refresh_page,
                                          skip_brand_recognition=True, brand_recognition_do_validation=brand_recognition_do_validation,
