@@ -1,16 +1,7 @@
 [{"role": "system",
-  "content": "You are knowledgeable about brands and their associated logos. Given the description of a logo, your task is to decide the brand of the logo. Just give the brand's domain in English, do not output any explanation. The returned domain must be alive. If you are unsure, do not give prediction."},
+  "content": "You are knowledgeable about brands and their associated logos. Given the description of a logo, logo's OCR text, and the industry sector, your task is to decide the brand of the logo. Logo OCR is more important than logo's description. Just give the brand's domain in English, do not output any explanation. If there are multiple possible brands, output the most popular domain, do not output any explanation."},
 
-  {"role": "user",
-    "content": "Given the following description on the brand's logo: <start>a red and white sign that says max bounty<end>, Question: What is the brand's domain? Answer: "},
+  {"role": "user", "content": "Given the following description on the brand's logo: 'the logo for icy vein news and guides', the logo's OCR text: 'GO PREMIUM ICY VEINS M NoW', and the industry sector: 'Entertainment', Question: What is the brand's domain? Answer: "},
 
-  {"role": "assistant", "content": "maxbounty.com"},
-
-  {"role": "user", "content": "Given the following description on the brand's logo: <start>the logo for icy vein news and guides GO PREMIUM ICY VEINS M NoW<end>, Question: What is the brand's domain? Answer: "},
-
-  {"role": "assistant", "content": "icy-veins.com"},
-
-  {"role": "user", "content": "Given the following description on the brand's logo: <start>the words idn times on a white background IDN TIMES<end>, Question: What is the brand's domain? Answer: "},
-
-  {"role": "assistant", "content": "idn.media"}
+  {"role": "assistant", "content": "icy-veins.com"}
 ]

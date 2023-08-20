@@ -6,8 +6,8 @@ import cv2
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--folder", default="./datasets/field_study/2023-08-11/")
-    parser.add_argument("--date", default="2023-08-11", help="%Y-%m-%d")
+    parser.add_argument("--folder", default="./datasets/field_study/2023-08-19/")
+    parser.add_argument("--date", default="2023-08-19", help="%Y-%m-%d")
     args = parser.parse_args()
 
     # PhishLLM
@@ -39,11 +39,13 @@ if __name__ == '__main__':
             f.write("crp_transition_time" + "\n")
 
     for ct, folder in tqdm(enumerate(os.listdir(args.folder))):
+        # if ct <= 2984:
+        #     continue
         if folder in [x.split('\t')[0] for x in open(result_txt, encoding='ISO-8859-1').readlines()]:
             continue
         # if folder not in [
-        #                   'dashboard.nm.165-227-40-76.nip.io',
-        #                   ]:
+        #                    'systemsblog.blog.test.wp.kolaybet.org',
+        #                 ]:
         #     continue
 
         info_path = os.path.join(args.folder, folder, 'info.txt')
@@ -61,11 +63,14 @@ if __name__ == '__main__':
         except:
             url = 'https://' + folder
 
-        _, reference_logo = phishintention_cls.predict_n_save_logo(shot_path)
-        pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis = llm_cls.test(url, reference_logo,
+        if url.startswith('cpanel'): # skip cpanel hosting
+            continue
+
+        logo_box, reference_logo = llm_cls.detect_logo(shot_path)
+        pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis = llm_cls.test(url, reference_logo, logo_box,
                                                                                                         shot_path, html_path, driver,
                                                                                                         limit=1,
-                                                                                                        brand_recognition_do_validation=True
+                                                                                                        # brand_recognition_do_validation=True
                                                                                                         )
 
         try:
@@ -76,7 +81,7 @@ if __name__ == '__main__':
                 f.write(str(brand_recog_time) + "\t")
                 f.write(str(crp_prediction_time) + "\t")
                 f.write(str(crp_transition_time) + "\n")
-            if plotvis and pred == 'phish':
+            if pred == 'phish':
                 plotvis.save(predict_path)
 
         except UnicodeEncodeError:
@@ -93,12 +98,15 @@ if __name__ == '__main__':
     driver.quit()
     # 482.91236.top, requests unionpay.com doesnt work, need to request cn.unionpay.com
     # device-54ddd6f1-5dc6-4480-8809-c75e99811e0d.remotewd.com: no text on the webpage that indicate the brand is bouyguestelecom.fr, also the phishing is using old version of logo
-    # demo.nuxproservices.com: no prediction from gpt
     # cicd-13365-azure-devops-pipeline-portal-core.australiaeast.azurecontainer.io: phishintention didnt report the logo from the original webpage, therefore cannot do comparison
+
+    '''GPT problem'''
+    # demo.nuxproservices.com: no prediction from gpt
+    # cleyrop.cloud-iam.com: GPT prediction is observationtourisme.fr, but the gt is france-tourisme-observation.fr
 
     '''Google Image search problem'''
     # kbr.appwork.info, didnt pass logo validation, because of the inaccuracies of Google Image Search API, it returns the logos for enodiatherapies.com, however we are interested in the enodia.com
 
     '''OCR problem'''
-    # paperless.fungamers-online.de: OCR prediction has typo: 'perless -ng Please sign in. Username Password Sign in'
-    # dashboard.nm.165-227-40-76.nip.io: OCR miss information 'N MAKER Home ! Create an Admin Password* Password Confirmation* CREATE ADMIN'
+    # paperless.fungamers-online.de: OCR prediction has typo: 'perless -ng Please sign in. Username Password Sign in'. While using Google OCR can solve the problem 'Paperless Username Password Please sign in. Sign in'
+    # dashboard.nm.165-227-40-76.nip.io: OCR miss information 'N MAKER Home ! Create an Admin Password* Password Confirmation* CREATE ADMIN'. With google ocr '▬▬·目N- Username* Password* ETMAKER Create an Admin Password Confirmation* Home CREATE ADMIN'

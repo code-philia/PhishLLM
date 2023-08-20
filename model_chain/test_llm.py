@@ -23,9 +23,7 @@ import cv2
 from model_chain.web_utils import WebUtil
 from xdriver.xutils.Logger import Logger
 import shutil
-import requests
 from field_study.draw_utils import draw_annotated_image_box
-from concurrent.futures import ThreadPoolExecutor
 from typing import List, Tuple, Set, Dict, Optional, Union
 from lavis.models import load_model_and_preprocess
 os.environ['CUDA_VISIBLE_DEVICES'] = "1"
@@ -39,6 +37,12 @@ class TestLLM():
         self.clip_model, self.clip_preprocess = clip.load("ViT-B/32", device=self.device)
         state_dict = torch.load("./checkpoints/epoch{}_model.pt".format(4))
         self.clip_model.load_state_dict(state_dict)
+
+        self.caption_model, self.caption_preprocess, _ = load_model_and_preprocess(name="blip_caption",
+                                                             model_type="base_coco",
+                                                             is_eval=True,
+                                                             device=self.device)
+
         self.LLM_model = "gpt-3.5-turbo-16k"
         self.prediction_prompt = './selection_model/prompt3.json'
         # self.brand_prompt = './brand_recognition/prompt_field.json'
@@ -52,110 +56,24 @@ class TestLLM():
                     "https": "http://127.0.0.1:7890",
                 }
 
-    def query2image(self, query: str, SEARCH_ENGINE_API: str, SEARCH_ENGINE_ID: str, num: int=10) -> Tuple[List[str], List[str]]:
-        '''
-            Retrieve the images from Google image search
-            :param query:
-            :param SEARCH_ENGINE_API:
-            :param SEARCH_ENGINE_ID:
-            :param num:
-            :return:
-        '''
-        returned_urls = []
-        context_links = []
-        if len(query) == 0:
-            return returned_urls, context_links
+    def detect_logo(self, save_shot_path):
+        # Logo detection
+        screenshot_img = Image.open(save_shot_path)
+        screenshot_img = screenshot_img.convert("RGB")
+        with open(save_shot_path, "rb") as image_file:
+            screenshot_encoding = base64.b64encode(image_file.read())
+        logo_boxes = self.phishintention_cls.return_all_bboxes4type(screenshot_encoding, 'logo')
 
-        URL = f"https://www.googleapis.com/customsearch/v1?key={SEARCH_ENGINE_API}&cx={SEARCH_ENGINE_ID}&q={query}&searchType=image&num={num}"
-        while True:
-            try:
-                data = requests.get(URL, proxies=self.proxies).json()
-                break
-            except requests.exceptions.SSLError as e:
-                print(e)
-                time.sleep(2)
-        if 'error' in list(data.keys()):
-            if data['error']['code'] == 429:
-                raise RuntimeError("Google search exceeds quota limit")
-        search_items = data.get("items")
-        if search_items is None:
-            return returned_urls, context_links
+        if (logo_boxes is not None) and len(logo_boxes):
+            logo_box = logo_boxes[0]  # get coordinate for logo
+            x1, y1, x2, y2 = logo_box
+            reference_logo = screenshot_img.crop((x1, y1, x2, y2))  # crop logo out
+        else:
+            reference_logo = None
+            logo_box = None
+        return logo_box, reference_logo
 
-        # iterate over results found
-        for i, search_item in enumerate(search_items, start=1):
-            link = search_item.get("image")["thumbnailLink"]
-            context_link = search_item.get("image")['contextLink']
-            returned_urls.append(link)
-            context_links.append(context_link)
-
-        return returned_urls, context_links
-
-    def download_image(self, url: str) -> Optional[Image.Image]:
-        '''
-            Download images from given url (Google image context links)
-            :param url:
-            :return:
-        '''
-        try:
-            response = requests.get(url, proxies=self.proxies)
-            if response.status_code == 200:
-                img = Image.open(io.BytesIO(response.content))
-                return img
-            else:
-                print(f"Failed to download image: {response.status_code}")
-        except Exception as e:
-            print(f"An error occurred while downloading image: {e}")
-
-        return None
-
-    def get_images(self, image_urls: List[str]) -> List[Image.Image]:
-        '''
-            Run download_image in multiple threads
-            :param image_urls:
-            :return:
-        '''
-        images = []
-        with ThreadPoolExecutor() as executor:
-            futures = [executor.submit(self.download_image, url) for url in image_urls]
-            for future in futures:
-                img = future.result()
-                if img:
-                    images.append(img)
-
-        return images
-
-    def is_valid_domain(self, domain: str) -> bool:
-        '''
-            Check if the provided string is a valid domain
-            :param domain:
-            :return:
-        '''
-        # Regular expression to check if the string is a valid domain without spaces
-        pattern = re.compile(
-            r'^(?!-)'  # Cannot start with a hyphen
-            r'(?!.*--)'  # Cannot have two consecutive hyphens
-            r'(?!.*\.\.)'  # Cannot have two consecutive periods
-            r'(?!.*\s)'  # Cannot contain any spaces
-            r'[a-zA-Z0-9-]{1,63}'  # Valid characters are alphanumeric and hyphen
-            r'(?:\.[a-zA-Z]{2,})+$'  # Ends with a valid top-level domain
-        )
-        it_is_a_domain = bool(pattern.fullmatch(domain))
-        if it_is_a_domain:
-            ct_limit = 1
-            while True:
-                if ct_limit == 3:
-                    break
-                try:
-                    response = requests.get('https://'+domain, timeout=60, proxies=self.proxies)
-                    if response.status_code >= 200 and response.status_code < 400: # it is alive
-                        return True
-                    break
-                except Exception as err:
-                    print(f'Error {err} when checking the aliveness of domain {domain}')
-                    ct_limit += 1
-        return False
-
-    def detect_webpage_ocr(self, shot_path: str, html_path: str) -> Tuple[List[str], List[List[float]], str]:
+    def generate_webpage_ocr(self, shot_path: str, html_path: str) -> Tuple[List[str], List[List[float]], str]:
         '''
             Run OCR
             :param shot_path:
@@ -184,7 +102,7 @@ class TestLLM():
             if median_conf >= sure_thre: # confidence is so high
                 most_fit_results = result
                 break
-            if median_conf > best_conf and median_conf >= unsure_thre:
+            if median_conf > best_conf and median_conf >= unsure_thre: # confidence is moderately high, need further checking
                 best_conf = median_conf
                 most_fit_lang = lang
                 most_fit_results = result
@@ -215,32 +133,9 @@ class TestLLM():
     def generate_logo_caption(self, img: Image.Image) -> str:
 
         raw_image = img.convert("RGB")
-
-        model, vis_processors, _ = load_model_and_preprocess(name="blip_caption",
-                                                             model_type="base_coco",
-                                                             is_eval=True,
-                                                             device=self.device)
-        image = vis_processors["eval"](raw_image).unsqueeze(0).to(self.device)
-        result = model.generate({"image": image})
-        del model, vis_processors
+        image = self.caption_preprocess["eval"](raw_image).unsqueeze(0).to(self.device)
+        result = self.caption_model.generate({"image": image})
         return ' '.join(result)
-
-    def detect_logo(self, save_shot_path):
-        # Logo detection
-        screenshot_img = Image.open(save_shot_path)
-        screenshot_img = screenshot_img.convert("RGB")
-        with open(save_shot_path, "rb") as image_file:
-            screenshot_encoding = base64.b64encode(image_file.read())
-        logo_boxes = self.phishintention_cls.return_all_bboxes4type(screenshot_encoding, 'logo')
-
-        if (logo_boxes is not None) and len(logo_boxes):
-            logo_box = logo_boxes[0]  # get coordinate for logo
-            x1, y1, x2, y2 = logo_box
-            reference_logo = screenshot_img.crop((x1, y1, x2, y2))  # crop logo out
-        else:
-            reference_logo = None
-            logo_box = None
-        return logo_box, reference_logo
 
 
     def brand_recognition_llm(self, reference_logo: Optional[Image.Image],
@@ -259,8 +154,9 @@ class TestLLM():
         '''
         company_domain, company_logo = None, None
         if reference_logo:
-            # generation caption for logo
+            # generation image caption for logo
             logo_caption = self.generate_logo_caption(reference_logo)
+            print('Logo caption: ', logo_caption)
             logo_ocr = ''
             if len(ocr_coord):
                 # get the OCR text description surrounding the logo
@@ -268,7 +164,8 @@ class TestLLM():
                 overlap_areas = compute_overlap_areas_between_lists([expand_logo_box], ocr_coord)
                 logo_ocr = np.array(ocr_text)[overlap_areas[0] > 0].tolist()
                 logo_ocr = ' '.join(logo_ocr)
-
+            print('Logo OCR: ', logo_ocr)
+            # ask gpt to predict brand
             question = question_template_caption(logo_caption, logo_ocr)
 
             with open(self.brand_prompt, 'rb') as f:
@@ -296,9 +193,11 @@ class TestLLM():
             print(f'Detected brand {answer}')
 
             # check the validity of the returned domain, i.e. liveness
-            if len(answer) > 0 and self.is_valid_domain(answer):
-                company_logo = reference_logo
-                company_domain = answer
+            if len(answer) > 0 \
+                    and is_valid_domain(answer):
+                if is_alive_domain(answer, self.proxies):
+                    company_logo = reference_logo
+                    company_domain = answer
 
         return company_domain, company_logo
 
@@ -336,44 +235,6 @@ class TestLLM():
             return 0 # CRP
         else:
             return 1
-
-
-    def page_transition(self, driver: XDriver, dom: str, save_html_path: str, save_shot_path: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-        '''
-            Click an element and save the updated screenshot and HTML
-            :param driver:
-            :param dom:
-            :param save_html_path:
-            :param save_shot_path:
-            :return:
-        '''
-        try:
-            element = driver.find_elements_by_xpath(dom)
-            if element:
-                try:
-                    driver.execute_script("arguments[0].style.border='3px solid red'", element[0]) # hightlight the element to click
-                    time.sleep(0.5)
-                except:
-                    pass
-                driver.move_to_element(element[0])
-                driver.click(element[0])
-                time.sleep(7)  # fixme: must allow some loading time here, dynapd is slow
-            current_url = driver.current_url()
-        except Exception as e:
-            print(e)
-            Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
-            return None, None, None
-
-        try:
-            driver.save_screenshot(save_shot_path)
-            print('new screenshot saved')
-            with open(save_html_path, "w", encoding='utf-8') as f:
-                f.write(driver.page_source())
-            return current_url, save_html_path, save_shot_path
-        except Exception as e:
-            print(e)
-            Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
-            return None, None, None
 
     def ranking_model(self, url: str, driver: XDriver, ranking_model_refresh_page: bool) -> \
                                 Tuple[Union[List, str], List[torch.Tensor], XDriver]:
@@ -488,7 +349,7 @@ class TestLLM():
         '''
 
         ## Run OCR to extract text
-        ocr_text, ocr_coord, detected_text = self.detect_webpage_ocr(shot_path, html_path)
+        ocr_text, ocr_coord, detected_text = self.generate_webpage_ocr(shot_path, html_path)
         plotvis = Image.open(shot_path)
         image_width, image_height = plotvis.size
 
@@ -502,15 +363,16 @@ class TestLLM():
         phish_condition = company_domain and (tldextract.extract(company_domain).domain != tldextract.extract(url).domain or
                                               tldextract.extract(company_domain).suffix != tldextract.extract(url).suffix)
 
-        if phish_condition and brand_recognition_do_validation:
+        if phish_condition and brand_recognition_do_validation and (not skip_brand_recognition):
             ## Brand recognition model : result validation
             validation_success = False
             start_time = time.time()
             API_KEY, SEARCH_ENGINE_ID = [x.strip() for x in open('./datasets/google_api_key.txt').readlines()]
-            returned_urls, _ = self.query2image(query=company_domain + ' logo',
-                                                SEARCH_ENGINE_ID=SEARCH_ENGINE_ID, SEARCH_ENGINE_API=API_KEY,
-                                                num=5)
-            logos = self.get_images(returned_urls)
+            returned_urls, _ = query2image(query=company_domain + ' logo',
+                                            SEARCH_ENGINE_ID=SEARCH_ENGINE_ID, SEARCH_ENGINE_API=API_KEY,
+                                            num=5,
+                                           proxies=self.proxies)
+            logos = get_images(returned_urls, proxies=self.proxies)
             print('Crop the logo time:', time.time() - start_time)
 
             if reference_logo and len(logos)>0:
@@ -518,15 +380,18 @@ class TestLLM():
                                                        model=self.phishintention_cls.SIAMESE_MODEL,
                                                        ocr_model=self.phishintention_cls.OCR_MODEL)
                 start_time = time.time()
+                sim_list = []
+                with ThreadPoolExecutor() as executor:
+                    futures = [executor.submit(pred_siamese_OCR, logo,
+                                               self.phishintention_cls.SIAMESE_MODEL,
+                                               self.phishintention_cls.OCR_MODEL) for logo in logos]
+                    for future in futures:
+                        logo_feat = future.result()
+                        matched_sim = reference_logo_feat @ logo_feat
+                        sim_list.append(matched_sim)
 
-                for logo in logos:
-                    logo_feat = pred_siamese_OCR(img=logo,
-                                                 model=self.phishintention_cls.SIAMESE_MODEL,
-                                                 ocr_model=self.phishintention_cls.OCR_MODEL)
-                    matched_sim = reference_logo_feat @ logo_feat
-                    if matched_sim >= 0.7:  # logo similarity exceeds a threshold
-                        validation_success = True
-                        break
+                if any([x > 0.7 for x in sim_list]):
+                    validation_success = True
 
                 print('Logo matching time:', time.time() - start_time)
             if not validation_success:
@@ -556,7 +421,7 @@ class TestLLM():
                     save_html_path = re.sub("index[0-9]?.html", f"index{limit}.html", html_path)
                     save_shot_path = re.sub("shot[0-9]?.png", f"shot{limit}.png", shot_path)
                     print("Click login button")
-                    current_url, *_ = self.page_transition(driver, candidate_ele, save_html_path, save_shot_path)
+                    current_url, *_ = page_transition(driver, candidate_ele, save_html_path, save_shot_path)
                     if current_url: # click success
                         ranking_model_refresh_page = current_url != url
                         # logo detection

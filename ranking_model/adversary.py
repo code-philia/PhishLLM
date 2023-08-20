@@ -104,7 +104,7 @@ if __name__ == '__main__':
 
     # FGSM: After attack correct count = 210, Total = 321, Recall@K = 0.6542056074766355
     # BIM (iterative FGSM, but gradually increasing the perturbation magnitude) After attack correct count = 28, Total = 321, Recall@K = 0.08722741433021806
-    # DeepFool After attack correct count = 27, Total = 321, Recall@K = 0.08411214953271028
+    # DeepFool After attack correct count = 10, Total = 321, Recall@K = 0.03115264797507788
 
 
 
