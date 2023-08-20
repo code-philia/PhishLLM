@@ -171,6 +171,8 @@ class ShotDataset_Caption(Dataset):
         logo_boxes = self.phishintention_cls.return_all_bboxes4type(screenshot_encoding, 'logo')
         caption = ''
         extra_description = ''
+        ocr_text = []
+        reference_logo = None
 
         if (logo_boxes is not None) and len(logo_boxes):
             logo_box = logo_boxes[0] # get coordinate for logo
@@ -198,7 +200,7 @@ class ShotDataset_Caption(Dataset):
                 extra_description = np.array(ocr_text)[overlap_areas[0] > 0].tolist()
                 extra_description = ' '.join(extra_description)
 
-        return url, label, caption, extra_description
+        return url, label, caption, extra_description, ' '.join(ocr_text), reference_logo
 
 def question_template(html_text):
     return \
@@ -211,9 +213,28 @@ def question_template_caption(logo_caption, logo_ocr):
     return \
         {
             "role": "user",
-            "content": f"Given the following description on the brand's logo: <start>{logo_caption} {logo_ocr}<end>, Question: What is the brand's domain? Answer: "
+            "content": f"Given the following description on the brand's logo: '{logo_caption}', and the logo's OCR text: '{logo_ocr}', Question: What is the brand's domain? Answer: "
         }
 
+def question_template_industry(html_text):
+    return \
+        [
+            {
+                "role": "system",
+                "content": f"Your task is to predict the industry sector given webpage content. Only give the industry sector, do not output any explanation."
+            },
+            {
+                "role": "user",
+                "content": f"Given the following webpage text: '{html_text}', Question: What is the webpage's industry sector? Answer: "
+            }
+        ]
+
+def question_template_caption_industry(logo_caption, logo_ocr, industry):
+    return \
+        {
+            "role": "user",
+            "content": f"Given the following description on the brand's logo: '{logo_caption}', the logo's OCR text: '{logo_ocr}', and the industry sector: '{industry}' Question: What is the brand's domain? Answer: "
+        }
 
 def question_template_adversary(html_text, domain):
     return \
