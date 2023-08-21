@@ -29,7 +29,7 @@ def get_pos_site(result_txt):
 def compute_precision_recall(reported_folders, gt_folders):
     intersection = set(reported_folders).intersection(set(gt_folders))
     # print(list(set(reported_folders) - set(intersection)))
-    # print(list(set(gt_folders) - set(intersection)))
+    print(list(set(gt_folders) - set(intersection)))
     # [print(x) for x in list(set(gt_folders) - set(intersection))]
     recall = len(intersection) / len(gt_folders)
     if len(reported_folders) > 0:
@@ -63,39 +63,38 @@ if __name__ == '__main__':
     end_date = date(2023, 8, 2)
     g = gwrapper()
     all_records = g.get_records()
-    for single_date in daterange(start_date, end_date):
-        date_ = single_date.strftime("%Y-%m-%d")
 
-        llm_txt = get_pos_site('./field_study/results/{}_phishllm.txt'.format(date_))
-        llm_pos_folders = [x[0] for x in llm_txt]
+    date_ = "2023-08-11"
+    llm_txt = get_pos_site('./field_study/results/{}_phishllm.txt'.format(date_))
+    llm_pos_folders = [x[0] for x in llm_txt]
 
-        pedia_txt = get_pos_site('./field_study/results/{}_phishpedia.txt'.format(date_))
-        pedia_pos_folders = [x[0] for x in pedia_txt]
+    pedia_txt = get_pos_site('./field_study/results/{}_phishpedia.txt'.format(date_))
+    pedia_pos_folders = [x[0] for x in pedia_txt]
 
-        intention_txt = get_pos_site('./field_study/results/{}_phishintention.txt'.format(date_))
-        intention_pos_folders = [x[0] for x in intention_txt]
+    intention_txt = get_pos_site('./field_study/results/{}_phishintention.txt'.format(date_))
+    intention_pos_folders = [x[0] for x in intention_txt]
 
-        # # get the labels for today
-        todays_labels = [x for x in all_records if x['date'] == date_]
-        todays_pos = [x for x in todays_labels if x['yes']>0]
-        todays_ignore = [x for x in todays_labels if x['unsure']>0]
-        today_pos_folders = [x['foldername'] for x in todays_pos]
-        today_ignore_folders = [x['foldername'] for x in todays_ignore]
+    # # get the labels for today
+    todays_labels = [x for x in all_records if x['date'] == date_]
+    todays_pos = [x for x in todays_labels if x['yes']>0]
+    todays_ignore = [x for x in todays_labels if x['unsure']>0]
+    today_pos_folders = [x['foldername'] for x in todays_pos]
+    today_ignore_folders = [x['foldername'] for x in todays_ignore]
 
-        # '''compute precision & recall'''
-        llm_pos_folders = list(set(llm_pos_folders) - set(today_ignore_folders))
-        pedia_pos_folders = list(set(pedia_pos_folders) - set(today_ignore_folders))
-        intention_pos_folders = list(set(intention_pos_folders) - set(today_ignore_folders))
+    # '''compute precision & recall'''
+    llm_pos_folders = list(set(llm_pos_folders) - set(today_ignore_folders))
+    pedia_pos_folders = list(set(pedia_pos_folders) - set(today_ignore_folders))
+    intention_pos_folders = list(set(intention_pos_folders) - set(today_ignore_folders))
 
-        llm_precision, llm_recall = compute_precision_recall(llm_pos_folders, today_pos_folders)
-        print(f'PhishLLM precision = {llm_precision}, PhishLLM recall = {llm_recall}')
-        runtime_llm('./field_study/results/{}_phishllm.txt'.format(date_))
-        pedia_precision, pedia_recall = compute_precision_recall(pedia_pos_folders, today_pos_folders)
-        print(f'Phishpedia precision = {pedia_precision}, Phishpedia recall = {pedia_recall}')
-        runtime_base('./field_study/results/{}_phishpedia.txt'.format(date_))
-        intention_precision, intention_recall = compute_precision_recall(intention_pos_folders, today_pos_folders)
-        print(f'PhishIntention precision = {intention_precision}, PhishIntention recall = {intention_recall}')
-        runtime_base('./field_study/results/{}_phishintention.txt'.format(date_))
+    llm_precision, llm_recall = compute_precision_recall(llm_pos_folders, today_pos_folders)
+    print(f'PhishLLM precision = {llm_precision}, PhishLLM recall = {llm_recall}')
+    runtime_llm('./field_study/results/{}_phishllm.txt'.format(date_))
+    pedia_precision, pedia_recall = compute_precision_recall(pedia_pos_folders, today_pos_folders)
+    print(f'Phishpedia precision = {pedia_precision}, Phishpedia recall = {pedia_recall}')
+    runtime_base('./field_study/results/{}_phishpedia.txt'.format(date_))
+    intention_precision, intention_recall = compute_precision_recall(intention_pos_folders, today_pos_folders)
+    print(f'PhishIntention precision = {intention_precision}, PhishIntention recall = {intention_recall}')
+    runtime_base('./field_study/results/{}_phishintention.txt'.format(date_))
 
     '''Move reported phishing into a seperate folder, for labeling'''
     os.makedirs('./datasets/phishing_TP_examples', exist_ok=True)
@@ -107,7 +106,8 @@ if __name__ == '__main__':
         df_pos = get_pos_site(f'./field_study/results/{today_date}_phishllm.txt')
         df_pos_folders = [x[0] for x in df_pos]
 
-        if os.path.exists('./field_study/results/{}_phishpedia.txt'.format(today_date)):
+        if os.path.exists('./field_study/results/{}_phishpedia.txt'.format(today_date)) and \
+                os.path.exists('./field_study/results/{}_phishintention.txt'.format(today_date)):
             pedia_pos = get_pos_site('./field_study/results/{}_phishpedia.txt'.format(today_date))
             intention_pos = get_pos_site('./field_study/results/{}_phishintention.txt'.format(today_date))
             print(f'Date {today_date} Phishllm # phishing = {len(df_pos)}, Phishpedia # phishing = {len(pedia_pos)}, PhishIntention # phishing = {len(intention_pos)} \n')

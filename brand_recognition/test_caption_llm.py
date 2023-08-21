@@ -86,14 +86,15 @@ if __name__ == '__main__':
     dataset = ShotDataset_Caption(annot_path='./datasets/alexa_screenshots_orig.txt')
     print(len(dataset))
     model = "gpt-3.5-turbo-16k"
-    result_file = './datasets/alexa_brand_testllm_caption_u2.txt'
+    # result_file = './datasets/alexa_brand_testllm_caption.txt'
+    result_file = './datasets/alexa_brand_testllm_caption_caponly.txt'
     phishintention_cls = PhishIntentionWrapper()
 
     for it in tqdm(range(len(dataset))):
 
         if os.path.exists(result_file) and dataset.urls[it] in open(result_file).read():
             continue
-        # if not any([x in dataset.urls[it] for x in ['126.com',  'vk.com']]):
+        # if not any([x in dataset.urls[it] for x in ['https://aliyundrive.com']]):
         #     continue
         url, _, logo_caption, logo_ocr, html_text, reference_logo = dataset.__getitem__(it)
         print('Logo caption: ', logo_caption)
@@ -103,10 +104,10 @@ if __name__ == '__main__':
         if len(logo_caption) or len(logo_ocr):
             industry = ask_industry(model, html_text)
 
-            question = question_template_caption_industry(logo_caption, logo_ocr, industry)
+            # question = question_template_caption_industry(logo_caption, logo_ocr, industry)
             # ablation study
             # question = question_template_caption('', logo_ocr)
-            # question = question_template_caption(logo_caption, '')
+            question = question_template_caption(logo_caption, '')
 
             with open('./brand_recognition/prompt_caption.json', 'rb') as f:
                 prompt = json.load(f)
@@ -174,8 +175,7 @@ if __name__ == '__main__':
 
     # (.*failure.*\n)|(.*unable.*\n)|(.*not.*\n)|(.*no prediction.*\n)
 
-    # test(result_file) # Recall, i.e. % brand recognized = 0.7283540802213001 Precision, i.e. % brand reported correct = 0.8409453848610667
-    # 0.5978982300884956
+    # test(result_file) # Completeness (% brand recognized) = 0.6548672566371682 Median runtime 0.8912811279296875, Mean runtime 1.384584855650906
 
     # missing = set(list_correct('./datasets/alexa_brand_testllm_u2.txt')) - set(list_correct(result_file))
     # print(len(missing))
@@ -201,27 +201,21 @@ if __name__ == '__main__':
     #     with open('./datasets/alexa_brand_testllm_caption_u2.txt', 'a+') as f:
     #         f.write(line)
 
+
     '''Dont have enough information'''
-    # nature.com
-    # Logo caption:  a black and white photo of the word nature Logo OCR:  nature
-    # "I'm sorry, but I don't have enough information to determine the brand's domain based on the given description."
+    # liepin.com Logo caption:  an orange and white sign with asian writing
+    # Logo OCR:  猫猎聘 ●全国、
+    # Industry:  Real Estate
+    # There is not enough information provided to determine the brand's domain.
 
-    # 126.com
-    # Logo caption:  a green and white sign with the words 122
-    # Logo OCR:  126网易免费邮 你的专业电子邮局 => correct now
+    '''fail logo validation'''
+    # qoo10.jp
+    # Logo caption:  a qqqq logo with the word qqqqq on it
+    # Logo OCR:  Coo10 COMING n eBay compan!
+    # Industry:  e-commerce
+    # predict as ebay.com, fail logo validation
 
-    '''Typo in OCR'''
-    # bilibili.tv
-    # Logo caption:  a white background with a blue and black logo
-    # Logo OCR:  bilibii
-    # "I'm sorry, but I couldn't find a brand with the given description and OCR text."
-
-    '''Lack of description'''
-    # adidas.com
-    # Logo caption:  a black and white photo of a black and white logo
-    # Logo OCR:  1
-
-    '''No logo prediction'''
-    # bbc.com
-    '''Page is incomplete -> No logo prediction'''
-    # leetcode-cn.com
+    # Logo caption:  a blue and white sign with chinese characters on it
+    # Logo OCR:  阿里云盘
+    # Industry:  Technology
+    # aliyun.com

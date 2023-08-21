@@ -1,16 +1,7 @@
-from tldextract import tldextract
 import openai
-import time
 import json
-from PIL import Image
-import io
-import base64
 import torch
 import clip
-import re
-from xdriver.XDriver import XDriver
-from selenium.webdriver.remote.webelement import WebElement
-from phishintention.src.AWL_detector import find_element_type
 from phishintention.src.OCR_aided_siamese import pred_siamese_OCR
 from model_chain.utils import *
 from paddleocr import PaddleOCR
@@ -18,20 +9,19 @@ import math
 import os
 from lxml import html
 from xdriver.xutils.PhishIntentionWrapper import PhishIntentionWrapper
-from tqdm import tqdm
-import cv2
-from model_chain.web_utils import WebUtil
 from xdriver.xutils.Logger import Logger
+from model_chain.web_utils import WebUtil
 import shutil
 from field_study.draw_utils import draw_annotated_image_box
 from typing import List, Tuple, Set, Dict, Optional, Union
 from lavis.models import load_model_and_preprocess
-os.environ['CUDA_VISIBLE_DEVICES'] = "1"
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key2.txt').read()
+os.environ['CURL_CA_BUNDLE'] = ''
+
 
 class TestLLM():
 
-    def __init__(self, phishintention_cls):
+    def __init__(self, phishintention_cls, proxies={}):
 
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.clip_model, self.clip_preprocess = clip.load("ViT-B/32", device=self.device)
@@ -51,10 +41,7 @@ class TestLLM():
         self.language_list = ['en', 'ch', 'ru', 'japan', 'fa', 'ar', 'korean', 'vi', 'ms',
                              'fr', 'german', 'it', 'es', 'pt', 'uk', 'be', 'te',
                              'sa', 'ta', 'nl', 'tr', 'ga']
-        self.proxies = {
-                    "http": "http://127.0.0.1:7890",
-                    "https": "http://127.0.0.1:7890",
-                }
+        self.proxies = proxies
 
     def detect_logo(self, save_shot_path):
         # Logo detection
