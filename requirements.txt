@@ -1,6 +1,5 @@
 google-api-python-client
 openai
-langchain
 pillow
 numpy
 lxml

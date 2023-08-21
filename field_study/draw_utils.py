@@ -1,26 +1,8 @@
-import geopandas as gpd
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-import socket
-import requests
-from tldextract import tldextract
-import os
-import numpy as np
-import whois # pip install python-whois
 from datetime import datetime, date
-from collections import Counter
-import pandas as pd
-import matplotlib.pyplot as plt
-from datetime import timedelta
-import random
 from PIL import Image, ImageDraw, ImageFont
-from field_study.monitor_url_status import *
+from field_study.monitor_url import *
 from field_study.results_statistics import get_pos_site, daterange
-import numpy as np
 import os
-from tqdm import tqdm
-from skimage import io, transform
-from skimage.metrics import structural_similarity as ssim
 import networkx as nx
 from sklearn.metrics.pairwise import cosine_similarity
 import torch
@@ -29,11 +11,11 @@ import torchvision.transforms as transforms
 from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
-import random
 from collections import Counter
-from operator import itemgetter
 from datetime import datetime, timedelta
 import seaborn as sns
+from typing import List
+import cv2
 
 def draw_annotated_image_nobox(image: Image.Image, txt: str):
     # Convert the image to RGBA for transparent overlay
@@ -43,7 +25,7 @@ def draw_annotated_image_nobox(image: Image.Image, txt: str):
     draw = ImageDraw.Draw(image)
 
     # Load a larger font for text annotations
-    font = ImageFont.truetype(font="./selection_model/fonts/arialbd.ttf", size=25)
+    font = ImageFont.truetype(font="./fonts/arialbd.ttf", size=25)
 
     # Calculate the width and height of the text
     text_width, text_height = draw.textsize("Output: "+txt, font=font)
@@ -56,6 +38,19 @@ def draw_annotated_image_nobox(image: Image.Image, txt: str):
     draw_final = ImageDraw.Draw(final_image)
     draw_final.text((10, image.height + 5), "Output: "+txt, font=font, fill="black")
     return final_image
+
+def draw_annotated_image_box(image: Image.Image, predicted_domain: str, box: List[float]):
+    image = image.convert('RGB')
+    screenshot_img_arr = np.asarray(image)
+    screenshot_img_arr = np.flip(screenshot_img_arr, -1)
+    screenshot_img_arr = screenshot_img_arr.astype(np.uint8)
+
+    cv2.rectangle(screenshot_img_arr, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (69, 139, 0), 2)
+    cv2.putText(screenshot_img_arr, 'Predicted phishing target: '+ predicted_domain, (int(box[0]), int(box[1])),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5, (0, 0, 255), 2)
+    image = Image.fromarray(screenshot_img_arr)
+    return image
 
 def draw_annotated_image(image: Image.Image, boxes: list, txts: list, scores: list, crop_size=(1000, 600)):
 
@@ -81,7 +76,7 @@ def draw_annotated_image(image: Image.Image, boxes: list, txts: list, scores: li
     draw = ImageDraw.Draw(tmp)
 
     # Load a larger font for text annotations
-    font = ImageFont.truetype(font="./selection_model/fonts/arialbd.ttf", size=30)
+    font = ImageFont.truetype(font="./fonts/arialbd.ttf", size=30)
 
     # Define light red color with 80% transparency
     light_red = (128, 0, 0, int(0.4 * 255))  # RGBA
@@ -108,7 +103,7 @@ def draw_annotated_image(image: Image.Image, boxes: list, txts: list, scores: li
 
     # Concatenate all texts and add below the image
     combined_text = 'Output: \n' + ' '.join(txts)
-    font = ImageFont.truetype(font="./selection_model/fonts/arialbd.ttf", size=18)
+    font = ImageFont.truetype(font="./fonts/arialbd.ttf", size=18)
     text_width, text_height = draw.textsize(combined_text, font=font)
 
     # Create an image with extra space at the bottom for the concatenated text
@@ -159,7 +154,7 @@ class GeneralAnalysis:
         plt.legend(loc='upper left', bbox_to_anchor=(1, 1), ncol=1)
 
         plt.tight_layout()
-        plt.savefig('./field_study/num_phish.png')
+        plt.savefig('./field_study/plots/num_phish.png')
         plt.close()
 
 class DomainAnalysis:
@@ -184,7 +179,7 @@ class DomainAnalysis:
         plt.xlim(left=0)
         plt.grid(axis='y', linestyle='--', linewidth=0.5, alpha=0.5)
         plt.tight_layout()
-        plt.savefig('./field_study/domain_age.png')
+        plt.savefig('./field_study/plots/domain_age.png')
         plt.close()
 
 class BrandAnalysis:
@@ -209,7 +204,7 @@ class BrandAnalysis:
         plt.gca().spines['top'].set_visible(False)
         plt.gca().spines['right'].set_visible(False)
         plt.grid(False)  # Turn off the grid
-        plt.savefig('./field_study/brand_freq.png')
+        plt.savefig('./field_study/plots/brand_freq.png')
         plt.close()
 
     def visualize_sectors(sectors, threshold=2.0):
@@ -242,6 +237,9 @@ class BrandAnalysis:
 
         fig, ax = plt.subplots(figsize=(10, 6))
         colors = sns.color_palette("husl", len(labels))
+        if 'Other' in labels:
+            other_index = labels.index('Other')
+            colors[other_index] = 'gray'
 
         wedges, texts, autotexts = ax.pie(
             sizes,
@@ -273,7 +271,7 @@ class BrandAnalysis:
         plt.axis('equal')  # Equal aspect ratio ensures pie is drawn as a circle.
         plt.title('Distribution of Phishing Targets by Sector')
         plt.tight_layout()
-        plt.savefig('./field_study/brand_sector.png')
+        plt.savefig('./field_study/plots/brand_sector.png')
         plt.close()
 
 class IPAnalysis:
@@ -322,7 +320,7 @@ class IPAnalysis:
 
         plt.tight_layout()
         plt.title('Geolocation Distribution of Phishing IPs')
-        plt.savefig('./field_study/geo.png')
+        plt.savefig('./field_study/plots/geo.png')
         plt.close()
 
 class CampaignAnalysis:
@@ -411,7 +409,7 @@ class CampaignAnalysis:
             _, dates = zip(*cluster)
             if len(cluster) < 4 or len(set(dates)) == 1:
                 continue
-
+            print(cluster)
             dates, counts = self.cluster_to_timeseries(cluster, all_dates)
             plt.plot(dates, counts, marker='o', color=color, label=f'Cluster {i + 1}')
 
@@ -427,7 +425,7 @@ class CampaignAnalysis:
         sns.despine(left=True, bottom=True)  # Remove the top and right spines
 
         # Save the figure.
-        plt.savefig('./field_study/campaign.png')
+        plt.savefig('./field_study/plots/campaign.png')
         plt.close()
 
 if __name__ == '__main__':
@@ -479,8 +477,11 @@ if __name__ == '__main__':
     shot_path_list = list(map(lambda x: os.path.join(base, x['date'], x['foldername'], 'shot.png'), rows))
     campaign = CampaignAnalysis()
     clusters_path = campaign.cluster_shot_representations(shot_path_list)
-    print(clusters_path)
     campaign.visualize_campaign(clusters_path)
 
     # alexa_urls = [x.strip().split(',')[1] for x in open('./datasets/top-1m.csv').readlines()]
     # DomainAnalysis.tld_distribution(alexa_urls)
+
+    # [('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-15/cloudmail.esit.info/shot.png', '2023-08-15'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-15/mailtest.ghbank.com.cn/shot.png', '2023-08-15'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-08/gate.marinaccountants.com.au/shot.png', '2023-08-08'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-16/device-f55e9000-4769-4454-b2cb-625104881f16.remotewd.com/shot.png', '2023-08-16'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-08/device-f5a5f76d-75d0-4257-a002-6ce21167d81a.remotewd.com/shot.png', '2023-08-08'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-09/mail.design-industrial.eu/shot.png', '2023-08-09'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-09/exch01.alsdorf.contecgmbh.com/shot.png', '2023-08-09'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-14/srv-ex2-10358.gtkp.de/shot.png', '2023-08-14'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-09/mailto.ec-verpackungsservice.de/shot.png', '2023-08-09'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-09/exch-rostecnpf.esit.info/shot.png', '2023-08-09'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-09/device-8b248998-6847-4def-9eb1-9b59fb283b04.remotewd.com/shot.png', '2023-08-09'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-14/zahnmedizin-rathaus.my3cx.de/shot.png', '2023-08-14'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-09/remote.weissert.info/shot.png', '2023-08-09'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-13/device-0f18bd64-8456-493c-b545-ff128bd8fbdd.remotewd.com/shot.png', '2023-08-13'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-17/email.fueger-gmbh.de/shot.png', '2023-08-17'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-17/ex13.consultic.info/shot.png', '2023-08-17'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-17/mail.consultic.info/shot.png', '2023-08-17'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-10/webmail.trenker-3tconsulting.com/shot.png', '2023-08-10'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-11/headoffice1.travid.org/shot.png', '2023-08-11'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-15/secure.mawsonwest.com/shot.png', '2023-08-15')]
+    # [('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-12/luka.sui.ducoccho1.click/shot.png', '2023-08-12'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-09/www.lf.wuangu1.click/shot.png', '2023-08-09'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-15/webfb.anhlongvedithoi.click/shot.png', '2023-08-15'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-08/login-usa.xuanbac.click/shot.png', '2023-08-08'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-13/zuk.pergugu.click/shot.png', '2023-08-13'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-08/login-france.xuanbac.click/shot.png', '2023-08-08')]
+    # [('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-15/596.vscustomer.com/shot.png', '2023-08-15'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-11/1116.vscustomer.com/shot.png', '2023-08-11'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-15/235.vscustomer.com/shot.png', '2023-08-15'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-15/35.vscustomer.com/shot.png', '2023-08-15')]

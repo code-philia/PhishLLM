@@ -2,6 +2,7 @@ from model_chain.test_llm import *
 import argparse
 from datetime import datetime
 import cv2
+from tqdm import tqdm
 
 if __name__ == '__main__':
 
@@ -12,7 +13,10 @@ if __name__ == '__main__':
 
     # PhishLLM
     phishintention_cls = PhishIntentionWrapper()
-    llm_cls = TestLLM(phishintention_cls)
+    llm_cls = TestLLM(phishintention_cls,
+                      proxies={ "http": "http://127.0.0.1:7890",
+                                 "https": "http://127.0.0.1:7890",
+                     })
     openai.api_key = os.getenv("OPENAI_API_KEY")
     openai.proxy = "http://127.0.0.1:7890" # set openai proxy
 
