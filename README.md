@@ -29,6 +29,7 @@
 |_ selection_model (i.e. credential-requiring-page classification model)
 |_ ranking_model
 |_ model_chain (chaining all the components)
+  |_ test_llm.py: main class
 |_ field_study 
    |_ test.py: main script
 ```
