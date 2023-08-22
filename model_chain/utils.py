@@ -12,6 +12,7 @@ from selenium.common.exceptions import WebDriverException
 import base64
 from webdriver_manager.chrome import ChromeDriverManager
 from xdriver.XDriver import XDriver
+from xdriver.xutils.Logger import Logger
 
 '''LLM prompt'''
 def question_template_prediction(html_text):
@@ -96,7 +97,7 @@ def is_valid_domain(domain: str) -> bool:
     it_is_a_domain = bool(pattern.fullmatch(domain))
     return it_is_a_domain
 
-def is_alive_domain(domain: str, proxies: Dict={}) -> bool:
+def is_alive_domain(domain: str, proxies: Optional[Dict]=None) -> bool:
     ct_limit = 0
     while True:
         if ct_limit >= 3:
@@ -139,7 +140,7 @@ def url2logo(url, phishintention_cls):
 
 
 '''Search for logo in Google Image'''
-def query2image(query: str, SEARCH_ENGINE_API: str, SEARCH_ENGINE_ID: str, num: int=10, proxies: Dict={}) -> Tuple[List[str], List[str]]:
+def query2image(query: str, SEARCH_ENGINE_API: str, SEARCH_ENGINE_ID: str, num: int=10, proxies: Optional[Dict]=None) -> Tuple[List[str], List[str]]:
     '''
         Retrieve the images from Google image search
         :param query:
@@ -177,7 +178,7 @@ def query2image(query: str, SEARCH_ENGINE_API: str, SEARCH_ENGINE_ID: str, num: 
 
     return returned_urls, context_links
 
-def download_image(url: str, proxies: Dict={}) -> Optional[Image.Image]:
+def download_image(url: str, proxies: Optional[Dict]=None) -> Optional[Image.Image]:
     '''
         Download images from given url (Google image context links)
         :param url:
@@ -197,7 +198,7 @@ def download_image(url: str, proxies: Dict={}) -> Optional[Image.Image]:
 
     return None
 
-def get_images(image_urls: List[str], proxies: Dict={}) -> List[Image.Image]:
+def get_images(image_urls: List[str], proxies: Optional[Dict]=None) -> List[Image.Image]:
     '''
         Run download_image in multiple threads
         :param image_urls:

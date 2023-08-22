@@ -21,7 +21,7 @@ os.environ['CURL_CA_BUNDLE'] = ''
 
 class TestLLM():
 
-    def __init__(self, phishintention_cls, proxies={}):
+    def __init__(self, phishintention_cls, proxies=None):
 
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.clip_model, self.clip_preprocess = clip.load("ViT-B/32", device=self.device)
@@ -29,9 +29,9 @@ class TestLLM():
         self.clip_model.load_state_dict(state_dict)
 
         self.caption_model, self.caption_preprocess, _ = load_model_and_preprocess(name="blip_caption",
-                                                             model_type="base_coco",
-                                                             is_eval=True,
-                                                             device=self.device)
+                                                                                 model_type="base_coco",
+                                                                                 is_eval=True,
+                                                                                 device=self.device)
 
         self.LLM_model = "gpt-3.5-turbo-16k"
         self.prediction_prompt = './selection_model/prompt3.json'
@@ -357,8 +357,7 @@ class TestLLM():
             API_KEY, SEARCH_ENGINE_ID = [x.strip() for x in open('./datasets/google_api_key.txt').readlines()]
             returned_urls, _ = query2image(query=company_domain + ' logo',
                                             SEARCH_ENGINE_ID=SEARCH_ENGINE_ID, SEARCH_ENGINE_API=API_KEY,
-                                            num=5,
-                                           proxies=self.proxies)
+                                            num=5,  proxies=self.proxies)
             logos = get_images(returned_urls, proxies=self.proxies)
             print('Crop the logo time:', time.time() - start_time)
 
