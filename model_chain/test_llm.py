@@ -34,7 +34,7 @@ class TestLLM():
                                                                                  device=self.device)
 
         self.LLM_model = "gpt-3.5-turbo-16k"
-        self.prediction_prompt = './selection_model/prompt3.json'
+        self.prediction_prompt = './selection_model/prompt.json'
         # self.brand_prompt = './brand_recognition/prompt_field.json'
         self.brand_prompt = './brand_recognition/prompt_caption.json'
         self.phishintention_cls = phishintention_cls
