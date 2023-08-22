@@ -66,7 +66,7 @@ if __name__ == '__main__':
     #     url, gt, html_text = dataset.__getitem__(it, True)
     #     question = question_template(html_text)
     #
-    #     with open('./selection_model/prompt3.json', 'rb') as f:
+    #     with open('./selection_model/prompt.json', 'rb') as f:
     #         prompt = json.load(f)
     #     new_prompt = prompt
     #     new_prompt.append(question)
