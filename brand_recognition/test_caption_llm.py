@@ -140,7 +140,7 @@ if __name__ == '__main__':
                 API_KEY, SEARCH_ENGINE_ID = [x.strip() for x in open('./datasets/google_api_key.txt').readlines()]
                 returned_urls, _ = query2image(query=answer + ' logo',
                                                 SEARCH_ENGINE_ID=SEARCH_ENGINE_ID, SEARCH_ENGINE_API=API_KEY,
-                                                num=10, proxies=proxies
+                                                num=5, proxies=proxies
                                                )
                 logos = get_images(returned_urls, proxies=proxies)
                 d_logo = url2logo(f'https://{answer}', phishintention_cls)
