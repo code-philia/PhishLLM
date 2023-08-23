@@ -7,10 +7,8 @@ ENV_NAME="myenv"
 # Check if the environment already exists
 conda info --envs | grep -w "$ENV_NAME" > /dev/null
 if [ $? -eq 0 ]; then
-    # If the environment exists, activate it
     echo "Activating Conda environment $ENV_NAME"
 else
-    # If the environment doesn't exist, create it with Python 3.8 and activate it
     echo "Creating and activating new Conda environment $ENV_NAME with Python 3.8"
     conda create -n "$ENV_NAME" python=3.8
 fi
@@ -64,6 +62,5 @@ fi
 # Download the ranking model
 mkdir checkpoints
 cd checkpoints
-# Download the model files
 curl -L "https://huggingface.co/Kelsey98/ranking_model/download/resolve/main/epoch4_model.pt" -o "epoch4_model.pt"
 echo "Model $MODEL_NAME downloaded successfully!"

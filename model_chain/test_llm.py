@@ -15,6 +15,7 @@ import shutil
 from field_study.draw_utils import draw_annotated_image_box
 from typing import List, Tuple, Set, Dict, Optional, Union
 from lavis.models import load_model_and_preprocess
+from functools import lru_cache
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key2.txt').read()
 os.environ['CURL_CA_BUNDLE'] = ''
 
@@ -42,6 +43,18 @@ class TestLLM():
                              'fr', 'german', 'it', 'es', 'pt', 'uk', 'be', 'te',
                              'sa', 'ta', 'nl', 'tr', 'ga']
         self.proxies = proxies
+        # Load the OCR model once during initialization
+        try:
+            self.default_ocr = PaddleOCR(use_angle_cls=True, lang='en', show_log=False, use_gpu= self.device=='cuda')
+        except MemoryError:
+            self.default_ocr = PaddleOCR(use_angle_cls=True, lang='en', show_log=False, use_gpu= False)
+
+        # Load the Google API key and SEARCH_ENGINE_ID once during initialization
+        self.API_KEY, self.SEARCH_ENGINE_ID = [x.strip() for x in open('./datasets/google_api_key.txt').readlines()]
+
+    @lru_cache(maxsize=None) # Cache the results of tld extraction
+    def extract_domain(self, domain):
+        return tldextract.extract(domain)
 
     def detect_logo(self, save_shot_path):
         # Logo detection
@@ -77,12 +90,14 @@ class TestLLM():
         unsure_thre = 0.9
 
         for lang in self.language_list:
-            try:
-                ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False)  # need to run only once to download and load model into memory
-                result = ocr.ocr(shot_path, cls=True)
-            except MemoryError:
-                ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False, use_gpu=False)  # need to run only once to download and load model into memory
-                result = ocr.ocr(shot_path, cls=True)
+            if lang == 'en':
+                ocr = self.default_ocr
+            else:
+                try:
+                    ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False)  # need to run only once to download and load model into memory
+                except MemoryError:
+                    ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False, use_gpu=False)  # need to run only once to download and load model into memory
+            result = ocr.ocr(shot_path, cls=True)
             median_conf = np.median([x[-1][1] for x in result[0]])
             if math.isnan(median_conf): # no text is detected
                 break
@@ -124,7 +139,6 @@ class TestLLM():
         result = self.caption_model.generate({"image": image})
         return ' '.join(result)
 
-
     def brand_recognition_llm(self, reference_logo: Optional[Image.Image],
                               logo_box: Optional[List[float]],
                               ocr_text: List[str], ocr_coord: List[List[float]],
@@ -143,15 +157,20 @@ class TestLLM():
         if reference_logo:
             # generation image caption for logo
             logo_caption = self.generate_logo_caption(reference_logo)
-            print('Logo caption: ', logo_caption)
             logo_ocr = ''
             if len(ocr_coord):
                 # get the OCR text description surrounding the logo
-                expand_logo_box = expand_bbox(logo_box, image_width=image_width, image_height=image_height, expand_ratio=1.5)
+                expand_logo_box = expand_bbox(logo_box, image_width=image_width, image_height=image_height, expand_ratio=5)
                 overlap_areas = compute_overlap_areas_between_lists([expand_logo_box], ocr_coord)
                 logo_ocr = np.array(ocr_text)[overlap_areas[0] > 0].tolist()
                 logo_ocr = ' '.join(logo_ocr)
-            print('Logo OCR: ', logo_ocr)
+        else:
+            logo_caption = ''
+            logo_ocr = ' '.join(ocr_text)
+        print('Logo caption: ', logo_caption)
+        print('Logo OCR: ', logo_ocr)
+
+        if len(logo_caption) > 0 or len(logo_ocr) > 0:
             # ask gpt to predict brand
             question = question_template_caption(logo_caption, logo_ocr)
 
@@ -178,17 +197,56 @@ class TestLLM():
             answer = ''.join([choice["message"]["content"] for choice in response['choices']])
             print('LLM prediction time:', time.time() - start_time)
             print(f'Detected brand {answer}')
+        else:
+            answer = 'no logo description'
 
-            # check the validity of the returned domain, i.e. liveness
-            if len(answer) > 0 \
-                    and is_valid_domain(answer):
-                if is_alive_domain(answer, self.proxies):
-                    company_logo = reference_logo
-                    company_domain = answer
+        # check the validity of the returned domain, i.e. liveness
+        if len(answer) > 0 \
+                and is_valid_domain(answer):
+            # if is_alive_domain(answer, self.session, self.proxies):
+            company_logo = reference_logo
+            company_domain = answer
 
         return company_domain, company_logo
 
-    def crp_prediction_llm(self, html_text: str) -> int:
+    def brand_validation(self, company_domain, reference_logo):
+        ## Brand recognition model : result validation
+        logo_cropping_time, logo_matching_time = 0, 0
+        validation_success = False
+
+        start_time = time.time()
+        returned_urls = query2image(query=company_domain + ' logo',
+                                    SEARCH_ENGINE_ID=self.SEARCH_ENGINE_ID, SEARCH_ENGINE_API=self.API_KEY,
+                                    num=5,
+                                    proxies=self.proxies)
+        logos = get_images(returned_urls, proxies=self.proxies)
+        logo_cropping_time = time.time() - start_time
+        print('Crop the logo time:', logo_cropping_time)
+
+        if len(logos) > 0:
+            reference_logo_feat = pred_siamese_OCR(img=reference_logo,
+                                                   model=self.phishintention_cls.SIAMESE_MODEL,
+                                                   ocr_model=self.phishintention_cls.OCR_MODEL)
+            start_time = time.time()
+            sim_list = []
+            with ThreadPoolExecutor() as executor:
+                futures = [executor.submit(pred_siamese_OCR, logo,
+                                           self.phishintention_cls.SIAMESE_MODEL,
+                                           self.phishintention_cls.OCR_MODEL) for logo in logos]
+                for future in futures:
+                    logo_feat = future.result()
+                    matched_sim = reference_logo_feat @ logo_feat
+                    sim_list.append(matched_sim)
+
+            if any([x > 0.7 for x in sim_list]):
+                validation_success = True
+
+            logo_matching_time = time.time() - start_time
+            print('Logo matching time:', logo_matching_time)
+
+        return validation_success, logo_cropping_time, logo_matching_time
+
+    def crp_prediction_llm(self, html_text: str) -> bool:
         '''
             Use LLM to classify credential-requiring page v.s. non-credential-requiring page
             :param html_text:
@@ -219,9 +277,9 @@ class TestLLM():
         answer = ''.join([choice["message"]["content"] for choice in response['choices']])
         print(f'CRP prediction {answer}')
         if 'A.' in answer:
-            return 0 # CRP
+            return True # CRP
         else:
-            return 1
+            return False
 
     def ranking_model(self, url: str, driver: XDriver, ranking_model_refresh_page: bool) -> \
                                 Tuple[Union[List, str], List[torch.Tensor], XDriver]:
@@ -347,39 +405,18 @@ class TestLLM():
             brand_recog_time += time.time() - start_time
             time.sleep(1) # fixme: allow the openai api to rest, not sure whether this help
         # check domain-brand inconsistency
-        phish_condition = company_domain and (tldextract.extract(company_domain).domain != tldextract.extract(url).domain or
-                                              tldextract.extract(company_domain).suffix != tldextract.extract(url).suffix)
+        if company_domain:
+            domain4pred = self.extract_domain(company_domain)
+            domain4url = self.extract_domain(url)
+            phish_condition = (domain4pred.domain != domain4url.domain) or (domain4pred.suffix != domain4url.suffix)
+        else:
+            phish_condition = False
 
-        if phish_condition and brand_recognition_do_validation and (not skip_brand_recognition):
-            ## Brand recognition model : result validation
-            validation_success = False
-            start_time = time.time()
-            API_KEY, SEARCH_ENGINE_ID = [x.strip() for x in open('./datasets/google_api_key.txt').readlines()]
-            returned_urls, _ = query2image(query=company_domain + ' logo',
-                                            SEARCH_ENGINE_ID=SEARCH_ENGINE_ID, SEARCH_ENGINE_API=API_KEY,
-                                            num=5,  proxies=self.proxies)
-            logos = get_images(returned_urls, proxies=self.proxies)
-            print('Crop the logo time:', time.time() - start_time)
-
-            if reference_logo and len(logos)>0:
-                reference_logo_feat = pred_siamese_OCR(img=reference_logo,
-                                                       model=self.phishintention_cls.SIAMESE_MODEL,
-                                                       ocr_model=self.phishintention_cls.OCR_MODEL)
-                start_time = time.time()
-                sim_list = []
-                with ThreadPoolExecutor() as executor:
-                    futures = [executor.submit(pred_siamese_OCR, logo,
-                                               self.phishintention_cls.SIAMESE_MODEL,
-                                               self.phishintention_cls.OCR_MODEL) for logo in logos]
-                    for future in futures:
-                        logo_feat = future.result()
-                        matched_sim = reference_logo_feat @ logo_feat
-                        sim_list.append(matched_sim)
-
-                if any([x > 0.7 for x in sim_list]):
-                    validation_success = True
-
-                print('Logo matching time:', time.time() - start_time)
+        # Brand prediction validation
+        if phish_condition and (not skip_brand_recognition) and brand_recognition_do_validation and (reference_logo is not None):
+            validation_success, logo_cropping_time, logo_matching_time = self.brand_validation(company_domain, reference_logo)
+            brand_recog_time += logo_cropping_time
+            brand_recog_time += logo_matching_time
             if not validation_success:
                 phish_condition = False
 
@@ -390,11 +427,11 @@ class TestLLM():
             crp_prediction_time += time.time() - start_time
             time.sleep(1) # fixme: allow the openai api to rest, not sure whether this help
 
-            if crp_cls == 0: # CRP page is detected
+            if crp_cls: # CRP page is detected
                 plotvis = draw_annotated_image_box(plotvis, company_domain, logo_box)
                 return 'phish', company_domain, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
             else:
-                # CRP transition
+                # Not a CRP page => CRP transition
                 if limit == 0:  # reach interaction limit -> just return
                     return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
 
@@ -410,7 +447,7 @@ class TestLLM():
                     current_url, *_ = page_transition(driver, candidate_ele, save_html_path, save_shot_path)
                     if current_url: # click success
                         ranking_model_refresh_page = current_url != url
-                        # logo detection
+                        # logo detection on new webpage
                         logo_box, reference_logo = self.detect_logo(save_shot_path)
                         return self.test(current_url, reference_logo, logo_box,
                                          save_shot_path, save_html_path, driver, limit-1,

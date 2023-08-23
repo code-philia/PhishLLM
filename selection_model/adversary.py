@@ -60,12 +60,12 @@ if __name__ == '__main__':
                 orig_question = question_template(html_text)
                 question = question_template_adversary(html_text)
 
-                with open('./selection_model/prompt3.json', 'rb') as f:
+                with open('./selection_model/prompt.json', 'rb') as f:
                     prompt = json.load(f)
                 new_prompt = prompt
                 new_prompt.append(question)
 
-                with open('./selection_model/prompt3.json', 'rb') as f:
+                with open('./selection_model/prompt.json', 'rb') as f:
                     prompt = json.load(f)
                 new_prompt_orig = prompt
                 new_prompt_orig.append(orig_question)

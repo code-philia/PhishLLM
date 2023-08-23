@@ -74,7 +74,7 @@ if __name__ == '__main__':
         pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis = llm_cls.test(url, reference_logo, logo_box,
                                                                                                         shot_path, html_path, driver,
                                                                                                         limit=1,
-                                                                                                        # brand_recognition_do_validation=True
+                                                                                                        brand_recognition_do_validation=True
                                                                                                         )
 
         try:

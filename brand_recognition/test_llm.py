@@ -12,7 +12,7 @@ import os
 import openai
 from brand_recognition.dataloader import *
 import idna
-from model_chain.utils import is_valid_domain, query2image, download_image, get_images, url2logo
+from model_chain.utils import is_valid_domain, query2image, get_images, url2logo
 from phishintention.src.OCR_aided_siamese import pred_siamese_OCR
 from concurrent.futures import ThreadPoolExecutor
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key3.txt').read()
@@ -87,7 +87,8 @@ if __name__ == '__main__':
     print(len(dataset))
     model = "gpt-3.5-turbo-16k"
     # result_file = './datasets/alexa_brand_testllm_caption.txt'
-    result_file = './datasets/alexa_brand_testllm_caption_caponly.txt'
+    # result_file = './datasets/alexa_brand_testllm_caption_caponly.txt'
+    result_file = './datasets/alexa_brand_testllm_caption_ocronly.txt'
     phishintention_cls = PhishIntentionWrapper()
 
     for it in tqdm(range(len(dataset))):
@@ -106,10 +107,10 @@ if __name__ == '__main__':
 
             # question = question_template_caption_industry(logo_caption, logo_ocr, industry)
             # ablation study
-            # question = question_template_caption('', logo_ocr)
-            question = question_template_caption(logo_caption, '')
+            question = question_template_caption('', logo_ocr)
+            # question = question_template_caption(logo_caption, '')
 
-            with open('./brand_recognition/prompt_caption.json', 'rb') as f:
+            with open('./brand_recognition/prompt.json', 'rb') as f:
                 prompt = json.load(f)
             new_prompt = prompt
             new_prompt.append(question)
@@ -138,9 +139,9 @@ if __name__ == '__main__':
                 validation_success = False
                 start_time = time.time()
                 API_KEY, SEARCH_ENGINE_ID = [x.strip() for x in open('./datasets/google_api_key.txt').readlines()]
-                returned_urls, _ = query2image(query=answer + ' logo',
-                                                SEARCH_ENGINE_ID=SEARCH_ENGINE_ID, SEARCH_ENGINE_API=API_KEY,
-                                                num=5, proxies=proxies
+                returned_urls = query2image(query=answer + ' logo',
+                                            SEARCH_ENGINE_ID=SEARCH_ENGINE_ID, SEARCH_ENGINE_API=API_KEY,
+                                            num=5, proxies=proxies
                                                )
                 logos = get_images(returned_urls, proxies=proxies)
                 d_logo = url2logo(f'https://{answer}', phishintention_cls)
@@ -175,7 +176,10 @@ if __name__ == '__main__':
 
     # (.*failure.*\n)|(.*unable.*\n)|(.*not.*\n)|(.*no prediction.*\n)
 
-    # test(result_file) # Completeness (% brand recognized) = 0.6548672566371682 Median runtime 0.8912811279296875, Mean runtime 1.384584855650906
+    test(result_file)
+    # Completeness (% brand recognized) = 0.6548672566371682 Median runtime 0.8912811279296875, Mean runtime 1.384584855650906
+    # Caption only Completeness (% brand recognized) = 0.3827433628318584 Median runtime 1.0176382064819336, Mean runtime 1.5962941735587288
+    # OCR only
 
     # missing = set(list_correct('./datasets/alexa_brand_testllm_u2.txt')) - set(list_correct(result_file))
     # print(len(missing))
