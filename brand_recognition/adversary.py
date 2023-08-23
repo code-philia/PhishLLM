@@ -1,5 +1,5 @@
 
-from brand_recognition.test_caption_llm import *
+from brand_recognition.test_llm import *
 import idna
 import pandas as pd
 from model_chain.web_utils import WebUtil
@@ -63,7 +63,7 @@ def get_results(logo_box, reference_logo, screenshot_img, ocr_text, ocr_coord, h
         industry = ask_industry("gpt-3.5-turbo-16k", html_text)
 
         question = question_template_caption_industry(logo_caption, extra_description, industry)
-        with open('./brand_recognition/prompt_caption.json', 'rb') as f:
+        with open('./brand_recognition/prompt.json', 'rb') as f:
             prompt = json.load(f)
         new_prompt = prompt
         new_prompt.append(question)

@@ -99,11 +99,9 @@ def is_valid_domain(domain: str) -> bool:
 
 def is_alive_domain(domain: str, proxies: Optional[Dict]=None) -> bool:
     ct_limit = 0
-    while True:
-        if ct_limit >= 3:
-            break
+    while ct_limit < 3:
         try:
-            response = requests.get('https://' + domain, timeout=60, proxies=proxies)
+            response = requests.get('https://' + domain, timeout=10, proxies=proxies)
             if response.status_code == 200:  # it is alive
                 return True
             break
@@ -140,7 +138,7 @@ def url2logo(url, phishintention_cls):
 
 
 '''Search for logo in Google Image'''
-def query2image(query: str, SEARCH_ENGINE_API: str, SEARCH_ENGINE_ID: str, num: int=10, proxies: Optional[Dict]=None) -> Tuple[List[str], List[str]]:
+def query2image(query: str, SEARCH_ENGINE_API: str, SEARCH_ENGINE_ID: str, num: int=10, proxies: Optional[Dict]=None) -> List[str]:
     '''
         Retrieve the images from Google image search
         :param query:
@@ -149,10 +147,8 @@ def query2image(query: str, SEARCH_ENGINE_API: str, SEARCH_ENGINE_ID: str, num: 
         :param num:
         :return:
     '''
-    returned_urls = []
-    context_links = []
     if len(query) == 0:
-        return returned_urls, context_links
+        return []
 
     URL = f"https://www.googleapis.com/customsearch/v1?key={SEARCH_ENGINE_API}&cx={SEARCH_ENGINE_ID}&q={query}&searchType=image&num={num}"
     while True:
@@ -162,21 +158,14 @@ def query2image(query: str, SEARCH_ENGINE_API: str, SEARCH_ENGINE_ID: str, num: 
         except requests.exceptions.SSLError as e:
             print(e)
             time.sleep(1)
-    if 'error' in list(data.keys()):
-        if data['error']['code'] == 429:
-            raise RuntimeError("Google search exceeds quota limit")
-    search_items = data.get("items")
-    if search_items is None:
-        return returned_urls, context_links
 
-    # iterate over results found
-    for i, search_item in enumerate(search_items, start=1):
-        link = search_item.get("image")["thumbnailLink"]
-        context_link = search_item.get("image")['contextLink']
-        returned_urls.append(link)
-        context_links.append(context_link)
+    if data.get('error', {}).get('code') == 429:
+        raise RuntimeError("Google search exceeds quota limit")
 
-    return returned_urls, context_links
+    returned_urls = [item.get("image")["thumbnailLink"] for item in data.get("items", [])]
+
+    return returned_urls
+
 
 def download_image(url: str, proxies: Optional[Dict]=None) -> Optional[Image.Image]:
     '''
@@ -189,10 +178,8 @@ def download_image(url: str, proxies: Optional[Dict]=None) -> Optional[Image.Ima
         if response.status_code == 200:
             img = Image.open(io.BytesIO(response.content))
             return img
-        else:
-            print(f"Failed to download image: {response.status_code}")
     except requests.exceptions.Timeout:
-        print("Request timed out after", 10, "seconds.")
+        print("Request timed out after", 5, "seconds.")
     except requests.exceptions.RequestException as e:
         print(f"An error occurred while downloading image: {e}")
 
@@ -205,12 +192,13 @@ def get_images(image_urls: List[str], proxies: Optional[Dict]=None) -> List[Imag
         :return:
     '''
     images = []
-    with ThreadPoolExecutor() as executor:
-        futures = [executor.submit(download_image, url, proxies) for url in image_urls]
-        for future in futures:
-            img = future.result()
-            if img:
-                images.append(img)
+    if len(image_urls) > 0:
+        with ThreadPoolExecutor(max_workers=len(image_urls)) as executor:
+            futures = [executor.submit(download_image, url, proxies) for url in image_urls]
+            for future in futures:
+                img = future.result()
+                if img:
+                    images.append(img)
 
     return images
 
