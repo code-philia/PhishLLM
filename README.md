@@ -12,6 +12,8 @@ In our PhishLLM, we build a reference-based phishing detection framework
 - ✅ Mirrors human cognitive process during web interaction, therefore provides enhanced explainability 
 
 ## Framework
+<img src="./figures/phishllm.png">
+
 - Step 1: Brand Recognition Model to predict the targeted brand
   - Input: Logo Caption, Logo OCR results, Industry sector (optional)
   - Intermediate output: LLM's predicted brand
