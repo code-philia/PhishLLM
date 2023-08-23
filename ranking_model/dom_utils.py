@@ -175,20 +175,7 @@ def prune_tree(
             continue
         outerhtml += '(' + x.tag + ' ' + get_attribute_repr(x)
         ct += 1
-    # fixme: get siblings within range
-    # parent = candidate_node.getparent()
-    # if parent is not None:
-    #     siblings = [x for x in parent.getchildren() if x.tag != "text"]
-    #     idx_in_sibling = siblings.index(candidate_node)
-    #     for x in siblings[
-    #              max(0, idx_in_sibling - max_sibling): min(idx_in_sibling + max_sibling + 1, len(siblings))
-    #              ]:
-    #         nodes_to_keep.append(
-    #             (
-    #                 get_dom_path(x),
-    #                 get_outerhtml(x)
-    #             )
-    #         )
+
 
     return outerhtml+')'*ct
 

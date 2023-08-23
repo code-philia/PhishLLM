@@ -44,26 +44,30 @@ def test(result_file):
 
 
 def get_results(logo_box, reference_logo, screenshot_img, ocr_text, ocr_coord, html_text):
-    # generation caption for logo
-    logo_caption = get_caption(reference_logo)
-    print('Logo Caption: ', logo_caption)
-    # expand the logo bbox a bit to see the surrounding region
-    expand_logo_box = expand_bbox(logo_box, image_width=screenshot_img.size[0],
-                                  image_height=screenshot_img.size[1], expand_ratio=(5, 5))
+    if reference_logo is not None:
+        # generation caption for logo
+        logo_caption = get_caption(reference_logo)
+        # expand the logo bbox a bit to see the surrounding region
+        expand_logo_box = expand_bbox(logo_box, image_width=screenshot_img.size[0],
+                                      image_height=screenshot_img.size[1], expand_ratio=(5, 5))
+        extra_description = ''
+        if len(ocr_coord):
+            # get the OCR text description surrounding the logo
+            overlap_areas = compute_overlap_areas_between_lists([expand_logo_box], ocr_coord)
+            extra_description = np.array(ocr_text)[overlap_areas[0] > 0].tolist()
+            extra_description = ' '.join(extra_description)
+    else:
+        logo_caption = ''
+        extra_description = ' '.join(ocr_text)
 
-    extra_description = ''
-    if len(ocr_coord):
-        # get the OCR text description surrounding the logo
-        overlap_areas = compute_overlap_areas_between_lists([expand_logo_box], ocr_coord)
-        extra_description = np.array(ocr_text)[overlap_areas[0] > 0].tolist()
-        extra_description = ' '.join(extra_description)
+    print('Logo Caption: ', logo_caption)
     print('Logo OCR: ', extra_description)
 
     if len(logo_caption)>0 or len(extra_description)>0:
         industry = ask_industry("gpt-3.5-turbo-16k", html_text)
 
         question = question_template_caption_industry(logo_caption, extra_description, industry)
-        with open('./brand_recognition/prompt.json', 'rb') as f:
+        with open('./brand_recognition/prompt_caption.json', 'rb') as f:
             prompt = json.load(f)
         new_prompt = prompt
         new_prompt.append(question)
@@ -106,7 +110,7 @@ if __name__ == '__main__':
     web_func = WebUtil()
 
     sleep_time = 3; timeout_time = 60
-    XDriver.set_headless()
+    # XDriver.set_headless()
     driver = XDriver.boot(chrome=True)
     driver.set_script_timeout(timeout_time/2)
     driver.set_page_load_timeout(timeout_time)
@@ -157,14 +161,14 @@ if __name__ == '__main__':
                         injected_logo = transparent_text_injection(reference_logo.convert('RGB'), 'abc.com')
                         # get image caption for injected logo
                         screenshot_img.paste(injected_logo, (int(x1), int(y1)))
-                        adv_shot_path = shot_path.replace('shot', 'shot_adv')
+                        adv_shot_path = shot_path.replace('shot.png', 'shot_adv.png')
                         screenshot_img.save(adv_shot_path)
 
                         # get extra description on the webpage
                         adv_ocr_text, adv_ocr_coord = get_ocr_text_coord(adv_shot_path)
                         adv_html_text = ' '.join(adv_ocr_text)
                         answer, total_time = get_results(logo_box, injected_logo, screenshot_img, adv_ocr_text, adv_ocr_coord, adv_html_text)
-                        print('After attack answer: ', orig_answer)
+                        print('After attack answer: ', answer)
                         break
             else:
                 try:
@@ -209,35 +213,43 @@ if __name__ == '__main__':
                     screenshot_encoding = base64.b64encode(image_file.read())
                 logo_boxes = phishintention_cls.return_all_bboxes4type(screenshot_encoding, 'logo')
 
-                if (logo_boxes is not None) and len(logo_boxes):
-                    # get extra description on the webpage
-                    ocr_text, ocr_coord = get_ocr_text_coord(shot_path)
-                    html_text = ' '.join(ocr_text)
+                # get extra description on the webpage
+                ocr_text, ocr_coord = get_ocr_text_coord(shot_path)
+                html_text = ' '.join(ocr_text)
 
-                    for logo_box in logo_boxes[:min(len(logo_boxes), 3)]:  # Top-3 logo box
-                        '''original prediction '''
-                        x1, y1, x2, y2 = logo_box
-                        reference_logo = screenshot_img.crop((x1, y1, x2, y2))  # crop logo out
-                        orig_answer, total_time = get_results(logo_box, reference_logo, screenshot_img, ocr_text,
-                                                              ocr_coord, html_text)
-                        print('Original answer: ', orig_answer)
+                if logo_boxes is not None and len(logo_boxes)>0:  # Top-3 logo box
+                    '''original prediction '''
+                    logo_box = logo_boxes[0]
+                    x1, y1, x2, y2 = logo_box
+                    reference_logo = screenshot_img.crop((x1, y1, x2, y2))  # crop logo out
+                else:
+                    logo_box = None
+                    reference_logo = None
+                orig_answer, total_time = get_results(logo_box, reference_logo, screenshot_img, ocr_text,
+                                                      ocr_coord, html_text)
+                print('Original answer: ', orig_answer)
 
-                        if is_valid_domain(orig_answer):
-                            '''perform adversarial attack '''
-                            print('Adversarial attack')
-                            injected_logo = transparent_text_injection(reference_logo.convert('RGB'), 'abc.com')
-                            # get image caption for injected logo
-                            screenshot_img.paste(injected_logo, (int(x1), int(y1)))
-                            adv_shot_path = shot_path.replace('shot', 'shot_adv')
-                            screenshot_img.save(adv_shot_path)
+                if is_valid_domain(orig_answer):
+                    '''perform adversarial attack '''
+                    print('Adversarial attack')
+                    if reference_logo:
+                        injected_logo = transparent_text_injection(reference_logo.convert('RGB'), 'abc.com')
+                        # get image caption for injected logo
+                        screenshot_img.paste(injected_logo, (int(x1), int(y1)))
+                        adv_shot_path = shot_path.replace('shot.png', 'shot_adv.png')
+                        screenshot_img.save(adv_shot_path)
 
-                            # get extra description on the webpage
-                            adv_ocr_text, adv_ocr_coord = get_ocr_text_coord(adv_shot_path)
-                            adv_html_text = ' '.join(adv_ocr_text)
-                            answer, total_time = get_results(logo_box, injected_logo, screenshot_img, adv_ocr_text,
-                                                             adv_ocr_coord, adv_html_text)
-                            print('After attack answer: ', orig_answer)
-                            break
+                        # get extra description on the webpage
+                        adv_ocr_text, adv_ocr_coord = get_ocr_text_coord(adv_shot_path)
+                        adv_html_text = ' '.join(adv_ocr_text)
+                        answer, total_time = get_results(logo_box, injected_logo, screenshot_img, adv_ocr_text,
+                                                         adv_ocr_coord, adv_html_text)
+                    else:
+                        answer = orig_answer
+                    print('After attack answer: ', answer)
 
             with open(result_file, 'a+') as f:
                 f.write(hash+'\t'+orig_answer+'\t'+answer+'\t'+str(total_time)+'\n')
+
+    driver.quit()
+    test(result_file)
