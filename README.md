@@ -1,6 +1,15 @@
 # PhishLLM
 
 ## Introductions
+Existing reference-based phishing detection
+- :x: Rely on a pre-defined reference list
+- :x: Necessitate a massive amount of high-quality, diverse annotated data
+- :x: Do not fully utilize the textual information present on the webpage
+
+In our PhishLLM, we build a reference-based phishing detection framework
+- ✅ Without a pre-defined reference list
+- ✅ Requires light-weight training
+- ✅ Mirrors human cognitive process during web interaction, therefore provides enhanced explainability 
 
 ## Framework
 - Step 1: Brand Recognition Model to predict the targeted brand
