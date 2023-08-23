@@ -16,7 +16,7 @@ class teleBot():
                           use_context=True,
                           request_kwargs=REQUEST_KWARGS)
         # self.folder_to_label = "/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples"
-        self.folder_to_label = "/home/ruofan/git_space/ScamDet/datasets/field_study/2023-08-01"
+        self.folder_to_label = "/home/ruofan/git_space/ScamDet/datasets/field_study/2023-08-11"
 
         self.dict_date = {}
         dispatcher = updater.dispatcher
@@ -118,7 +118,7 @@ class teleBot():
                         url = f.readline()
                 else:
                     url = "Cannot find info file"
-                to_update.append(['2023-08-01', url, i, 0, 0, 0, 0, 0, 0])
+                to_update.append(['2023-08-11', url, i, 0, 0, 0, 0, 0, 0])
 
         self.sheets.update_list(to_update)
 
