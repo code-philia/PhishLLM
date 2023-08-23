@@ -8,7 +8,7 @@ from ranking_model.torchattacks.attacks.protect import *
 import math
 os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 
-def tester_rank(model, test_dataset, device, protect_enabled, adv_attack=True):
+def tester_rank(model, test_dataset, device, protect_enabled, attack_method, adv_attack=True):
     total = 0
     perturb_correct = 0
 
@@ -46,7 +46,12 @@ def tester_rank(model, test_dataset, device, protect_enabled, adv_attack=True):
                 protect_act(model.visual)
                 protect_resnetblock(model.visual)
                 model = model.to(device)
-            attack_cls = DeepFool(model, device=device)
+            if attack_method == 'DeepFool':
+                attack_cls = DeepFool(model, device=device)
+            elif attack_method == 'FGSM':
+                attack_cls = FGSM(model, device=device)
+            elif attack_method == 'BIM':
+                attack_cls = BIM(model, device=device)
             adv_images = attack_cls(images, labels, target_labels)
             images.detach()
             del attack_cls
@@ -80,6 +85,10 @@ def tester_rank(model, test_dataset, device, protect_enabled, adv_attack=True):
 
 
 if __name__ == '__main__':
+    protect_enabled = False # protect or not
+    attack_method = 'DeepFool'
+    assert attack_method in ['DeepFool', 'FGSM', 'BIM']
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model, preprocess = clip.load("ViT-B/32", device=device)
     # https://github.com/openai/CLIP/issues/57
@@ -94,13 +103,13 @@ if __name__ == '__main__':
     state_dict = torch.load("./checkpoints/epoch{}_model.pt".format(4))
     model.load_state_dict(state_dict)
 
-    # protect_act(model.visual) #
-    # protect_resnetblock(model.visual)
+    if protect_enabled:
+        protect_act(model.visual) #
+        protect_resnetblock(model.visual)
     model = model.to(device)
     freeze_params(model)
 
-    tester_rank(model, test_dataset, device, protect_enabled=False)
-    # tester_rank(model, test_dataset, device, protect_enabled=True, adv_attack=False)
+    tester_rank(model, test_dataset, device, protect_enabled=protect_enabled, attack_method=attack_method)
 
     # FGSM: After attack correct count = 210, Total = 321, Recall@K = 0.6542056074766355
     # BIM (iterative FGSM, but gradually increasing the perturbation magnitude) After attack correct count = 28, Total = 321, Recall@K = 0.08722741433021806

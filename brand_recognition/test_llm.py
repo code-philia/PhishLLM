@@ -181,30 +181,6 @@ if __name__ == '__main__':
     # Caption only Completeness (% brand recognized) = 0.3827433628318584 Median runtime 1.0176382064819336, Mean runtime 1.5962941735587288
     # OCR only
 
-    # missing = set(list_correct('./datasets/alexa_brand_testllm_u2.txt')) - set(list_correct(result_file))
-    # print(len(missing))
-    # print(missing)
-
-    # result_lines = open(result_file).readlines()
-    # pbar = tqdm(result_lines, leave=False)
-    # correct = []
-    # for line in pbar:
-    #     data = line.strip().split('\t')
-    #     url, gt, pred, time = data
-    #     if gt in pred:
-    #         pass
-    #         correct.append(line)
-    #     elif tldextract.extract(gt).domain in pred:
-    #         pass
-    #         correct.append(line)
-    #
-    #     else:
-    #         print(line)
-    #
-    # for line in correct:
-    #     with open('./datasets/alexa_brand_testllm_caption_u2.txt', 'a+') as f:
-    #         f.write(line)
-
 
     '''Dont have enough information'''
     # liepin.com Logo caption:  an orange and white sign with asian writing

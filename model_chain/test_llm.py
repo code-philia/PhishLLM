@@ -203,7 +203,6 @@ class TestLLM():
         # check the validity of the returned domain, i.e. liveness
         if len(answer) > 0 \
                 and is_valid_domain(answer):
-            # if is_alive_domain(answer, self.session, self.proxies):
             company_logo = reference_logo
             company_domain = answer
 
@@ -413,12 +412,15 @@ class TestLLM():
             phish_condition = False
 
         # Brand prediction validation
-        if phish_condition and (not skip_brand_recognition) and brand_recognition_do_validation and (reference_logo is not None):
-            validation_success, logo_cropping_time, logo_matching_time = self.brand_validation(company_domain, reference_logo)
-            brand_recog_time += logo_cropping_time
-            brand_recog_time += logo_matching_time
-            if not validation_success:
-                phish_condition = False
+        if phish_condition and (not skip_brand_recognition):
+            if brand_recognition_do_validation and (reference_logo is not None): # we can check the validity by comparing the logo on the webpage with the logos for the predicted brand
+                validation_success, logo_cropping_time, logo_matching_time = self.brand_validation(company_domain, reference_logo)
+                brand_recog_time += logo_cropping_time
+                brand_recog_time += logo_matching_time
+                phish_condition = validation_success
+            else: # alternatively, we can check the aliveness of the predicted brand
+                validation_success = is_alive_domain(company_domain, self.proxies)
+                phish_condition = validation_success
 
         if phish_condition:
             # CRP prediction model
@@ -465,106 +467,71 @@ if __name__ == '__main__':
     phishintention_cls = PhishIntentionWrapper()
     llm_cls = TestLLM(phishintention_cls)
     openai.api_key = os.getenv("OPENAI_API_KEY")
-    openai.proxy = "http://127.0.0.1:7890" # proxy
+    # openai.proxy = "http://127.0.0.1:7890" # proxy
     web_func = WebUtil()
 
     sleep_time = 3; timeout_time = 60
-    XDriver.set_headless()
+    # XDriver.set_headless()
     driver = XDriver.boot(chrome=True)
     driver.set_script_timeout(timeout_time/2)
     driver.set_page_load_timeout(timeout_time)
     time.sleep(sleep_time)  # fixme: you
     Logger.set_debug_on()
 
-    driver.get('http://phishing.localhost')
-    time.sleep(5)
     all_links = [x.strip().split(',')[-2] for x in open('./datasets/Brand_Labelled_130323.csv').readlines()[1:]]
-    # all_links = driver.get_all_links_orig()
 
     root_folder = './datasets/dynapd'
-    result = './datasets/dynapd_wo_validation.txt'
+    result = './datasets/dynapd_llm.txt'
     os.makedirs(root_folder, exist_ok=True)
 
-
     for ct, target in enumerate(all_links):
-        if ct <= 5470:
-            continue
+        # if ct <= 5470:
+        #     continue
         hash = target.split('/')[3]
         target_folder = os.path.join(root_folder, hash)
         os.makedirs(target_folder, exist_ok=True)
         if os.path.exists(result) and hash in open(result).read():
             continue
-
-        try:
-            driver.get(target, click_popup=True, allow_redirections=False)
-            time.sleep(5)
-            Logger.spit(f'Target URL = {target}', caller_prefix=XDriver._caller_prefix, debug=True)
-        except Exception as e:
-            Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
-            shutil.rmtree(target_folder)
-            continue
-
-        try:
-            page_text = driver.get_page_text()
-        except Exception as e:
-            Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
-            shutil.rmtree(target_folder)
-            continue
-
-        try:
-            error_free = web_func.page_error_checking(driver)
-            if not error_free:
-                Logger.spit('Error page or White page', caller_prefix=XDriver._caller_prefix, debug=True)
-                shutil.rmtree(target_folder)
-                continue
-        except Exception as e:
-            Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
-            shutil.rmtree(target_folder)
-            continue
-
-        if "Index of" in page_text:
-            try:
-                # skip error URLs
-                error_free = web_func.page_interaction_checking(driver)
-                white_page = web_func.page_white_screen(driver, 1)
-                if (error_free == False) or white_page:
-                    Logger.spit('Error page or White page', caller_prefix=XDriver._caller_prefix, debug=True)
-                    shutil.rmtree(target_folder)
-                    continue
-                target = driver.current_url()
-            except Exception as e:
-                Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
-                shutil.rmtree(target_folder)
-                continue
-
-        if target.endswith('https/') or target.endswith('genWeb/'):
-            shutil.rmtree(target_folder)
-            continue
-
-        try:
-            shot_path = os.path.join(target_folder, 'shot.png')
-            html_path = os.path.join(target_folder, 'index.html')
-            # take screenshots
-            screenshot_encoding = driver.get_screenshot_encoding()
-            screenshot_img = Image.open(io.BytesIO(base64.b64decode(screenshot_encoding)))
-            screenshot_img.save(shot_path)
-        except Exception as e:
-            Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, warning=True)
-            shutil.rmtree(target_folder)
-            continue
-
-        try:
-            # record HTML
-            with open(html_path, 'w+', encoding='utf-8') as f:
-                f.write(driver.page_source())
-        except Exception as e:
-            Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
-            pass
+        shot_path = os.path.join(target_folder, 'shot.png')
+        html_path = os.path.join(target_folder, 'index.html')
+        URL = f'http://127.0.0.5/{hash}'
 
         if os.path.exists(shot_path):
-            pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, _ = llm_cls.test(target, None, shot_path, html_path, driver)
+            try:
+                driver.get(URL, click_popup=True, allow_redirections=False)
+                time.sleep(2)
+                Logger.spit(f'Target URL = {URL}', caller_prefix=XDriver._caller_prefix, debug=True)
+                page_text = driver.get_page_text()
+                error_free = web_func.page_error_checking(driver)
+                if not error_free:
+                    Logger.spit('Error page or White page', caller_prefix=XDriver._caller_prefix, debug=True)
+                    continue
+
+                if "Index of" in page_text:
+                    # skip error URLs
+                    error_free = web_func.page_interaction_checking(driver)
+                    if not error_free:
+                        Logger.spit('Error page or White page', caller_prefix=XDriver._caller_prefix,
+                                    debug=True)
+                        continue
+
+            except Exception as e:
+                Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
+                continue
+
+            target = driver.current_url()
+            logo_box, reference_logo = llm_cls.detect_logo(shot_path)
+            pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, _ = llm_cls.test(target,
+                                                                                                    reference_logo,
+                                                                                                    logo_box,
+                                                                                                    shot_path,
+                                                                                                    html_path,
+                                                                                                    driver,
+                                                                                                    limit=3,
+                                                                                                    brand_recognition_do_validation=False
+                                                                                                    )
             with open(result, 'a+') as f:
-                f.write(hash+'\t'+pred+'\t'+brand+'\t'+str(brand_recog_time)+'\t'+str(crp_prediction_time)+'\t'+str(crp_transition_time)+'\n')
+                f.write(hash+'\t'+str(pred)+'\t'+str(brand)+'\t'+str(brand_recog_time)+'\t'+str(crp_prediction_time)+'\t'+str(crp_transition_time)+'\n')
 
     driver.quit()
 
