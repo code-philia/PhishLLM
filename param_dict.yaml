@@ -1,0 +1,27 @@
+ocr:
+  sure_thre: 0.98
+  unsure_thre: 0.9
+  local_best_window: 2
+
+logo:
+  expand_ratio: 5
+
+brand_recog:
+  temperature: 0
+  max_tokens: 10
+  sleep_time: 1
+
+brand_valid:
+  k: 5
+  siamese_thre: 0.7
+
+crp_pred:
+  temperature: 0
+  max_tokens: 100
+  sleep_time: 1
+
+rank:
+  driver_sleep_time: 5
+  max_uis_process: 300
+  batch_size: 64
+  depth_limit: 1

@@ -3,17 +3,30 @@ import argparse
 from datetime import datetime
 import cv2
 from tqdm import tqdm
+import yaml
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--folder", default="./datasets/field_study/2023-08-19/")
     parser.add_argument("--date", default="2023-08-19", help="%Y-%m-%d")
+    parser.add_argument("--validate", action='store_true', help="Whether or not to activate the results validation for brand recognition model")
+    parser.add_argument("--config", default='./param_dict.yaml', help="Config .yaml path")
     args = parser.parse_args()
+
+    # load hyperparameters
+    with open(args.config) as file:
+        param_dict = yaml.load(file, Loader=yaml.FullLoader)
+
+    print("Configs summary:")
+    for key, value in vars(args).items():
+        print(f"{key}: {value}")
+    print(param_dict)
 
     # PhishLLM
     phishintention_cls = PhishIntentionWrapper()
     llm_cls = TestLLM(phishintention_cls,
+                      param_dict=param_dict,
                       proxies={ "http": "http://127.0.0.1:7890",
                                  "https": "http://127.0.0.1:7890",
                      })
@@ -73,8 +86,8 @@ if __name__ == '__main__':
         logo_box, reference_logo = llm_cls.detect_logo(shot_path)
         pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis = llm_cls.test(url, reference_logo, logo_box,
                                                                                                         shot_path, html_path, driver,
-                                                                                                        limit=1,
-                                                                                                        brand_recognition_do_validation=True
+                                                                                                        limit=param_dict['rank']['depth_limit'],
+                                                                                                        brand_recognition_do_validation=args.validate
                                                                                                         )
 
         try:

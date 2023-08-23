@@ -22,7 +22,7 @@ os.environ['CURL_CA_BUNDLE'] = ''
 
 class TestLLM():
 
-    def __init__(self, phishintention_cls, proxies=None):
+    def __init__(self, phishintention_cls, param_dict, proxies=None):
 
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.clip_model, self.clip_preprocess = clip.load("ViT-B/32", device=self.device)
@@ -36,7 +36,6 @@ class TestLLM():
 
         self.LLM_model = "gpt-3.5-turbo-16k"
         self.prediction_prompt = './selection_model/prompt.json'
-        # self.brand_prompt = './brand_recognition/prompt_field.json'
         self.brand_prompt = './brand_recognition/prompt.json'
         self.phishintention_cls = phishintention_cls
         self.language_list = ['en', 'ch', 'ru', 'japan', 'fa', 'ar', 'korean', 'vi', 'ms',
@@ -51,6 +50,20 @@ class TestLLM():
 
         # Load the Google API key and SEARCH_ENGINE_ID once during initialization
         self.API_KEY, self.SEARCH_ENGINE_ID = [x.strip() for x in open('./datasets/google_api_key.txt').readlines()]
+
+        ## Load hyperparameters
+        self.ocr_sure_thre, self.ocr_unsure_thre, self.ocr_local_best_window = param_dict['ocr']['sure_thre'], param_dict['ocr']['unsure_thre'], param_dict['ocr']['local_best_window']
+        self.logo_expansion_ratio = param_dict['logo']['expand_ratio']
+
+        self.brand_recog_temperature, self.brand_recog_max_tokens = param_dict['brand_recog']['temperature'], param_dict['brand_recog']['max_tokens']
+        self.brand_recog_sleep = param_dict['brand_recog']['sleep_time']
+        self.brand_valid_k, self.brand_valid_siamese_thre = param_dict['brand_valid']['k'], param_dict['brand_valid']['siamese_thre']
+
+        self.crp_temperature, self.crp_max_tokens = param_dict['crp_pred']['temperature'], param_dict['crp_pred']['max_tokens']
+        self.crp_sleep = param_dict['crp_pred']['sleep_time']
+
+        self.rank_max_uis, self.rank_batch_size = param_dict['rank']['max_uis_process'], param_dict['rank']['batch_size']
+        self.rank_driver_sleep = param_dict['rank']['driver_sleep_time']
 
     @lru_cache(maxsize=None) # Cache the results of tld extraction
     def extract_domain(self, domain):
@@ -86,8 +99,6 @@ class TestLLM():
         most_fit_lang = self.language_list[0]
         best_conf = 0
         most_fit_results = ''
-        sure_thre = 0.98
-        unsure_thre = 0.9
 
         for lang in self.language_list:
             if lang == 'en':
@@ -101,14 +112,14 @@ class TestLLM():
             median_conf = np.median([x[-1][1] for x in result[0]])
             if math.isnan(median_conf): # no text is detected
                 break
-            if median_conf >= sure_thre: # confidence is so high
+            if median_conf >= self.ocr_sure_thre: # confidence is so high
                 most_fit_results = result
                 break
-            if median_conf > best_conf and median_conf >= unsure_thre: # confidence is moderately high, need further checking
+            if median_conf > best_conf and median_conf >= self.ocr_unsure_thre: # confidence is moderately high, need further checking
                 best_conf = median_conf
                 most_fit_lang = lang
                 most_fit_results = result
-            if best_conf > 0 and self.language_list.index(lang) - self.language_list.index(most_fit_lang) >= 2:  # local best language
+            if best_conf > 0 and self.language_list.index(lang) - self.language_list.index(most_fit_lang) >= self.ocr_local_best_window:  # local best language
                 break
         # OCR can return results
         if len(most_fit_results):
@@ -160,7 +171,7 @@ class TestLLM():
             logo_ocr = ''
             if len(ocr_coord):
                 # get the OCR text description surrounding the logo
-                expand_logo_box = expand_bbox(logo_box, image_width=image_width, image_height=image_height, expand_ratio=5)
+                expand_logo_box = expand_bbox(logo_box, image_width=image_width, image_height=image_height, expand_ratio=self.logo_expansion_ratio)
                 overlap_areas = compute_overlap_areas_between_lists([expand_logo_box], ocr_coord)
                 logo_ocr = np.array(ocr_text)[overlap_areas[0] > 0].tolist()
                 logo_ocr = ' '.join(logo_ocr)
@@ -186,13 +197,13 @@ class TestLLM():
                     response = openai.ChatCompletion.create(
                         model=self.LLM_model,
                         messages=new_prompt,
-                        temperature=0,
-                        max_tokens=10,
+                        temperature=self.brand_recog_temperature,
+                        max_tokens=self.brand_recog_max_tokens,
                     )
                     inference_done = True
                 except Exception as e:
                     Logger.spit('LLM Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
-                    time.sleep(10) # retry
+                    time.sleep(self.brand_recog_sleep) # retry
 
             answer = ''.join([choice["message"]["content"] for choice in response['choices']])
             print('LLM prediction time:', time.time() - start_time)
@@ -216,7 +227,7 @@ class TestLLM():
         start_time = time.time()
         returned_urls = query2image(query=company_domain + ' logo',
                                     SEARCH_ENGINE_ID=self.SEARCH_ENGINE_ID, SEARCH_ENGINE_API=self.API_KEY,
-                                    num=5,
+                                    num=self.brand_valid_k,
                                     proxies=self.proxies)
         logos = get_images(returned_urls, proxies=self.proxies)
         logo_cropping_time = time.time() - start_time
@@ -237,7 +248,7 @@ class TestLLM():
                     matched_sim = reference_logo_feat @ logo_feat
                     sim_list.append(matched_sim)
 
-            if any([x > 0.7 for x in sim_list]):
+            if any([x > self.brand_valid_siamese_thre for x in sim_list]):
                 validation_success = True
 
             logo_matching_time = time.time() - start_time
@@ -264,14 +275,14 @@ class TestLLM():
                 response = openai.ChatCompletion.create(
                     model=self.LLM_model,
                     messages=new_prompt,
-                    temperature=0,
-                    max_tokens=100,  # we're only counting input tokens here, so let's not waste tokens on the output
+                    temperature=self.crp_temperature,
+                    max_tokens=self.crp_max_tokens,  # we're only counting input tokens here, so let's not waste tokens on the output
                 )
                 inference_done = True
             except Exception as e:
                 Logger.spit('LLM Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
-                new_prompt[-1]['content'] = new_prompt[-1]['content'][:len(new_prompt[-1]['content']) // 2]
-                time.sleep(10)
+                new_prompt[-1]['content'] = new_prompt[-1]['content'][:len(new_prompt[-1]['content']) // 2] # maybe the prompt is too long, cut by half
+                time.sleep(self.crp_sleep)
 
         answer = ''.join([choice["message"]["content"] for choice in response['choices']])
         print(f'CRP prediction {answer}')
@@ -292,7 +303,7 @@ class TestLLM():
         if ranking_model_refresh_page:
             try:
                 driver.get(url)
-                time.sleep(5)
+                time.sleep(self.rank_driver_sleep)
             except Exception as e:
                 print(e)
                 Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
@@ -301,7 +312,7 @@ class TestLLM():
                 driver = XDriver.boot(chrome=True)
                 driver.set_script_timeout(30)
                 driver.set_page_load_timeout(60)
-                time.sleep(3)
+                time.sleep(self.rank_driver_sleep)
                 return [], [], driver
 
         try:
@@ -320,7 +331,7 @@ class TestLLM():
         # element screenshot
         candidate_uis = []
         candidate_uis_imgs = []
-        for it in range(min(300, len(all_clickable))):
+        for it in range(min(self.rank_max_uis, len(all_clickable))):
             try:
                 driver.scroll_to_top()
                 x1, y1, x2, y2 = driver.get_location(all_clickable[it])
@@ -345,7 +356,7 @@ class TestLLM():
         if len(candidate_uis_imgs):
             print(f'Find {len(candidate_uis_imgs)} candidate UIs')
             final_probs = torch.tensor([], device='cpu')
-            batch_size = 64
+            batch_size = self.rank_batch_size
             texts = clip.tokenize(["not a login button", "a login button"]).to(self.device)
 
             for batch in range(math.ceil(len(candidate_uis)/batch_size)):
@@ -402,7 +413,7 @@ class TestLLM():
             start_time = time.time()
             company_domain, company_logo = self.brand_recognition_llm(reference_logo, logo_box, ocr_text, ocr_coord, image_width, image_height)
             brand_recog_time += time.time() - start_time
-            time.sleep(1) # fixme: allow the openai api to rest, not sure whether this help
+            time.sleep(self.brand_recog_sleep) # fixme: allow the openai api to rest, not sure whether this help
         # check domain-brand inconsistency
         if company_domain:
             domain4pred = self.extract_domain(company_domain)
@@ -427,7 +438,7 @@ class TestLLM():
             start_time = time.time()
             crp_cls = self.crp_prediction_llm(detected_text)
             crp_prediction_time += time.time() - start_time
-            time.sleep(1) # fixme: allow the openai api to rest, not sure whether this help
+            time.sleep(self.crp_sleep)
 
             if crp_cls: # CRP page is detected
                 plotvis = draw_annotated_image_box(plotvis, company_domain, logo_box)

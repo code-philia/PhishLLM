@@ -25,7 +25,7 @@ def draw_annotated_image_nobox(image: Image.Image, txt: str):
     draw = ImageDraw.Draw(image)
 
     # Load a larger font for text annotations
-    font = ImageFont.truetype(font="./fonts/arialbd.ttf", size=25)
+    font = ImageFont.truetype(font="./field_study/fonts/arialbd.ttf", size=25)
 
     # Calculate the width and height of the text
     text_width, text_height = draw.textsize("Output: "+txt, font=font)
@@ -82,7 +82,7 @@ def draw_annotated_image(image: Image.Image, boxes: list, txts: list, scores: li
     draw = ImageDraw.Draw(tmp)
 
     # Load a larger font for text annotations
-    font = ImageFont.truetype(font="./fonts/arialbd.ttf", size=30)
+    font = ImageFont.truetype(font="./field_study/fonts/arialbd.ttf", size=30)
 
     # Define light red color with 80% transparency
     light_red = (128, 0, 0, int(0.4 * 255))  # RGBA
@@ -109,7 +109,7 @@ def draw_annotated_image(image: Image.Image, boxes: list, txts: list, scores: li
 
     # Concatenate all texts and add below the image
     combined_text = 'Output: \n' + ' '.join(txts)
-    font = ImageFont.truetype(font="./fonts/arialbd.ttf", size=18)
+    font = ImageFont.truetype(font="./field_study/fonts/arialbd.ttf", size=18)
     text_width, text_height = draw.textsize(combined_text, font=font)
 
     # Create an image with extra space at the bottom for the concatenated text
@@ -156,7 +156,7 @@ class GeneralAnalysis:
         plt.ylabel('Number of Phishing Reported', fontsize=12)
         plt.title('Daily Phishing Reports by Solution', fontsize=14)
         plt.xticks([r + width for r in range(len(df['Date']))], df['Date'], rotation=45)
-        plt.yticks(np.arange(0, max(df['PhishLLM'].max(), df['Phishpedia'].max(), df['PhishIntention'].max()) + 1, 1))
+        # plt.yticks(np.arange(0, max(df['PhishLLM'].max(), df['Phishpedia'].max(), df['PhishIntention'].max()) + 1, 1))
         plt.legend(loc='upper left', bbox_to_anchor=(1, 1), ncol=1)
 
         plt.tight_layout()
@@ -420,7 +420,7 @@ class CampaignAnalysis:
             plt.plot(dates, counts, marker='o', color=color, label=f'Cluster {i + 1}')
 
         # Add a legend and labels.
-        plt.xticks(range(len(all_dates)), all_dates)
+        plt.xticks(range(len(all_dates)), all_dates, rotation=45)
         plt.legend()
         plt.xlabel('Date')
         plt.ylabel('Cumulative number of screenshots')
