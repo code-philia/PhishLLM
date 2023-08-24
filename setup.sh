@@ -63,4 +63,3 @@ fi
 mkdir checkpoints
 cd checkpoints
 curl -L "https://huggingface.co/Kelsey98/ranking_model/download/resolve/main/epoch4_model.pt" -o "epoch4_model.pt"
-echo "Model $MODEL_NAME downloaded successfully!"
