@@ -134,7 +134,9 @@ antagonist.nl
 oderland.com
 strato
 luno
+luno.com
 bet365
+bet365.com
 manhattantrust.com
 nginxproxymanager.com
 bitrix24.com
@@ -149,3 +151,5 @@ cloudflare.com
 sonicpanel.com
 material.io
 invoices.com
+inmotionhosting.com
+radarr.video
