@@ -12,7 +12,10 @@ from selenium.common.exceptions import WebDriverException
 import base64
 from webdriver_manager.chrome import ChromeDriverManager
 from xdriver.XDriver import XDriver
-from xdriver.xutils.Logger import Logger
+from xdriver.xutils.Logger import Logger, TxtColors
+import logging
+import os
+import re
 
 '''LLM prompt'''
 def question_template_prediction(html_text):
@@ -103,11 +106,13 @@ def is_alive_domain(domain: str, proxies: Optional[Dict]=None) -> bool:
         try:
             response = requests.get('https://' + domain, timeout=10, proxies=proxies)
             if response.status_code == 200:  # it is alive
+                PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
                 return True
             break
         except Exception as err:
             print(f'Error {err} when checking the aliveness of domain {domain}')
             ct_limit += 1
+    PhishLLMLogger.spit(f'Domain {domain} is invalid or dead', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
     return False
 
 '''Retrieve logo from a webpage'''
@@ -224,17 +229,77 @@ def page_transition(driver: XDriver, dom: str, save_html_path: str, save_shot_pa
             time.sleep(7)  # fixme: must allow some loading time here, dynapd is slow
         current_url = driver.current_url()
     except Exception as e:
-        print(e)
-        Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
+        PhishLLMLogger.spit('Exception {} when clicking the login button'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
         return None, None, None
 
     try:
         driver.save_screenshot(save_shot_path)
-        print('new screenshot saved')
+        PhishLLMLogger.spit('CRP transition is successful! New screenshot has been saved', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
         with open(save_html_path, "w", encoding='utf-8') as f:
             f.write(driver.page_source())
         return current_url, save_html_path, save_shot_path
     except Exception as e:
-        print(e)
-        Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
+        PhishLLMLogger.spit('Exception {} when saving the new screenshot'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
         return None, None, None
+
+'''Logging Utils'''
+class PhishLLMLogger():
+
+    _caller_prefix = "PhishLLMLogger"
+    _verbose = True
+    _logfile = None
+    _debug = False # Off by default
+    _warning = True
+
+    @classmethod
+    def set_verbose(cls, verbose):
+        cls._verbose = verbose
+
+    @classmethod
+    def set_logfile(cls, logfile):
+        # if os.path.isfile(logfile):
+        #     os.remove(logfile)  # Remove the existing log file
+        PhishLLMLogger._logfile = logfile
+
+    @classmethod
+    def unset_logfile(cls):
+        PhishLLMLogger.set_logfile(None)
+
+    @classmethod
+    def set_debug_on(cls):
+        PhishLLMLogger._debug = True
+
+    @classmethod
+    def set_debug_off(cls): # Call if need to turn debug messages off
+        PhishLLMLogger._debug = False
+
+    @classmethod
+    def set_warning_on(cls):
+        PhishLLMLogger._warning = True
+
+    @classmethod
+    def set_warning_off(cls): # Call if need to turn warnings off
+        PhishLLMLogger._warning = False
+
+    @classmethod
+    def spit(cls, msg, warning=False, debug=False, error=False, exception=False, caller_prefix=""):
+        logging.basicConfig(level=logging.DEBUG if PhishLLMLogger._debug else logging.WARNING)
+        caller_prefix = f"[{caller_prefix}]" if caller_prefix else ""
+        prefix = "[FATAL]" if error else "[DEBUG]" if debug else "[WARNING]" if warning else "[EXCEPTION]" if exception else ""
+        logger = logging.getLogger("custom_logger")  # Choose an appropriate logger name
+        if PhishLLMLogger._logfile:
+            log_msg = re.sub(r"\033\[\d+m", "", msg)
+            log_handler = logging.FileHandler(PhishLLMLogger._logfile, mode='a')
+            log_formatter = logging.Formatter('%(message)s')
+            log_handler.setFormatter(log_formatter)
+            logger.addHandler(log_handler)
+            logger.propagate = False
+            logger.setLevel(logging.DEBUG if PhishLLMLogger._debug else logging.WARNING)
+            logger.debug("%s%s %s" % (caller_prefix, prefix, log_msg))
+            logger.removeHandler(log_handler)
+        else:
+            if PhishLLMLogger._verbose:
+                txtcolor = TxtColors.FATAL if error else TxtColors.DEBUG if debug else TxtColors.WARNING if warning else "[EXCEPTION]" if exception else TxtColors.OK
+                # if not debug or Logger._debug:
+                if (not debug and not warning) or (debug and PhishLLMLogger._debug) or (warning and PhishLLMLogger._warning):
+                    print("%s%s%s %s" % (txtcolor, caller_prefix, prefix, msg))

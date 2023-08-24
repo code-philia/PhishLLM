@@ -16,6 +16,7 @@ from field_study.draw_utils import draw_annotated_image_box
 from typing import List, Tuple, Set, Dict, Optional, Union
 from lavis.models import load_model_and_preprocess
 from functools import lru_cache
+import yaml
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key2.txt').read()
 os.environ['CURL_CA_BUNDLE'] = ''
 
@@ -25,35 +26,38 @@ class TestLLM():
     def __init__(self, phishintention_cls, param_dict, proxies=None):
 
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.clip_model, self.clip_preprocess = clip.load("ViT-B/32", device=self.device)
-        state_dict = torch.load("./checkpoints/epoch{}_model.pt".format(4))
+        self.proxies = proxies
+
+        ## Ranking model
+        self.clip_model, self.clip_preprocess = clip.load(param_dict['rank']['model_name'], device=self.device)
+        state_dict = torch.load(param_dict['rank']['checkpoint_path'])
         self.clip_model.load_state_dict(state_dict)
 
-        self.caption_model, self.caption_preprocess, _ = load_model_and_preprocess(name="blip_caption",
-                                                                                 model_type="base_coco",
+        ## Image Captioning model
+        self.caption_model, self.caption_preprocess, _ = load_model_and_preprocess(name=param_dict['logo_caption']['model_name'],
+                                                                                 model_type=param_dict['logo_caption']['model_type'],
                                                                                  is_eval=True,
                                                                                  device=self.device)
 
-        self.LLM_model = "gpt-3.5-turbo-16k"
-        self.prediction_prompt = './selection_model/prompt.json'
-        self.brand_prompt = './brand_recognition/prompt.json'
+        ## LLM
+        self.LLM_model = param_dict["LLM_model"]
+        self.brand_prompt = param_dict['brand_recog']['prompt_path']
+        self.crp_prompt = param_dict['crp_pred']['prompt_path']
         self.phishintention_cls = phishintention_cls
-        self.language_list = ['en', 'ch', 'ru', 'japan', 'fa', 'ar', 'korean', 'vi', 'ms',
-                             'fr', 'german', 'it', 'es', 'pt', 'uk', 'be', 'te',
-                             'sa', 'ta', 'nl', 'tr', 'ga']
-        self.proxies = proxies
-        # Load the OCR model once during initialization
+
+        # OCR model
         try:
-            self.default_ocr = PaddleOCR(use_angle_cls=True, lang='en', show_log=False, use_gpu= self.device=='cuda')
+            self.default_ocr_model = PaddleOCR(use_angle_cls=True, lang='en', show_log=False, use_gpu=self.device == 'cuda')
         except MemoryError:
-            self.default_ocr = PaddleOCR(use_angle_cls=True, lang='en', show_log=False, use_gpu= False)
+            self.default_ocr_model = PaddleOCR(use_angle_cls=True, lang='en', show_log=False, use_gpu= False)
+        self.ocr_language_list = param_dict['ocr']['supported_langs']
 
         # Load the Google API key and SEARCH_ENGINE_ID once during initialization
         self.API_KEY, self.SEARCH_ENGINE_ID = [x.strip() for x in open('./datasets/google_api_key.txt').readlines()]
 
         ## Load hyperparameters
         self.ocr_sure_thre, self.ocr_unsure_thre, self.ocr_local_best_window = param_dict['ocr']['sure_thre'], param_dict['ocr']['unsure_thre'], param_dict['ocr']['local_best_window']
-        self.logo_expansion_ratio = param_dict['logo']['expand_ratio']
+        self.logo_expansion_ratio = param_dict['logo_caption']['expand_ratio']
 
         self.brand_recog_temperature, self.brand_recog_max_tokens = param_dict['brand_recog']['temperature'], param_dict['brand_recog']['max_tokens']
         self.brand_recog_sleep = param_dict['brand_recog']['sleep_time']
@@ -64,6 +68,9 @@ class TestLLM():
 
         self.rank_max_uis, self.rank_batch_size = param_dict['rank']['max_uis_process'], param_dict['rank']['batch_size']
         self.rank_driver_sleep = param_dict['rank']['driver_sleep_time']
+
+        # webhosting domains as blacklist
+        self.webhosting_domains = [x.strip() for x in open('./datasets/hosting_blacklists.txt').readlines()]
 
     @lru_cache(maxsize=None) # Cache the results of tld extraction
     def extract_domain(self, domain):
@@ -96,13 +103,13 @@ class TestLLM():
         detected_text = ''
         ocr_text = []
         ocr_coord = []
-        most_fit_lang = self.language_list[0]
+        most_fit_lang = self.ocr_language_list[0]
         best_conf = 0
         most_fit_results = ''
 
-        for lang in self.language_list:
+        for lang in self.ocr_language_list:
             if lang == 'en':
-                ocr = self.default_ocr
+                ocr = self.default_ocr_model
             else:
                 try:
                     ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False)  # need to run only once to download and load model into memory
@@ -119,7 +126,7 @@ class TestLLM():
                 best_conf = median_conf
                 most_fit_lang = lang
                 most_fit_results = result
-            if best_conf > 0 and self.language_list.index(lang) - self.language_list.index(most_fit_lang) >= self.ocr_local_best_window:  # local best language
+            if best_conf > 0 and self.ocr_language_list.index(lang) - self.ocr_language_list.index(most_fit_lang) >= self.ocr_local_best_window:  # local best language
                 break
         # OCR can return results
         if len(most_fit_results):
@@ -178,8 +185,8 @@ class TestLLM():
         else:
             logo_caption = ''
             logo_ocr = ' '.join(ocr_text)
-        print('Logo caption: ', logo_caption)
-        print('Logo OCR: ', logo_ocr)
+        PhishLLMLogger.spit(f'Logo caption: {logo_caption}', debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
+        PhishLLMLogger.spit(f'Logo OCR: {logo_ocr}', debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
 
         if len(logo_caption) > 0 or len(logo_ocr) > 0:
             # ask gpt to predict brand
@@ -202,12 +209,12 @@ class TestLLM():
                     )
                     inference_done = True
                 except Exception as e:
-                    Logger.spit('LLM Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
+                    Logger.spit('LLM Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, warning=True)
                     time.sleep(self.brand_recog_sleep) # retry
 
             answer = ''.join([choice["message"]["content"] for choice in response['choices']])
-            print('LLM prediction time:', time.time() - start_time)
-            print(f'Detected brand {answer}')
+            PhishLLMLogger.spit(f"LLM prediction time: {time.time() - start_time}", debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
+            PhishLLMLogger.spit(f'Detected brand: {answer}', debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
         else:
             answer = 'no logo description'
 
@@ -231,7 +238,7 @@ class TestLLM():
                                     proxies=self.proxies)
         logos = get_images(returned_urls, proxies=self.proxies)
         logo_cropping_time = time.time() - start_time
-        print('Crop the logo time:', logo_cropping_time)
+        PhishLLMLogger.spit(f'Download logos from GImage time: {logo_cropping_time}', debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
 
         if len(logos) > 0:
             reference_logo_feat = pred_siamese_OCR(img=reference_logo,
@@ -252,8 +259,12 @@ class TestLLM():
                 validation_success = True
 
             logo_matching_time = time.time() - start_time
-            print('Logo matching time:', logo_matching_time)
+            PhishLLMLogger.spit(f'Logo matching time: {logo_matching_time}', debug=True,
+                                caller_prefix=PhishLLMLogger._caller_prefix)
 
+        if not validation_success:
+            PhishLLMLogger.spit('Fails logo matching', debug=True,
+                                caller_prefix=PhishLLMLogger._caller_prefix)
         return validation_success, logo_cropping_time, logo_matching_time
 
     def crp_prediction_llm(self, html_text: str) -> bool:
@@ -263,7 +274,7 @@ class TestLLM():
             :return:
         '''
         question = question_template_prediction(html_text)
-        with open(self.prediction_prompt, 'rb') as f:
+        with open(self.crp_prompt, 'rb') as f:
             prompt = json.load(f)
         new_prompt = prompt
         new_prompt.append(question)
@@ -280,12 +291,12 @@ class TestLLM():
                 )
                 inference_done = True
             except Exception as e:
-                Logger.spit('LLM Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
+                Logger.spit('LLM Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, warning=True)
                 new_prompt[-1]['content'] = new_prompt[-1]['content'][:len(new_prompt[-1]['content']) // 2] # maybe the prompt is too long, cut by half
                 time.sleep(self.crp_sleep)
 
         answer = ''.join([choice["message"]["content"] for choice in response['choices']])
-        print(f'CRP prediction {answer}')
+        PhishLLMLogger.spit(f'CRP prediction: {answer}', debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
         if 'A.' in answer:
             return True # CRP
         else:
@@ -305,8 +316,7 @@ class TestLLM():
                 driver.get(url)
                 time.sleep(self.rank_driver_sleep)
             except Exception as e:
-                print(e)
-                Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
+                PhishLLMLogger.spit('Exception {} when visiting the webpage'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
                 driver.quit()
                 XDriver.set_headless()
                 driver = XDriver.boot(chrome=True)
@@ -321,8 +331,7 @@ class TestLLM():
                 (images, images_dom), \
                 (others, others_dom) = driver.get_all_clickable_elements()
         except Exception as e:
-            print(e)
-            Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
+            PhishLLMLogger.spit('Exception {} when getting all clickable UIs'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
             return [], [], driver
 
         all_clickable = btns + links + images + others
@@ -336,8 +345,7 @@ class TestLLM():
                 driver.scroll_to_top()
                 x1, y1, x2, y2 = driver.get_location(all_clickable[it])
             except Exception as e:
-                print(e)
-                Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
+                PhishLLMLogger.spit('Exception {} when taking screenshot of UI id={}'.format(e, it), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
                 continue
 
             if x2 - x1 <= 0 or y2 - y1 <= 0 or y2 >= driver.get_window_size()['height']//2: # invisible or at the bottom
@@ -348,13 +356,12 @@ class TestLLM():
                 candidate_uis_imgs.append(self.clip_preprocess(ele_screenshot_img))
                 candidate_uis.append(all_clickable_dom[it])
             except Exception as e:
-                print(e)
-                Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
+                PhishLLMLogger.spit('Exception {} when when taking screenshot of UI id={}'.format(e, it), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
                 continue
 
         # rank them
         if len(candidate_uis_imgs):
-            print(f'Find {len(candidate_uis_imgs)} candidate UIs')
+            PhishLLMLogger.spit(f'Find {len(candidate_uis_imgs)} candidate UIs', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
             final_probs = torch.tensor([], device='cpu')
             batch_size = self.rank_batch_size
             texts = clip.tokenize(["not a login button", "a login button"]).to(self.device)
@@ -371,7 +378,7 @@ class TestLLM():
 
             return candidate_uis[ind], candidate_uis_imgs[ind], driver
         else:
-            print('No candidate login button to click')
+            PhishLLMLogger.spit('No candidate login button to click', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
             return [], [], driver
 
 
@@ -441,11 +448,17 @@ class TestLLM():
             time.sleep(self.crp_sleep)
 
             if crp_cls: # CRP page is detected
-                plotvis = draw_annotated_image_box(plotvis, company_domain, logo_box)
-                return 'phish', company_domain, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
+                if company_domain in self.webhosting_domains:
+                    PhishLLMLogger.spit('[\U00002705] Benign, since it is a brand providing cloud services')
+                    return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
+                else:
+                    plotvis = draw_annotated_image_box(plotvis, company_domain, logo_box)
+                    PhishLLMLogger.spit(f'[\u26A0\uFE0F] Phishing discovered, phishing target is {company_domain}')
+                    return 'phish', company_domain, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
             else:
                 # Not a CRP page => CRP transition
                 if limit == 0:  # reach interaction limit -> just return
+                    PhishLLMLogger.spit('Reached interaction limit ...', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
                     return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
 
                 # Ranking model
@@ -456,7 +469,8 @@ class TestLLM():
                 if len(candidate_ele):
                     save_html_path = re.sub("index[0-9]?.html", f"index{limit}.html", html_path)
                     save_shot_path = re.sub("shot[0-9]?.png", f"shot{limit}.png", shot_path)
-                    print("Click login button")
+
+                    PhishLLMLogger.spit("Trying to click the login button ...", caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
                     current_url, *_ = page_transition(driver, candidate_ele, save_html_path, save_shot_path)
                     if current_url: # click success
                         ranking_model_refresh_page = current_url != url
@@ -469,14 +483,19 @@ class TestLLM():
                                          skip_brand_recognition=True, brand_recognition_do_validation=brand_recognition_do_validation,
                                          company_domain=company_domain, company_logo=company_logo)
 
+        PhishLLMLogger.spit('[\U00002705] Benign')
         return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
 
 
 
 if __name__ == '__main__':
 
+    # load hyperparameters
+    with open('./param_dict.yaml') as file:
+        param_dict = yaml.load(file, Loader=yaml.FullLoader)
+
     phishintention_cls = PhishIntentionWrapper()
-    llm_cls = TestLLM(phishintention_cls)
+    llm_cls = TestLLM(phishintention_cls, param_dict=param_dict)
     openai.api_key = os.getenv("OPENAI_API_KEY")
     # openai.proxy = "http://127.0.0.1:7890" # proxy
     web_func = WebUtil()
