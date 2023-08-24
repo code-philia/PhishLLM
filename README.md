@@ -53,7 +53,7 @@ In our PhishLLM, we build a reference-based phishing detection framework
 
 ## Setup
 - Step 1: Install requirements
-```
+```bash
     git clone https://github.com/lindsey98/PhishLLM.git
     cd PhishLLM/
     chmod +x ./setup.sh
@@ -61,11 +61,19 @@ In our PhishLLM, we build a reference-based phishing detection framework
 ```
 - Step 2: Register openai API key: See https://platform.openai.com/. Save the API key to './datasets/openai_key2.txt'
 - Step 3: Run!
-```
+```bash
     conda activate myenv
     python -m field_study.test --folder [folder to test, e.g. ./datasets/field_study/2023-08-21/] --date [e.g. 2023-08-21]
 ```
+If you would like to activate results validation for brand recognition model, add the flag "--validate". 
+This will improve the phishing report precision but at the same time incur a higher runtime overhead.
+```bash
+    python -m field_study.test --folder [folder to test] --date [e.g. 2023-08-21] --validate 
+```
+- All hyperparameter configurations are stored in param_dict.yaml, e.g. the parameters for GPT, the threshold for OCR etc. 
+Please edit the file if you want to play with different combinations of parameters.
 
 ## Citation
 
 ## Contacts
+If you encounter any issues, please raise an issue in this repository, we will reply soon.
