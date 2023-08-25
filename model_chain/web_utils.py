@@ -1,10 +1,6 @@
 import re
 from xdriver.xutils.Logger import Logger
-import time
-from PIL import Image
 import numpy as np
-import io
-import base64
 import cv2
 import requests
 import time

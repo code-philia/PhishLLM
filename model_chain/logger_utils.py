@@ -1,4 +1,3 @@
-from typing import *
 from xdriver.xutils.Logger import TxtColors
 import logging
 import re

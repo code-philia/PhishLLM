@@ -12,12 +12,12 @@ import os
 from lxml import html
 from xdriver.xutils.PhishIntentionWrapper import PhishIntentionWrapper
 from xdriver.xutils.Logger import Logger
-import shutil
 from field_study.draw_utils import draw_annotated_image_box
 from typing import List, Tuple, Set, Dict, Optional, Union
 from lavis.models import load_model_and_preprocess
 from functools import lru_cache
 import yaml
+from tldextract import tldextract
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key2.txt').read()
 os.environ['CURL_CA_BUNDLE'] = ''
 

@@ -1,10 +1,8 @@
 from model_chain.test_llm import *
 import argparse
-from datetime import datetime
-import cv2
 from tqdm import tqdm
 import yaml
-import pprint
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()

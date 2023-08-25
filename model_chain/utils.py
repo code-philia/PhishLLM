@@ -1,11 +1,4 @@
-from tldextract import tldextract
 import numpy as np
-import re
-from typing import *
-from xdriver.xutils.Logger import TxtColors
-import logging
-import os
-import re
 
 '''LLM prompt'''
 def question_template_prediction(html_text):
