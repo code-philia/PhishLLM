@@ -2,7 +2,7 @@
 from brand_recognition.test_llm import *
 import idna
 import pandas as pd
-from model_chain.web_utils import WebUtil
+from model_chain.web_utils import WebUtil, is_valid_domain
 from xdriver.xutils.Logger import Logger
 from xdriver.XDriver import XDriver
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read()
