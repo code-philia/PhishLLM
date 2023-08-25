@@ -4,7 +4,7 @@ from datetime import datetime
 import cv2
 from tqdm import tqdm
 import yaml
-
+import pprint
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
@@ -14,14 +14,12 @@ if __name__ == '__main__':
     parser.add_argument("--config", default='./param_dict.yaml', help="Config .yaml path")
     args = parser.parse_args()
 
+    PhishLLMLogger.set_debug_on()
+    PhishLLMLogger.set_logfile('./field_study/results/{}_phishllm.log'.format(args.date))
+
     # load hyperparameters
     with open(args.config) as file:
         param_dict = yaml.load(file, Loader=yaml.FullLoader)
-
-    print("Configs summary:")
-    for key, value in vars(args).items():
-        print(f"{key}: {value}")
-    print(param_dict)
 
     # PhishLLM
     phishintention_cls = PhishIntentionWrapper()
@@ -40,7 +38,6 @@ if __name__ == '__main__':
     driver.set_script_timeout(timeout_time/2)
     driver.set_page_load_timeout(timeout_time)
     time.sleep(sleep_time)
-    Logger.set_debug_on()
 
     os.makedirs('./field_study/results/', exist_ok=True)
 
@@ -84,6 +81,7 @@ if __name__ == '__main__':
             continue
 
         logo_box, reference_logo = llm_cls.detect_logo(shot_path)
+        PhishLLMLogger.spit(f"Folder {os.path.join(args.folder, folder)}", caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
         pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis = llm_cls.test(url, reference_logo, logo_box,
                                                                                                         shot_path, html_path, driver,
                                                                                                         limit=param_dict['rank']['depth_limit'],
@@ -113,17 +111,9 @@ if __name__ == '__main__':
             time.sleep(sleep_time)
 
     driver.quit()
-    # 482.91236.top, requests unionpay.com doesnt work, need to request cn.unionpay.com
-    # device-54ddd6f1-5dc6-4480-8809-c75e99811e0d.remotewd.com: no text on the webpage that indicate the brand is bouyguestelecom.fr, also the phishing is using old version of logo
-    # cicd-13365-azure-devops-pipeline-portal-core.australiaeast.azurecontainer.io: phishintention didnt report the logo from the original webpage, therefore cannot do comparison
 
     '''GPT problem'''
-    # demo.nuxproservices.com: no prediction from gpt
-    # cleyrop.cloud-iam.com: GPT prediction is observationtourisme.fr, but the gt is france-tourisme-observation.fr
 
     '''Google Image search problem'''
-    # kbr.appwork.info, didnt pass logo validation, because of the inaccuracies of Google Image Search API, it returns the logos for enodiatherapies.com, however we are interested in the enodia.com
 
     '''OCR problem'''
-    # paperless.fungamers-online.de: OCR prediction has typo: 'perless -ng Please sign in. Username Password Sign in'. While using Google OCR can solve the problem 'Paperless Username Password Please sign in. Sign in'
-    # dashboard.nm.165-227-40-76.nip.io: OCR miss information 'N MAKER Home ! Create an Admin Password* Password Confirmation* CREATE ADMIN'. With google ocr '▬▬·目N- Username* Password* ETMAKER Create an Admin Password Confirmation* Home CREATE ADMIN'

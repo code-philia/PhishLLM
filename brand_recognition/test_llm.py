@@ -1,13 +1,4 @@
 import time
-import openai
-import backoff
-from openai.error import (
-    APIConnectionError,
-    APIError,
-    RateLimitError,
-    ServiceUnavailableError,
-)
-from transformers import GPT2TokenizerFast
 import os
 import openai
 from brand_recognition.dataloader import *
@@ -179,7 +170,7 @@ if __name__ == '__main__':
     test(result_file)
     # Completeness (% brand recognized) = 0.6548672566371682 Median runtime 0.8912811279296875, Mean runtime 1.384584855650906
     # Caption only Completeness (% brand recognized) = 0.3827433628318584 Median runtime 1.0176382064819336, Mean runtime 1.5962941735587288
-    # OCR only
+    # OCR only Completeness (% brand recognized) = 0.5176991150442478 Median runtime 1.101432204246521, Mean runtime 1.804533622433654
 
 
     '''Dont have enough information'''
