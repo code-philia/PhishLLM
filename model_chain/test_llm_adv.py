@@ -1,5 +1,5 @@
 import os.path
-
+import shutil
 from model_chain.test_llm import *
 os.environ['CUDA_VISIBLE_DEVICES'] = "1"
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read()
