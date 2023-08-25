@@ -16,8 +16,6 @@ from tqdm import tqdm
 from paddleocr import PaddleOCR
 import math
 from collections import Counter
-from selection_model.draw_utils import draw_ocr
-
 
 def get_ocr_text(img_path, html_path):
     language_list = ['en', 'ch', 'ru', 'japan', 'fa', 'ar', 'korean', 'vi', 'ms',

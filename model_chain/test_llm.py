@@ -4,13 +4,14 @@ import torch
 import clip
 from phishintention.src.OCR_aided_siamese import pred_siamese_OCR
 from model_chain.utils import *
+from model_chain.web_utils import *
+from model_chain.logger_utils import *
 from paddleocr import PaddleOCR
 import math
 import os
 from lxml import html
 from xdriver.xutils.PhishIntentionWrapper import PhishIntentionWrapper
 from xdriver.xutils.Logger import Logger
-from model_chain.web_utils import WebUtil
 import shutil
 from field_study.draw_utils import draw_annotated_image_box
 from typing import List, Tuple, Set, Dict, Optional, Union
@@ -190,7 +191,7 @@ class TestLLM():
 
         if len(logo_caption) > 0 or len(logo_ocr) > 0:
             # ask gpt to predict brand
-            question = question_template_caption(logo_caption, logo_ocr)
+            question = question_template_brand(logo_caption, logo_ocr)
 
             with open(self.brand_prompt, 'rb') as f:
                 prompt = json.load(f)

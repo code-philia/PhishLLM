@@ -1,44 +1,7 @@
 import copy
 import re
-
 from lxml import etree
 from lxml import html
-salient_attributes = {
-    "alt",
-    "aria_description",
-    "aria_label",
-    "aria_role",
-    "input_checked",
-    "input_value",
-    "label",
-    "name",
-    "option_selected",
-    "placeholder",
-    "role",
-    "text_value",
-    "title",
-    "type",
-    "value",
-} # fixme: did not include the href and src
-
-def clean_text(text):
-    if text is None:
-        return ""
-    text = re.sub(r"\s+", " ", text)
-    return text.strip()
-
-def get_outerhtml(element):
-    # Convert the element to string
-    element_string = html.tostring(element).decode('utf-8')
-
-    # Extract the outerHTML
-    start_tag = element_string.split('>')[0] + '>'
-    inner_html = ''.join(element_string.split('>')[1:-1])
-    if isinstance(element.tag, str):
-        outer_html = start_tag + inner_html + '</' + element.tag + '>'
-        return outer_html
-    else:
-        return ''
 
 def get_descendants(node, max_depth, current_depth=0):
     '''get all descendants'''
@@ -50,10 +13,6 @@ def get_descendants(node, max_depth, current_depth=0):
         descendants.extend(get_descendants(child, max_depth, current_depth + 1))
     return descendants
 
-def get_dom_path(element):
-    tree = element.getroottree()
-    path = tree.getpath(element)
-    return path
 
 def get_attribute_repr(node, max_value_length=5, max_length=20):
     # get attribute values in order
@@ -94,63 +53,6 @@ def get_attribute_repr(node, max_value_length=5, max_length=20):
                 attr_values += value + " "
     return attr_values
 
-
-def clean_tree(dom_tree, all_candidate_ids):
-    '''clean the tree by removing unimportant elements and attributes'''
-
-    new_tree = copy.deepcopy(dom_tree)
-
-    for node in new_tree.xpath("//*")[::-1]: # from leaf to root
-        # check if node have salient attributes
-        for attr in node.attrib:
-
-            if attr == "class" and node.attrib[attr] and node.tag == "svg":
-                icon_texts = re.findall(r"\S*icon\S*", node.attrib[attr], re.IGNORECASE)
-                icon_texts = [clean_text(text) for text in icon_texts]
-                icon_texts = [text for text in icon_texts if text]
-                if icon_texts:
-                    node.attrib[attr] = " ".join(icon_texts)
-                else:
-                    node.attrib.pop(attr) # remote unimportant attribute
-
-            elif attr in salient_attributes:
-                if not (
-                    (
-                        attr == "role" and node.attrib.get(attr, "") in {"presentation", "none", "link"}
-                    )
-                    or (attr == "type" and node.attrib.get(attr, "") == "hidden")
-                ):
-                    value = clean_text(node.attrib[attr])
-                    if value != "":
-                        node.attrib[attr] = value
-                    else:
-                        node.attrib.pop(attr)
-                else:
-                    node.attrib.pop(attr)
-
-            elif attr != "backend_node_id":
-                node.attrib.pop(attr)
-
-        if node.tag == "text":
-            value = clean_text(node.text)
-            if len(value) > 0:
-                node.text = value
-            else: # empty <text>, remote the node
-                node.getparent().remove(node)
-
-        elif (
-            node.attrib.get("backend_node_id", "") not in all_candidate_ids
-            and len(node.attrib) == 1
-            and not any([x.tag == "text" for x in node.getchildren()])
-            and node.getparent() is not None
-            and len(node.getchildren()) <= 1
-        ): # a sparse leaf
-            # insert all children into parent, and remove the node
-            for child in node.getchildren():
-                node.addprevious(child)
-            node.getparent().remove(node)
-
-    return new_tree
 
 
 def prune_tree(
