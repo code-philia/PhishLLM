@@ -62,23 +62,6 @@ def expand_bbox(bbox, image_width, image_height, expand_ratio):
 
     return [new_x1, new_y1, new_x2, new_y2]
 
-'''Validate the domain'''
-def is_valid_domain(domain: str) -> bool:
-    '''
-        Check if the provided string is a valid domain
-        :param domain:
-        :return:
-    '''
-    # Regular expression to check if the string is a valid domain without spaces
-    pattern = re.compile(
-        r'^(?!-)'  # Cannot start with a hyphen
-        r'(?!.*--)'  # Cannot have two consecutive hyphens
-        r'(?!.*\.\.)'  # Cannot have two consecutive periods
-        r'(?!.*\s)'  # Cannot contain any spaces
-        r'[a-zA-Z0-9-]{1,63}'  # Valid characters are alphanumeric and hyphen
-        r'(?:\.[a-zA-Z]{2,})+$'  # Ends with a valid top-level domain
-    )
-    it_is_a_domain = bool(pattern.fullmatch(domain))
-    return it_is_a_domain
+
 
 

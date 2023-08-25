@@ -147,7 +147,25 @@ class WebUtil():
         return False
 
 
-'''Validate the domain -- aliveness'''
+'''Validate the domain'''
+def is_valid_domain(domain: str) -> bool:
+    '''
+        Check if the provided string is a valid domain
+        :param domain:
+        :return:
+    '''
+    # Regular expression to check if the string is a valid domain without spaces
+    pattern = re.compile(
+        r'^(?!-)'  # Cannot start with a hyphen
+        r'(?!.*--)'  # Cannot have two consecutive hyphens
+        r'(?!.*\.\.)'  # Cannot have two consecutive periods
+        r'(?!.*\s)'  # Cannot contain any spaces
+        r'[a-zA-Z0-9-]{1,63}'  # Valid characters are alphanumeric and hyphen
+        r'(?:\.[a-zA-Z]{2,})+$'  # Ends with a valid top-level domain
+    )
+    it_is_a_domain = bool(pattern.fullmatch(domain))
+    return it_is_a_domain
+
 def is_alive_domain(domain: str, proxies: Optional[Dict]=None) -> bool:
     ct_limit = 0
     while ct_limit < 3:
