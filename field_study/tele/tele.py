@@ -12,11 +12,11 @@ REQUEST_KWARGS = {"proxy_url": "http://127.0.0.1:7890"}
 
 class teleBot():
     def __init__(self):
-        updater = Updater(token=open('../../datasets/telegram_token.txt').read(),
+        updater = Updater(token=open('./datasets/telegram_token.txt').read(),
                           use_context=True,
                           request_kwargs=REQUEST_KWARGS)
-        # self.folder_to_label = "../../datasets/phishing_TP_examples"
-        self.folder_to_label = "../../datasets/field_study/2023-08-11"
+        # self.folder_to_label = "/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples"
+        self.folder_to_label = "./datasets/field_study/2023-08-11"
 
         self.dict_date = {}
         dispatcher = updater.dispatcher

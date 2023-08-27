@@ -1,9 +1,10 @@
 # PhishLLM
 
 <p align="center">
-  <a href="">Paper</a> •
+  • <a href="">Paper</a> •
   <a href="">Website</a> •
-  <a href="#citation">Citation</a>
+  <a href="https://drive.google.com/drive/folders/1x6N6QEt_34B-pMStbBANUrjim-2ixG6T?usp=sharing">Datasets</a>  •
+  <a href="#citation">Citation</a> •
 </p>
 
 ## Introductions
@@ -71,6 +72,42 @@ Note that this will improve the phishing report precision but at the same time i
 ```
 - All hyperparameter configurations are stored in param_dict.yaml, e.g. the parameters for GPT, the threshold for OCR etc. 
 Please edit the file if you want to play with different combinations of parameters.
+
+## Findings
+<details>
+  <summary>Number of phishing caught</summary>
+  <img src="./field_study/plots/num_phish.png">
+</details>
+<details>
+  <summary>Phishing domain age distribution</summary>
+  <img src="./field_study/plots/domain_age.png">
+</details>
+<details>
+  <summary>Phishing domain TLD distribution</summary>
+
+  | Top-5 TLD | Frequency      |
+  |----------------| --------------- |
+  | .com    | 256 occurrences |
+  | .de   | 39 occurrences |
+  | .info    | 31 occurrences |
+  | .online    |  30 occurrences |
+  | .net    | 30 occurrences |
+
+</details>
+<details>
+  <summary>Top phishing targets, and top targeted sectors</summary>
+  <img src="./field_study/plots/brand_freq.png">
+  <img src="./field_study/plots/brand_sector.png">
+</details>
+<details>
+  <summary>Geolocations of phishing IPs</summary>
+  <img src="./field_study/plots/geo.png">
+</details>
+<details>
+  <summary>Phishing campaign analysis</summary>
+  <img src="./field_study/plots/campaign.png">
+</details>
+
 
 ## Updates
 - [🤔2023-08-27] We find supplying the industry sector to the brand recognition model can further improve the brand recognition capabilities, without affecting the robustness.

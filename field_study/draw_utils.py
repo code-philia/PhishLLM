@@ -135,7 +135,6 @@ class GeneralAnalysis:
 
         # Set Seaborn style for an academic look
         sns.set_style("whitegrid")
-        colors = sns.color_palette("pastel")
 
         # Plotting
         fig, ax = plt.subplots(figsize=(10, 6))
@@ -148,17 +147,26 @@ class GeneralAnalysis:
         r2 = [x + width for x in r1]
         r3 = [x + width for x in r2]
 
-        plt.bar(r1, df['PhishLLM'], width=width, color=colors[0], label='PhishLLM')
-        plt.bar(r2, df['Phishpedia'], width=width, color=colors[1], label='Phishpedia')
-        plt.bar(r3, df['PhishIntention'], width=width, color=colors[2], label='PhishIntention')
+        # Create bars with different fill patterns
+        plt.bar(r1, df['PhishLLM'], width=width, color='grey', edgecolor='black', label='PhishLLM')
+        plt.bar(r2, df['Phishpedia'], width=width, color='lightgrey', edgecolor='black', label='Phishpedia')
+        plt.bar(r3, df['PhishIntention'], width=width, color='darkgrey', edgecolor='black', label='PhishIntention')
 
+        # Labels and title
         plt.xlabel('Date', fontsize=12)
         plt.ylabel('Number of Phishing Reported', fontsize=12)
         plt.title('Daily Phishing Reports by Solution', fontsize=14)
+
+        # X-axis ticks
         plt.xticks([r + width for r in range(len(df['Date']))], df['Date'], rotation=45)
-        # plt.yticks(np.arange(0, max(df['PhishLLM'].max(), df['Phishpedia'].max(), df['PhishIntention'].max()) + 1, 1))
+
+        # Adding grid
+        ax.yaxis.grid(True, linestyle='--', linewidth=0.7, alpha=0.7)
+
+        # Adding the legend
         plt.legend(loc='upper left', bbox_to_anchor=(1, 1), ncol=1)
 
+        # Layout adjustment
         plt.tight_layout()
         plt.savefig('./field_study/plots/num_phish.png')
         plt.close()
@@ -178,43 +186,47 @@ class DomainAnalysis:
 
     def domain_age_distribution(domain_age_list):
         sns.set_style("whitegrid")
-        plt.hist(domain_age_list, bins=20, edgecolor='black', color='gray')
-        plt.xlabel('Domain Age (in years)')
-        plt.ylabel('Frequency')
-        plt.title('Distribution of Domain Ages')
+        fig, ax = plt.subplots(figsize=(8, 6))
+        sns.histplot(domain_age_list, bins=20, kde=False, color='grey', edgecolor='black')
+
+        plt.title('Distribution of Domain Ages', fontsize=14)
+        plt.xlabel('Domain Age (in years)', fontsize=12)
+        plt.ylabel('Frequency', fontsize=12)
+        ax.tick_params(axis='both', which='major', labelsize=10)
+        ax.yaxis.grid(True, linestyle='--', linewidth=0.7, alpha=0.7)
         plt.xlim(left=0)
+        sns.despine()
         plt.tight_layout()
         plt.savefig('./field_study/plots/domain_age.png')
         plt.close()
 
 class BrandAnalysis:
 
-    def visualize_brands(brand_list):
+    def visualize_brands(brand_list, topk=10):
+        sns.set_style("whitegrid")
         brand_counts = Counter(brand_list)
 
         # Sort brands by frequency in descending order
         sorted_brands = sorted(brand_counts.items(), key=lambda x: x[1], reverse=True)
-        brands_sorted = [item[0] for item in sorted_brands][:5]
-        counts_sorted = [item[1] for item in sorted_brands][:5]
+        brands_sorted = [item[0] for item in sorted_brands][:topk]
+        counts_sorted = [item[1] for item in sorted_brands][:topk]
 
-        color = 'lightgray'
-        plt.figure(figsize=(12, 6))
-        plt.bar(brands_sorted, counts_sorted, color=color, edgecolor='black')
-        plt.xlabel('Brands')
-        plt.ylabel('Number of Times Targeted')
-        plt.title('Frequency of Phishing Targets')
-        plt.xticks(rotation=45)
-        plt.yticks(np.arange(0, max(counts_sorted) + 1, 1))  # Set ytick labels at integer values
-        plt.tight_layout()
+        plt.figure(figsize=(16, 6))  # Wider figure
+        plt.bar(brands_sorted, counts_sorted, color='lightgray', edgecolor='black')
+        plt.xlabel('Brands', fontsize=12)
+        plt.ylabel('Number of Times Targeted', fontsize=12)
+        plt.title(f'Top {topk} Phishing Targets by Frequency', fontsize=14)
+        plt.xticks(rotation=45, fontsize=10)
+        plt.yticks(np.arange(0, max(counts_sorted) + 1, 1), fontsize=10)
         plt.gca().spines['top'].set_visible(False)
         plt.gca().spines['right'].set_visible(False)
-        plt.grid(False)  # Turn off the grid
+        plt.grid(axis='y', linestyle='--', linewidth=0.5, color='gray')  # Light grid lines only for y-axis
+
+        plt.tight_layout()
         plt.savefig('./field_study/plots/brand_freq.png')
         plt.close()
 
     def visualize_sectors(sectors, threshold=2.0):
-        '''Visualize brand sectors'''
-
         # Aggregate the sectors
         sector_counts = {}
         for sector in sectors:
@@ -237,14 +249,15 @@ class BrandAnalysis:
             sector_counts['Other'] = other_count
 
         # Visualize the results
+        sns.set_style("white")
         labels = list(sector_counts.keys())
         sizes = list(sector_counts.values())
 
-        fig, ax = plt.subplots(figsize=(10, 6))
-        colors = sns.color_palette("husl", len(labels))
+        fig, ax = plt.subplots(figsize=(8, 5))
+        colors = sns.color_palette("tab10", len(labels))
         if 'Other' in labels:
             other_index = labels.index('Other')
-            colors[other_index] = 'gray'
+            colors[other_index] = (0.8, 0.8, 0.8)  # Light gray for 'Other'
 
         wedges, texts, autotexts = ax.pie(
             sizes,
@@ -252,29 +265,25 @@ class BrandAnalysis:
             startangle=140,
             colors=colors,
             pctdistance=0.85,  # Adjust this value to position the percentage labels
-            wedgeprops={'edgecolor': 'grey'},
+            wedgeprops={'edgecolor': 'grey', 'linewidth': 1},
+            textprops={'fontsize': 12, 'color': 'black'}
         )
 
-        # Draw a circle at the center to make it a donut chart
-        centre_circle = plt.Circle((0, 0), 0.70, fc='white')
+        # Draw a white circle at the center to make it a donut chart
+        centre_circle = plt.Circle((0, 0), 0.70, fc='white', edgecolor='grey', linewidth=1)
         fig.gca().add_artist(centre_circle)
-
-        # Enhance the appearance of the percentage labels
-        for autotext in autotexts:
-            autotext.set_color('black')
-            autotext.set_weight('bold')
 
         # Add a legend with the sector labels
         plt.legend(
-            loc="best",
+            loc="upper left",
             labels=labels,
             prop={'size': 10},
             title="Sectors",
-            bbox_to_anchor=(1, 0, 0.5, 1)
+            bbox_to_anchor=(1, 1)
         )
 
         plt.axis('equal')  # Equal aspect ratio ensures pie is drawn as a circle.
-        plt.title('Distribution of Phishing Targets by Sector')
+        plt.title('Distribution of Phishing Targets by Sector', fontsize=14)
         plt.tight_layout()
         plt.savefig('./field_study/plots/brand_sector.png')
         plt.close()
@@ -412,7 +421,7 @@ class CampaignAnalysis:
         for i, (cluster, color) in enumerate(zip(clusters, colors)):
             # Skip clusters with fewer than 3 items or only seen on a single date
             _, dates, targets = zip(*cluster)
-            if len(cluster) < 4 or len(set(dates)) == 1:
+            if len(cluster) < 4 or len(set(dates)) == 1 or targets[0] == 'outlook.com':
                 continue
             print(cluster)
             dates, counts = self.cluster_to_timeseries(cluster, all_dates)
