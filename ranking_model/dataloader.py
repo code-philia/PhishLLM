@@ -131,7 +131,7 @@ class BalancedBatchSampler(BatchSampler):
     def __init__(self, labels, batch_size):
         """
             BatchSampler - from a MNIST-like dataset, samples n_classes and within these classes samples n_samples.
-            Returns batches of size n_classes * n_samples
+            Return batches of size n_classes * n_samples
         """
         self.labels = labels
         self.labels_set = list(set(np.asarray(self.labels)))

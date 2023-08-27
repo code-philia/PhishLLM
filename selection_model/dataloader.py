@@ -141,6 +141,7 @@ def question_template(html_text):
             "content": f"Given the HTML webpage text: <start>{html_text}<end>, \n Question: A. This is a credential-requiring page. B. This is not a credential-requiring page. \n Answer: "
         }
 
+
 def question_template_adversary(html_text):
     return \
         {
@@ -177,7 +178,7 @@ if __name__ == '__main__':
     exit()
 
     # prompt = construct_prompt(dataset, 2, True)
-    # with open('./selection_model/prompt.json', 'w', encoding='utf-8') as f:
+    # with open('./selection_model/simple_prompt.json', 'w', encoding='utf-8') as f:
     #     json.dump(prompt, f)
 
     # url, label, ocr_text = dataset.__getitem__(743, use_ocr=False)

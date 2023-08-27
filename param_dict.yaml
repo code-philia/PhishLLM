@@ -41,7 +41,7 @@ brand_recog:
   ask_industry: True
   industry:
     temperature: 0
-    max_tokens: 50
+    max_tokens: 20
 
 brand_valid:
   k: 5

@@ -17,7 +17,7 @@ from model_chain.logger_utils import PhishLLMLogger
 
 class WebUtil():
     home_page_heuristics = [
-        ".*index.*\.htm",
+        ".*ndex.*\.htm",
         ".*login.*\.htm",
         ".*signin.*\.htm",
         ".*verif.*\.htm",
@@ -26,7 +26,7 @@ class WebUtil():
         "me.html"
     ]
     weaker_home_page_heuristics = [
-        ".*index.*\.php",
+        ".*ndex.*\.php",
         ".*login.*\.php",
         ".*signin.*\.php",
         ".*confir.*\.php",

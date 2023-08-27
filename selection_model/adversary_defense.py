@@ -53,7 +53,7 @@ if __name__ == '__main__':
     #         if len(html_text):
     #             question = question_template_adversary(html_text)
     #
-    #             with open('./selection_model/prompt_defense.json', 'rb') as f:
+    #             with open('./selection_model/prompt.json', 'rb') as f:
     #                 prompt = json.load(f)
     #             new_prompt = prompt
     #             new_prompt.append(question)

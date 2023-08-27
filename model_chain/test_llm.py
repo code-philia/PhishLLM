@@ -31,14 +31,16 @@ class TestLLM():
 
         ## Ranking model
         self.clip_model, self.clip_preprocess = clip.load(param_dict['rank']['model_name'], device=self.device)
+        if self.device == "cpu": # https://github.com/openai/CLIP/issues/57
+            self.clip_model.float()
         state_dict = torch.load(param_dict['rank']['checkpoint_path'])
         self.clip_model.load_state_dict(state_dict)
 
         ## Image Captioning model
         self.caption_model, self.caption_preprocess, _ = load_model_and_preprocess(name=param_dict['logo_caption']['model_name'],
-                                                                                 model_type=param_dict['logo_caption']['model_type'],
-                                                                                 is_eval=True,
-                                                                                 device=self.device)
+                                                                                   model_type=param_dict['logo_caption']['model_type'],
+                                                                                   is_eval=True,
+                                                                                   device=self.device)
 
         ## LLM
         self.LLM_model = param_dict["LLM_model"]
@@ -63,12 +65,16 @@ class TestLLM():
         self.brand_recog_temperature, self.brand_recog_max_tokens = param_dict['brand_recog']['temperature'], param_dict['brand_recog']['max_tokens']
         self.brand_recog_sleep = param_dict['brand_recog']['sleep_time']
         self.brand_valid_k, self.brand_valid_siamese_thre = param_dict['brand_valid']['k'], param_dict['brand_valid']['siamese_thre']
+        self.get_industry = param_dict['brand_recog']['ask_industry']
+        self.industry_temperature, self.industry_max_tokens = param_dict['brand_recog']['industry']['temperature'], param_dict['brand_recog']['industry']['max_tokens']
 
         self.crp_temperature, self.crp_max_tokens = param_dict['crp_pred']['temperature'], param_dict['crp_pred']['max_tokens']
         self.crp_sleep = param_dict['crp_pred']['sleep_time']
 
         self.rank_max_uis, self.rank_batch_size = param_dict['rank']['max_uis_process'], param_dict['rank']['batch_size']
         self.rank_driver_sleep = param_dict['rank']['driver_sleep_time']
+        self.rank_driver_script_timeout = param_dict['rank']['script_timeout']
+        self.rank_driver_page_load_timeout = param_dict['rank']['page_load_timeout']
 
         # webhosting domains as blacklist
         self.webhosting_domains = [x.strip() for x in open('./datasets/hosting_blacklists.txt').readlines()]
@@ -77,15 +83,14 @@ class TestLLM():
     def extract_domain(self, domain):
         return tldextract.extract(domain)
 
-    def detect_logo(self, save_shot_path):
+    def detect_logo(self, save_shot_path: str) -> Tuple[Optional[List[float]], Optional[Image.Image]]:
         # Logo detection
-        screenshot_img = Image.open(save_shot_path)
-        screenshot_img = screenshot_img.convert("RGB")
+        screenshot_img = Image.open(save_shot_path).convert("RGB")
         with open(save_shot_path, "rb") as image_file:
             screenshot_encoding = base64.b64encode(image_file.read())
         logo_boxes = self.phishintention_cls.return_all_bboxes4type(screenshot_encoding, 'logo')
 
-        if (logo_boxes is not None) and len(logo_boxes):
+        if (logo_boxes is not None) and len(logo_boxes)>0:
             logo_box = logo_boxes[0]  # get coordinate for logo
             x1, y1, x2, y2 = logo_box
             reference_logo = screenshot_img.crop((x1, y1, x2, y2))  # crop logo out
@@ -107,33 +112,35 @@ class TestLLM():
         most_fit_lang = self.ocr_language_list[0]
         best_conf = 0
         most_fit_results = ''
+        ocr = self.default_ocr_model
 
         for lang in self.ocr_language_list:
-            if lang == 'en':
-                ocr = self.default_ocr_model
-            else:
+            if lang != 'en':
                 try:
-                    ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False)  # need to run only once to download and load model into memory
+                    ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False, use_gpu=self.device == 'cuda')  # need to run only once to download and load model into memory
                 except MemoryError:
                     ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False, use_gpu=False)  # need to run only once to download and load model into memory
+
             result = ocr.ocr(shot_path, cls=True)
             median_conf = np.median([x[-1][1] for x in result[0]])
+
             if math.isnan(median_conf): # no text is detected
                 break
             if median_conf >= self.ocr_sure_thre: # confidence is so high
                 most_fit_results = result
                 break
-            if median_conf > best_conf and median_conf >= self.ocr_unsure_thre: # confidence is moderately high, need further checking
+            elif median_conf > best_conf and median_conf >= self.ocr_unsure_thre: # confidence is moderately high, need further checking
                 best_conf = median_conf
                 most_fit_lang = lang
                 most_fit_results = result
             if best_conf > 0 and self.ocr_language_list.index(lang) - self.ocr_language_list.index(most_fit_lang) >= self.ocr_local_best_window:  # local best language
                 break
+
         # OCR can return results
         if len(most_fit_results):
             most_fit_results = most_fit_results[0]
             ocr_text = [line[1][0] for line in most_fit_results]
-            ocr_coord = [line[0][0] + line[0][2] for line in most_fit_results]
+            ocr_coord = [line[0][0] + line[0][2] for line in most_fit_results] # [x1, y1, x2, y2]
             detected_text = ' '.join(ocr_text)
 
         # if OCR does not work, use the raw HTML
@@ -158,6 +165,31 @@ class TestLLM():
         result = self.caption_model.generate({"image": image})
         return ' '.join(result)
 
+    def ask_industry(self, html_text):
+        industry = ''
+        if self.get_industry and len(html_text):
+            prompt = question_template_industry(html_text)
+            inference_done = False
+            while not inference_done:
+                try:
+                    response = openai.ChatCompletion.create(
+                        model=self.LLM_model,
+                        messages=prompt,
+                        temperature=self.industry_temperature,
+                        max_tokens=self.industry_max_tokens,  # we're only counting input tokens here, so let's not waste tokens on the output
+                    )
+                    inference_done = True
+                except Exception as e:
+                    Logger.spit('LLM Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, warning=True)
+                    prompt[-1]['content'] = prompt[-1]['content'][:len(prompt[-1]['content']) // 2]
+                    time.sleep(self.brand_recog_sleep)
+
+            industry = ''.join([choice["message"]["content"] for choice in response['choices']])
+            if len(industry) > 30:
+                industry = ''
+
+        return industry
+
     def brand_recognition_llm(self, reference_logo: Optional[Image.Image],
                               logo_box: Optional[List[float]],
                               ocr_text: List[str], ocr_coord: List[List[float]],
@@ -173,6 +205,10 @@ class TestLLM():
             :return:
         '''
         company_domain, company_logo = None, None
+        industry = ''
+        if len(ocr_text) and self.get_industry:
+            industry = self.ask_industry(' '.join(ocr_text))
+
         if reference_logo:
             # generation image caption for logo
             logo_caption = self.generate_logo_caption(reference_logo)
@@ -180,18 +216,23 @@ class TestLLM():
             if len(ocr_coord):
                 # get the OCR text description surrounding the logo
                 expand_logo_box = expand_bbox(logo_box, image_width=image_width, image_height=image_height, expand_ratio=self.logo_expansion_ratio)
-                overlap_areas = compute_overlap_areas_between_lists([expand_logo_box], ocr_coord)
+                overlap_areas = pairwise_intersect_area([expand_logo_box], ocr_coord)
                 logo_ocr = np.array(ocr_text)[overlap_areas[0] > 0].tolist()
                 logo_ocr = ' '.join(logo_ocr)
         else:
             logo_caption = ''
             logo_ocr = ' '.join(ocr_text)
+
         PhishLLMLogger.spit(f'Logo caption: {logo_caption}', debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
         PhishLLMLogger.spit(f'Logo OCR: {logo_ocr}', debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
+        PhishLLMLogger.spit(f'Industry: {industry}', debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
 
         if len(logo_caption) > 0 or len(logo_ocr) > 0:
             # ask gpt to predict brand
-            question = question_template_brand(logo_caption, logo_ocr)
+            if self.get_industry:
+                question = question_template_brand_industry(logo_caption, logo_ocr, industry)
+            else:
+                question = question_template_brand(logo_caption, logo_ocr)
 
             with open(self.brand_prompt, 'rb') as f:
                 prompt = json.load(f)
@@ -216,18 +257,17 @@ class TestLLM():
             answer = ''.join([choice["message"]["content"] for choice in response['choices']])
             PhishLLMLogger.spit(f"LLM prediction time: {time.time() - start_time}", debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
             PhishLLMLogger.spit(f'Detected brand: {answer}', debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
-        else:
-            answer = 'no logo description'
 
-        # check the validity of the returned domain, i.e. liveness
-        if len(answer) > 0 \
-                and is_valid_domain(answer):
-            company_logo = reference_logo
-            company_domain = answer
+            # check the validity of the returned domain, i.e. liveness
+            if len(answer) > 0 and is_valid_domain(answer):
+                company_logo = reference_logo
+                company_domain = answer
+        else:
+            PhishLLMLogger.spit('No logo description', debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
 
         return company_domain, company_logo
 
-    def brand_validation(self, company_domain, reference_logo):
+    def brand_validation(self, company_domain: str, reference_logo: Image.Image) -> Tuple[bool, float, float]:
         ## Brand recognition model : result validation
         logo_cropping_time, logo_matching_time = 0, 0
         validation_success = False
@@ -321,8 +361,8 @@ class TestLLM():
                 driver.quit()
                 XDriver.set_headless()
                 driver = XDriver.boot(chrome=True)
-                driver.set_script_timeout(30)
-                driver.set_page_load_timeout(60)
+                driver.set_script_timeout(self.rank_driver_script_timeout)
+                driver.set_page_load_timeout(self.rank_driver_page_load_timeout)
                 time.sleep(self.rank_driver_sleep)
                 return [], [], driver
 
@@ -368,8 +408,9 @@ class TestLLM():
             texts = clip.tokenize(["not a login button", "a login button"]).to(self.device)
 
             for batch in range(math.ceil(len(candidate_uis)/batch_size)):
-                images = torch.stack(candidate_uis_imgs[batch*batch_size : min(len(candidate_uis), (batch+1)*batch_size)]).to(self.device)
-                logits_per_image, logits_per_text = self.clip_model(images, texts)
+                chunked_images = candidate_uis_imgs[batch*batch_size : min(len(candidate_uis), (batch+1)*batch_size)]
+                images = torch.stack(chunked_images).to(self.device)
+                logits_per_image, _ = self.clip_model(images, texts)
                 probs = logits_per_image.softmax(dim=-1)  # (N, C)
                 final_probs = torch.cat([final_probs, probs.detach().cpu()], dim=0)
                 del images
@@ -430,7 +471,7 @@ class TestLLM():
         else:
             phish_condition = False
 
-        # Brand prediction validation
+        # Brand prediction results validation
         if phish_condition and (not skip_brand_recognition):
             if brand_recognition_do_validation and (reference_logo is not None): # we can check the validity by comparing the logo on the webpage with the logos for the predicted brand
                 validation_success, logo_cropping_time, logo_matching_time = self.brand_validation(company_domain, reference_logo)
