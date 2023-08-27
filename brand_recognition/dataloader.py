@@ -269,7 +269,7 @@ if __name__ == '__main__':
     print(Counter(dataset.labels))
 
     prompt = construct_prompt(dataset, 3, True)
-    with open('./brand_recognition/prompt.json', 'w', encoding='utf-8') as f:
+    with open('./brand_recognition/simple_prompt.json', 'w', encoding='utf-8') as f:
         json.dump(prompt, f)
 
     # url, label, ocr_text = dataset.__getitem__(743, use_ocr=False)

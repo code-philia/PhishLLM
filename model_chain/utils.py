@@ -15,8 +15,28 @@ def question_template_brand(logo_caption, logo_ocr):
             "content": f"Given the following description on the brand's logo: '{logo_caption}', and the logo's OCR text: '{logo_ocr}', Question: What is the brand's domain? Answer: "
         }
 
+def question_template_brand_industry(logo_caption, logo_ocr, industry):
+    return \
+        {
+            "role": "user",
+            "content": f"Given the following description on the brand's logo: '{logo_caption}', the logo's OCR text: '{logo_ocr}', and the industry sector '{industry}', Question: What is the brand's domain? Answer: "
+        }
+
+def question_template_industry(html_text):
+    return \
+        [
+            {
+                "role": "system",
+                "content": f"Your task is to predict the industry sector given webpage content. Only give the industry sector, do not output any explanation."
+            },
+            {
+                "role": "user",
+                "content": f"Given the following webpage text: '{html_text}', Question: What is the webpage's industry sector? Answer: "
+            }
+        ]
+
 '''Bbox utilities'''
-def compute_overlap_areas_between_lists(bboxes1, bboxes2):
+def pairwise_intersect_area(bboxes1, bboxes2):
     # Convert bboxes lists to 3D arrays
     bboxes1 = np.array(bboxes1)[:, np.newaxis, :]
     bboxes2 = np.array(bboxes2)

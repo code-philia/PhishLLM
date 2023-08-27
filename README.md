@@ -74,5 +74,6 @@ Please edit the file if you want to play with different combinations of paramete
 
 ## Updates
 - [🤔2023-08-27] We find supplying the industry sector to the brand recognition model can further improve the brand recognition capabilities, without affecting the robustness.
+- [🤔2023-08-24] A relaxed result validation is to check whether predicted domain is alive, added this as an option.
 - [🛠️2023-08-20] Modify the brand recognition model.
 

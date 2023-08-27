@@ -149,8 +149,6 @@ if __name__ == '__main__':
     if device == "cpu":
         model.float()
 
-    model, preprocess = clip.load("ViT-B/32", device=device, jit=False)
-
     train_dataset = ButtonDataset(annot_path='./datasets/alexa_login_train.txt',
                                  root='./datasets/alexa_login',
                                  preprocess=preprocess)
