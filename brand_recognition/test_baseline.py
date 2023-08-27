@@ -279,7 +279,7 @@ if __name__ == '__main__':
 
     # from phishpedia.phishpedia_config import load_config
     # ELE_MODEL, SIAMESE_THRE, SIAMESE_MODEL, LOGO_FEATS, LOGO_FILES, DOMAIN_MAP_PATH = load_config(None)
-    # DOMAIN_MAP_PATH = '/home/ruofan/domain_map.pkl'
+    # DOMAIN_MAP_PATH = '/datasets/domain_map.pkl'
     # result_file = './datasets/alexa_brand_phishpedia.txt'
 
     # for url, shot_path, label in tqdm(zip(dataset.urls, dataset.shot_paths, dataset.labels)):
