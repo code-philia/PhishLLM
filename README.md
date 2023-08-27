@@ -72,7 +72,4 @@ This will improve the phishing report precision but at the same time incur a hig
 - All hyperparameter configurations are stored in param_dict.yaml, e.g. the parameters for GPT, the threshold for OCR, etc. 
 Please edit the file if you want to play with different combinations of parameters.
 
-## Citation
 
-## Contacts
-If you encounter any issues, please raise an issue in this repository, and we will reply soon.
