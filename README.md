@@ -52,9 +52,8 @@ In our PhishLLM, we build a reference-based phishing detection framework
 ```
 
 ## Setup
-- Step 1: Install requirements
+- Step 1: Clone this repository, and install requirements
 ```bash
-    git clone https://github.com/lindsey98/PhishLLM.git
     cd PhishLLM/
     chmod +x ./setup.sh
     ./setup.sh
