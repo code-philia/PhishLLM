@@ -23,7 +23,7 @@ class gwrapper_monitor():
             'https://www.googleapis.com/auth/drive',
             'https://www.googleapis.com/auth/drive.file'
         ]
-        file_name = '/home/ruofan/git_space/ScamDet/datasets/google_cloud.json'
+        file_name = './datasets/google_cloud.json'
         creds = ServiceAccountCredentials.from_json_keyfile_name(file_name, scope)
         client = gspread.authorize(creds)
 
@@ -115,7 +115,7 @@ if __name__ == '__main__':
 
     try:
         while True:
-            base = "/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples"
+            base = "./datasets/phishing_TP_examples"
             gs_sheet = gwrapper_monitor()
 
             # update sheets
