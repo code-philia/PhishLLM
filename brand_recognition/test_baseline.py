@@ -60,7 +60,7 @@ def siamese_inference_OCR_reimplement(domain_map, reference_logo,
             predicted_domain = top3_domainlist[j]
             final_sim = top3_simlist[j]
 
-        ## Else if not exceed, try resolution alignment, see if can improve
+        ## Else if not exceed, try resolution alignment, see if we can improve
         else:
             cropped, candidate_logo = resolution_alignment(reference_logo, top3_logolist[j])
             img_feat = pred_siamese_OCR(img=cropped,
@@ -127,7 +127,7 @@ def siamese_inference_reimplement(domain_map, reference_logo,
             predicted_domain = top3_domainlist[j]
             final_sim = top3_simlist[j]
 
-        ## Else if not exceed, try resolution alignment, see if can improve
+        ## Else if not exceed, try resolution alignment, see if we can improve
         else:
             cropped, candidate_logo = resolution_alignment(reference_logo, top3_logolist[j])
             img_feat = pred_siamese(img=cropped,

@@ -178,12 +178,11 @@ class DomainAnalysis:
 
     def domain_age_distribution(domain_age_list):
         sns.set_style("whitegrid")
-        plt.hist(domain_age_list, bins=20, edgecolor='black', color='lightblue', alpha=0.7)
+        plt.hist(domain_age_list, bins=20, edgecolor='black', color='gray')
         plt.xlabel('Domain Age (in years)')
         plt.ylabel('Frequency')
         plt.title('Distribution of Domain Ages')
         plt.xlim(left=0)
-        plt.grid(axis='y', linestyle='--', linewidth=0.5, alpha=0.5)
         plt.tight_layout()
         plt.savefig('./field_study/plots/domain_age.png')
         plt.close()
@@ -349,7 +348,7 @@ class CampaignAnalysis:
     @staticmethod
     def cluster_to_timeseries(cluster, all_dates):
         # Extract the dates from the cluster and count the number of screenshots for each date.
-        dates = [screenshot_date for screenshot, screenshot_date in cluster]
+        dates = [screenshot_date for screenshot, screenshot_date, target in cluster]
         date_counts = Counter(dates)
 
         # Fill in any missing dates with zero counts.
@@ -360,7 +359,7 @@ class CampaignAnalysis:
 
         return all_dates, cumulative_counts
 
-    def cluster_shot_representations(self, shot_path_list):
+    def cluster_shot_representations(self, shot_path_list, target_list):
         # Load and resize all images.
         model = models.resnet50(pretrained=True)
         model = model.eval()
@@ -390,7 +389,7 @@ class CampaignAnalysis:
 
         clusters_path = []
         for it, cls in enumerate(clusters):
-            shots_under_cls = [(shot_path_list[ind], os.path.basename(os.path.dirname(os.path.dirname(shot_path_list[ind])))) for ind in cls]
+            shots_under_cls = [(shot_path_list[ind], os.path.basename(os.path.dirname(os.path.dirname(shot_path_list[ind]))), target_list[ind]) for ind in cls]
             clusters_path.append(shots_under_cls)
         return clusters_path
 
@@ -405,19 +404,19 @@ class CampaignAnalysis:
         # Collect all unique dates
         all_dates = set()
         for cluster in clusters:
-            _, dates = zip(*cluster)
+            _, dates, targets = zip(*cluster)
             all_dates.update(dates)
         all_dates = sorted(list(all_dates), key=lambda date: datetime.strptime(date, '%Y-%m-%d'))
 
         # Convert each cluster into a timeseries and plot it.
         for i, (cluster, color) in enumerate(zip(clusters, colors)):
             # Skip clusters with fewer than 3 items or only seen on a single date
-            _, dates = zip(*cluster)
+            _, dates, targets = zip(*cluster)
             if len(cluster) < 4 or len(set(dates)) == 1:
                 continue
             print(cluster)
             dates, counts = self.cluster_to_timeseries(cluster, all_dates)
-            plt.plot(dates, counts, marker='o', color=color, label=f'Cluster {i + 1}')
+            plt.plot(dates, counts, marker='o', color=color, label=f'Target = {targets[0]}')
 
         # Add a legend and labels.
         plt.xticks(range(len(all_dates)), all_dates, rotation=45)
@@ -469,6 +468,8 @@ if __name__ == '__main__':
     domains = list(map(lambda x: x['foldername'], rows))
     domain_ages = list(map(lambda x: x['domain_age'], rows))
     DomainAnalysis.tld_distribution(domains)
+    # alexa_urls = [x.strip().split(',')[1] for x in open('./datasets/top-1m.csv').readlines()]
+    # DomainAnalysis.tld_distribution(alexa_urls)
     DomainAnalysis.domain_age_distribution(domain_ages)
 
     '''brand'''
@@ -481,13 +482,12 @@ if __name__ == '__main__':
 
     '''phishing campaign'''
     shot_path_list = list(map(lambda x: os.path.join(base, x['date'], x['foldername'], 'shot.png'), rows))
+    # for shot_path in shot_path_list:
+    #     if not os.path.exists(shot_path):
+    #         print(shot_path)
+    # exit()
     campaign = CampaignAnalysis()
-    clusters_path = campaign.cluster_shot_representations(shot_path_list)
+    clusters_path = campaign.cluster_shot_representations(shot_path_list, brands)
     campaign.visualize_campaign(clusters_path)
 
-    # alexa_urls = [x.strip().split(',')[1] for x in open('./datasets/top-1m.csv').readlines()]
-    # DomainAnalysis.tld_distribution(alexa_urls)
 
-    # [('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-15/cloudmail.esit.info/shot.png', '2023-08-15'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-15/mailtest.ghbank.com.cn/shot.png', '2023-08-15'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-08/gate.marinaccountants.com.au/shot.png', '2023-08-08'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-16/device-f55e9000-4769-4454-b2cb-625104881f16.remotewd.com/shot.png', '2023-08-16'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-08/device-f5a5f76d-75d0-4257-a002-6ce21167d81a.remotewd.com/shot.png', '2023-08-08'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-09/mail.design-industrial.eu/shot.png', '2023-08-09'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-09/exch01.alsdorf.contecgmbh.com/shot.png', '2023-08-09'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-14/srv-ex2-10358.gtkp.de/shot.png', '2023-08-14'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-09/mailto.ec-verpackungsservice.de/shot.png', '2023-08-09'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-09/exch-rostecnpf.esit.info/shot.png', '2023-08-09'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-09/device-8b248998-6847-4def-9eb1-9b59fb283b04.remotewd.com/shot.png', '2023-08-09'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-14/zahnmedizin-rathaus.my3cx.de/shot.png', '2023-08-14'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-09/remote.weissert.info/shot.png', '2023-08-09'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-13/device-0f18bd64-8456-493c-b545-ff128bd8fbdd.remotewd.com/shot.png', '2023-08-13'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-17/email.fueger-gmbh.de/shot.png', '2023-08-17'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-17/ex13.consultic.info/shot.png', '2023-08-17'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-17/mail.consultic.info/shot.png', '2023-08-17'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-10/webmail.trenker-3tconsulting.com/shot.png', '2023-08-10'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-11/headoffice1.travid.org/shot.png', '2023-08-11'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-15/secure.mawsonwest.com/shot.png', '2023-08-15')]
-    # [('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-12/luka.sui.ducoccho1.click/shot.png', '2023-08-12'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-09/www.lf.wuangu1.click/shot.png', '2023-08-09'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-15/webfb.anhlongvedithoi.click/shot.png', '2023-08-15'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-08/login-usa.xuanbac.click/shot.png', '2023-08-08'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-13/zuk.pergugu.click/shot.png', '2023-08-13'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-08/login-france.xuanbac.click/shot.png', '2023-08-08')]
-    # [('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-15/596.vscustomer.com/shot.png', '2023-08-15'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-11/1116.vscustomer.com/shot.png', '2023-08-11'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-15/235.vscustomer.com/shot.png', '2023-08-15'), ('/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples/2023-08-15/35.vscustomer.com/shot.png', '2023-08-15')]
