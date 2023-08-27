@@ -113,4 +113,5 @@ Please edit the file if you want to play with different combinations of paramete
 - [🤔2023-08-27] We find supplying the industry sector to the brand recognition model can further improve the brand recognition capabilities, without affecting the robustness.
 - [🤔2023-08-24] A relaxed result validation is to check whether predicted domain is alive, added this as an option.
 - [🛠️2023-08-20] Modify the brand recognition model.
+- [🛠️2023-08-07] To prevent PhishLLM to report brands that are offering cloud services (e.g. domain hosting, web hosting etc.), we keep a list of those domains [./datasets/hosting_blacklists.txt](./datasets/hosting_blacklists.txt), this list will be keep growing.
 

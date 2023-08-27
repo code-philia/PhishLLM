@@ -75,6 +75,7 @@ class TestLLM():
         self.rank_driver_sleep = param_dict['rank']['driver_sleep_time']
         self.rank_driver_script_timeout = param_dict['rank']['script_timeout']
         self.rank_driver_page_load_timeout = param_dict['rank']['page_load_timeout']
+        self.interaction_limit = param_dict['rank']['depth_limit']
 
         # webhosting domains as blacklist
         self.webhosting_domains = [x.strip() for x in open('./datasets/hosting_blacklists.txt').readlines()]
@@ -416,9 +417,10 @@ class TestLLM():
                 del images
 
             conf = final_probs[torch.arange(final_probs.shape[0]), 1]  # take the confidence (N, 1)
-            _, ind = torch.topk(conf, 1)  # top1 index
-
-            return candidate_uis[ind], candidate_uis_imgs[ind], driver
+            _, indices = torch.topk(conf, min(5, final_probs.shape[0]))  # top10 index
+            candidate_uis_selected = [candidate_uis[ind] for ind in indices]
+            candidate_imgs_selected = [candidate_uis_imgs[ind] for ind in indices]
+            return candidate_uis_selected, candidate_imgs_selected, driver
         else:
             PhishLLMLogger.spit('No candidate login button to click', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
             return [], [], driver
@@ -426,7 +428,7 @@ class TestLLM():
 
     def test(self, url: str, reference_logo: Optional[Image.Image],
              logo_box: Optional[List[float]],
-             shot_path: str, html_path: str, driver: XDriver, limit: int=2,
+             shot_path: str, html_path: str, driver: XDriver, limit: int=0,
              brand_recog_time: float=0, crp_prediction_time: float=0, crp_transition_time: float=0,
              ranking_model_refresh_page: bool=True,
              skip_brand_recognition: bool=False,
@@ -499,27 +501,32 @@ class TestLLM():
                     return 'phish', company_domain, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
             else:
                 # Not a CRP page => CRP transition
-                if limit == 0:  # reach interaction limit -> just return
+                if limit >= self.interaction_limit:  # reach interaction limit -> just return
                     PhishLLMLogger.spit('Reached interaction limit ...', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
                     return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
 
                 # Ranking model
                 start_time = time.time()
-                candidate_ele, candidate_img, driver = self.ranking_model(url, driver, ranking_model_refresh_page)
+                candidate_elements, _, driver = self.ranking_model(url, driver, ranking_model_refresh_page)
                 crp_transition_time += time.time() - start_time
 
-                if len(candidate_ele):
+                if len(candidate_elements):
                     save_html_path = re.sub("index[0-9]?.html", f"index{limit}.html", html_path)
                     save_shot_path = re.sub("shot[0-9]?.png", f"shot{limit}.png", shot_path)
 
                     PhishLLMLogger.spit("Trying to click the login button ...", caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+                    if not ranking_model_refresh_page: # if previous click didnt refresh the page select the lower ranked element to click
+                        candidate_ele = candidate_elements[min(len(candidate_elements), limit)]
+                    else: # else, just click the top-1 element
+                        candidate_ele = candidate_elements[0]
+
                     current_url, *_ = page_transition(driver, candidate_ele, save_html_path, save_shot_path)
                     if current_url: # click success
                         ranking_model_refresh_page = current_url != url
                         # logo detection on new webpage
                         logo_box, reference_logo = self.detect_logo(save_shot_path)
                         return self.test(current_url, reference_logo, logo_box,
-                                         save_shot_path, save_html_path, driver, limit-1,
+                                         save_shot_path, save_html_path, driver, limit+1,
                                          brand_recog_time, crp_prediction_time, crp_transition_time,
                                          ranking_model_refresh_page=ranking_model_refresh_page,
                                          skip_brand_recognition=True, brand_recognition_do_validation=brand_recognition_do_validation,
