@@ -27,9 +27,9 @@ In our PhishLLM, we build a reference-based phishing detection framework
 - Step 2: Credential-requiring-page Classification Model 
   - Input: Webpage OCR results
   - Output: LLM chooses from A. credential-taking page B. non-credential-taking page
-- Step 3.1 Ranking Model (Activate if LLM chooses B from the last step): 
+- Step 3.1 Ranking Model (Activate if LLM chooses B from last step): 
   - Input: Webpage clickable UI elements (the webpage must be alive)
-  - Intermediate output: The Top-1 login UI
+  - Intermediate output: The most likely UI being a login button
   - Output: The page after clicking the UI
 - Step 3.2: Termination
   - Phishing alarm will be raised if 
@@ -38,7 +38,7 @@ In our PhishLLM, we build a reference-based phishing detection framework
   - Benign decision will be reached if 
     - LLM cannot predict a targeted brand
     - **OR** the targeted brand aligns with the webpage domain
-    - **OR** The LLM consistently chooses B even after running step 3.1 multiple times.
+    - **OR** the LLM consistently chooses B even after running step 3.1 for multiple times.
 
 ## Project structure
 ```
@@ -65,15 +65,19 @@ In our PhishLLM, we build a reference-based phishing detection framework
     conda activate myenv
     python -m field_study.test --folder [folder to test, e.g. ./datasets/field_study/2023-08-21/] --date [e.g. 2023-08-21]
 ```
-If you would like to activate results validation for the brand recognition model, add the flag "--validate". 
-This will improve the phishing report precision but at the same time incur a higher runtime overhead.
+If you would like to activate results validation for brand recognition model, add the flag "--validate". 
+Note that this will improve the phishing report precision but at the same time incur a higher runtime overhead.
 ```bash
     python -m field_study.test --folder [folder to test] --date [e.g. 2023-08-21] --validate 
 ```
-- All hyperparameter configurations are stored in param_dict.yaml, e.g. the parameters for GPT, the threshold for OCR, etc. 
+- All hyperparameter configurations are stored in param_dict.yaml, e.g. the parameters for GPT, the threshold for OCR etc. 
 Please edit the file if you want to play with different combinations of parameters.
+
+## Updates
+- [🤔2023-08-27] We find supplying the industry sector to the brand recognition model can further improve the brand recognition capabilities, without affecting the robustness.
+- [🛠️2023-08-20] Modify the brand recognition model.
 
 ## Citation
 
 ## Contacts
-If you encounter any issues, please raise an issue in this repository, and we will reply soon.
+If you encounter any issues, please raise an issue in this repository, we will reply soon.
