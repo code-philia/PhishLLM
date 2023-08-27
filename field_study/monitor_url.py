@@ -23,7 +23,7 @@ class gwrapper_monitor():
             'https://www.googleapis.com/auth/drive',
             'https://www.googleapis.com/auth/drive.file'
         ]
-        file_name = '/home/ruofan/git_space/ScamDet/datasets/google_cloud.json'
+        file_name = './datasets/google_cloud.json'
         creds = ServiceAccountCredentials.from_json_keyfile_name(file_name, scope)
         client = gspread.authorize(creds)
 
@@ -115,7 +115,7 @@ if __name__ == '__main__':
 
     try:
         while True:
-            base = "/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples"
+            base = "./datasets/phishing_TP_examples"
             gs_sheet = gwrapper_monitor()
 
             # update sheets
@@ -126,7 +126,7 @@ if __name__ == '__main__':
                 folder = os.path.join(base, i)
                 if datetime.strptime(i, "%Y-%m-%d").date() <= datetime.strptime('2023-08-06', "%Y-%m-%d").date():
                     continue
-                df = pd.read_csv('/home/ruofan/git_space/ScamDet/field_study/results/{}_phishllm.txt'.format(i), sep='\t', encoding='ISO-8859-1')
+                df = pd.read_csv('./field_study/results/{}_phishllm.txt'.format(i), sep='\t', encoding='ISO-8859-1')
                 for j in os.listdir(folder):
                     data_folder = os.path.join(folder, j)
                     if j in folder_names:

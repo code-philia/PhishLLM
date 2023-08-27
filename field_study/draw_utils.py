@@ -434,7 +434,7 @@ class CampaignAnalysis:
         plt.close()
 
 if __name__ == '__main__':
-    base = "/home/ruofan/git_space/ScamDet/datasets/phishing_TP_examples"
+    base = "./datasets/phishing_TP_examples"
     '''geolocation'''
     gs_sheet = gwrapper_monitor()
     rows = gs_sheet.get_records()
@@ -489,5 +489,4 @@ if __name__ == '__main__':
     campaign = CampaignAnalysis()
     clusters_path = campaign.cluster_shot_representations(shot_path_list, brands)
     campaign.visualize_campaign(clusters_path)
-
 
