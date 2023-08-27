@@ -38,6 +38,10 @@ brand_recog:
   max_tokens: 10
   sleep_time: 1
   prompt_path: "./brand_recognition/prompt.json"
+  ask_industry: True
+  industry:
+    temperature: 0
+    max_tokens: 50
 
 brand_valid:
   k: 5
@@ -52,8 +56,9 @@ crp_pred:
 rank:
   model_name: "ViT-B/32"
   checkpoint_path: "./checkpoints/epoch4_model.pt"
-  driver_sleep_time: 5
   max_uis_process: 300
   batch_size: 64
   depth_limit: 1
-
+  driver_sleep_time: 5
+  script_timeout: 30
+  page_load_timeout: 60
