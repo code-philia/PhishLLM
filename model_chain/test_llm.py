@@ -502,7 +502,7 @@ class TestLLM():
             else:
                 # Not a CRP page => CRP transition
                 if limit >= self.interaction_limit:  # reach interaction limit -> just return
-                    PhishLLMLogger.spit('Reached interaction limit ...', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+                    PhishLLMLogger.spit('[\U00002705] Benign, reached interaction limit ...', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
                     return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
 
                 # Ranking model
@@ -514,15 +514,19 @@ class TestLLM():
                     save_html_path = re.sub("index[0-9]?.html", f"index{limit}.html", html_path)
                     save_shot_path = re.sub("shot[0-9]?.png", f"shot{limit}.png", shot_path)
 
-                    PhishLLMLogger.spit("Trying to click the login button ...", caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
                     if not ranking_model_refresh_page: # if previous click didnt refresh the page select the lower ranked element to click
+                        PhishLLMLogger.spit(f"Since previously the URL has not changed, trying to click the Top-{min(len(candidate_elements), limit)} login button instead ...",
+                                           caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
                         candidate_ele = candidate_elements[min(len(candidate_elements), limit)]
                     else: # else, just click the top-1 element
+                        PhishLLMLogger.spit("Trying to click the Top-1 login button ...",
+                                            caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
                         candidate_ele = candidate_elements[0]
 
                     current_url, *_ = page_transition(driver, candidate_ele, save_html_path, save_shot_path)
                     if current_url: # click success
                         ranking_model_refresh_page = current_url != url
+                        PhishLLMLogger.spit(f"URL has changed? {ranking_model_refresh_page}", caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
                         # logo detection on new webpage
                         logo_box, reference_logo = self.detect_logo(save_shot_path)
                         return self.test(current_url, reference_logo, logo_box,
