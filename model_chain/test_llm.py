@@ -517,7 +517,7 @@ class TestLLM():
                     if not ranking_model_refresh_page: # if previous click didnt refresh the page select the lower ranked element to click
                         PhishLLMLogger.spit(f"Since previously the URL has not changed, trying to click the Top-{min(len(candidate_elements), limit)} login button instead ...",
                                            caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
-                        candidate_ele = candidate_elements[min(len(candidate_elements), limit)]
+                        candidate_ele = candidate_elements[min(len(candidate_elements)-1, limit)]
                     else: # else, just click the top-1 element
                         PhishLLMLogger.spit("Trying to click the Top-1 login button ...",
                                             caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
