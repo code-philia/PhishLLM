@@ -523,10 +523,11 @@ class TestLLM():
                                             caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
                         candidate_ele = candidate_elements[0]
 
+                    # record the webpage elements before clicking the button
+                    prev_screenshot_elements = get_screenshot_elements(self.phishintention_cls, driver)
                     current_url, *_ = page_transition(driver, candidate_ele, save_html_path, save_shot_path)
                     if current_url: # click success
-                        ranking_model_refresh_page = current_url != url
-                        PhishLLMLogger.spit(f"URL has changed? {ranking_model_refresh_page}", caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+                        ranking_model_refresh_page = has_page_content_changed(self.phishintention_cls, driver, prev_screenshot_elements)
                         # logo detection on new webpage
                         logo_box, reference_logo = self.detect_logo(save_shot_path)
                         return self.test(current_url, reference_logo, logo_box,

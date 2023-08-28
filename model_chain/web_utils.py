@@ -14,6 +14,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from xdriver.XDriver import XDriver
 from typing import *
 from model_chain.logger_utils import PhishLLMLogger
+from xdriver.xutils.PhishIntentionWrapper import PhishIntentionWrapper
 
 class WebUtil():
     home_page_heuristics = [
@@ -303,3 +304,27 @@ def page_transition(driver: XDriver, dom: str, save_html_path: str, save_shot_pa
     except Exception as e:
         PhishLLMLogger.spit('Exception {} when saving the new screenshot'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
         return None, None, None
+
+
+def get_screenshot_elements(phishintention_cls: PhishIntentionWrapper, driver: XDriver) -> List[int]:
+    pred_boxes, pred_classes = phishintention_cls.return_all_bboxes(driver.get_screenshot_encoding())
+    if pred_boxes is None:
+        screenshot_elements = []
+    else:
+        screenshot_elements = pred_classes.numpy().tolist()
+    return screenshot_elements
+
+def has_page_content_changed(phishintention_cls: PhishIntentionWrapper, driver: XDriver, prev_screenshot_elements: List[int]) -> bool:
+    screenshot_elements = get_screenshot_elements(phishintention_cls, driver)
+    bincount_prev_elements = np.bincount(prev_screenshot_elements)
+    bincount_curr_elements = np.bincount(screenshot_elements)
+    set_of_elements = min(len(bincount_prev_elements), len(bincount_curr_elements))
+    screenshot_ele_change_ts = np.sum(bincount_prev_elements) // 2 # half the different UI elements distribution has changed
+
+    if np.sum(np.abs(bincount_curr_elements[:set_of_elements] - bincount_prev_elements[:set_of_elements])) > screenshot_ele_change_ts:
+        PhishLLMLogger.spit(f"Webpage content has changed", caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+        return True
+    else:
+        PhishLLMLogger.spit(f"Webpage content didn't change", caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+        return False
+
