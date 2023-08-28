@@ -6,8 +6,8 @@ import yaml
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--folder", default="./datasets/field_study/2023-08-19/")
-    parser.add_argument("--date", default="2023-08-19", help="%Y-%m-%d")
+    parser.add_argument("--folder", default="./datasets/field_study/2023-08-28/")
+    parser.add_argument("--date", default="2023-08-28", help="%Y-%m-%d")
     parser.add_argument("--validate", action='store_true', help="Whether or not to activate the results validation for brand recognition model")
     parser.add_argument("--config", default='./param_dict.yaml', help="Config .yaml path")
     args = parser.parse_args()
@@ -82,7 +82,6 @@ if __name__ == '__main__':
         PhishLLMLogger.spit(f"Folder {os.path.join(args.folder, folder)}", caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
         pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis = llm_cls.test(url, reference_logo, logo_box,
                                                                                                         shot_path, html_path, driver,
-                                                                                                        limit=param_dict['rank']['depth_limit'],
                                                                                                         brand_recognition_do_validation=args.validate
                                                                                                         )
 
