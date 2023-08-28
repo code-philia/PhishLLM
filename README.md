@@ -110,7 +110,7 @@ Please edit the file if you want to play with different combinations of paramete
 
 
 ## Updates
-- [🛠️2023-08-28] Add functions to judge whether the webpage state has been updated or not
+- [🛠️2023-08-28] Add functions to judge whether the webpage state has been updated or not (the best way is to check webpage screenshot, not the URL)
 - [🛠️2023-08-28] Update the CRP transition logic, if the webpage state hasn't been updated, we shall try to click lower ranked buttons, instead of keeping clicking the Top-1 button
 - [🤔2023-08-27] We find supplying the industry sector to the brand recognition model can further improve the brand recognition capabilities, without affecting the robustness.
 - [🤔2023-08-24] A relaxed result validation is to check whether predicted domain is alive, added this as an option.
