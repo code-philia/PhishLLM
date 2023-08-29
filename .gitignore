@@ -1,2 +1,4 @@
 ./datasets/
-./field_study/tele/
+./field_study/tele/cred.json
+./checkpoints/
+./crawling_scripts/

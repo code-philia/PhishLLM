@@ -515,7 +515,7 @@ class TestLLM():
                     save_shot_path = re.sub("shot[0-9]?.png", f"shot{limit}.png", shot_path)
 
                     if not ranking_model_refresh_page: # if previous click didnt refresh the page select the lower ranked element to click
-                        PhishLLMLogger.spit(f"Since previously the URL has not changed, trying to click the Top-{min(len(candidate_elements), limit)} login button instead ...",
+                        PhishLLMLogger.spit(f"Since previously the URL has not changed, trying to click the Top-{min(len(candidate_elements), limit+1)} login button instead ...",
                                            caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
                         candidate_ele = candidate_elements[min(len(candidate_elements)-1, limit)]
                     else: # else, just click the top-1 element
@@ -618,6 +618,10 @@ if __name__ == '__main__':
                 f.write(hash+'\t'+str(pred)+'\t'+str(brand)+'\t'+str(brand_recog_time)+'\t'+str(crp_prediction_time)+'\t'+str(crp_transition_time)+'\n')
 
     driver.quit()
+
+    # Total = 6075, LLM recall = 0.7501234567901235, LLM HTML obfuscation recall = 0.703045267489712
+    # Phishpedia recall = 0.4388477366255144, PhishIntention recall = 0.33925925925925926
+    # LLM precision = 0.9440646364201367, Phishpedia precision = 0.9077289751447055, PhishIntention precision = 0.9795627376425855,
 
 
 
