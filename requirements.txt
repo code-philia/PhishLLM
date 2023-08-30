@@ -1,6 +1,6 @@
 google-api-python-client
 openai
-pillow
+Pillow
 numpy
 lxml
 ftfy
@@ -16,3 +16,8 @@ python-whois
 seaborn
 python-Levenshtein
 tldextract
+scikit-learn
+networkx
+matplotlib
+opencv-python
+opencv-contrib-python
