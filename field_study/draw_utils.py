@@ -17,6 +17,7 @@ import seaborn as sns
 from typing import List
 import cv2
 from Levenshtein import distance as levenshtein_distance
+from itertools import cycle
 
 def draw_annotated_image_nobox(image: Image.Image, txt: str):
     # Convert the image to RGBA for transparent overlay
@@ -187,16 +188,23 @@ class DomainAnalysis:
 
     def domain_age_distribution(domain_age_list):
         sns.set_style("whitegrid")
-        fig, ax = plt.subplots(figsize=(8, 6))
-        sns.histplot(domain_age_list, bins=20, kde=False, color='grey', edgecolor='black')
+        fig, ax = plt.subplots(figsize=(16, 6))  # Wider figure to match the second code
+
+        sns.histplot(domain_age_list, bins=20, color='lightgray', edgecolor='black',
+                     kde=False)  # Match color and edgecolor
 
         plt.title('Distribution of Domain Ages', fontsize=14)
         plt.xlabel('Domain Age (in years)', fontsize=12)
         plt.ylabel('Frequency', fontsize=12)
         ax.tick_params(axis='both', which='major', labelsize=10)
-        ax.yaxis.grid(True, linestyle='--', linewidth=0.7, alpha=0.7)
+        ax.yaxis.grid(True, linestyle='--', linewidth=0.5, color='gray', alpha=0.7)  # Light grid lines only for y-axis
+
         plt.xlim(left=0)
-        sns.despine()
+
+        plt.gca().spines['top'].set_visible(False)  # Remove top spine
+        plt.gca().spines['right'].set_visible(False)  # Remove right spine
+
+        sns.despine(left=True, bottom=True)
         plt.tight_layout()
         plt.savefig('./field_study/plots/domain_age.png')
         plt.close()
@@ -227,67 +235,41 @@ class BrandAnalysis:
         plt.savefig('./field_study/plots/brand_freq.png')
         plt.close()
 
-    def visualize_sectors(sectors, threshold=2.0):
+    def visualize_sectors(sectors, topk=10):
         # Aggregate the sectors
-        sector_counts = {}
-        for sector in sectors:
-            if sector == 'None':
-                sector = 'Uncategorized'
-            sector_counts[sector] = sector_counts.get(sector, 0) + 1
+        sector_counts = Counter(sectors)
 
-        # Remove 'Uncategorized' class if present
-        if 'Uncategorized' in sector_counts:
-            del sector_counts['Uncategorized']
-
-        # Combine small percentages into "Other" category
+        # Calculate total count including 'None' and 'Uncategorized'
         total = sum(sector_counts.values())
-        other_count = 0
-        for sector, count in list(sector_counts.items()):
-            if 100.0 * count / total < threshold:
-                other_count += count
-                del sector_counts[sector]
-        if other_count > 0:
-            sector_counts['Other'] = other_count
+
+        # Remove 'None' or 'Uncategorized' class for visualization
+        sector_counts.pop('None', None)
+        sector_counts.pop('Uncategorized', None)
+
+        # Sort sectors by count
+        sorted_sectors = sorted(sector_counts.items(), key=lambda x: x[1], reverse=True)[:topk]
+
+        # Calculate percentages
+        sorted_percentages = [(label, (count / total) * 100) for label, count in sorted_sectors]
 
         # Visualize the results
-        sns.set_style("white")
-        labels = list(sector_counts.keys())
-        sizes = list(sector_counts.values())
+        sns.set_style("whitegrid")
+        labels, percentages = zip(*sorted_percentages)
 
-        fig, ax = plt.subplots(figsize=(8, 5))
-        colors = sns.color_palette("tab10", len(labels))
-        if 'Other' in labels:
-            other_index = labels.index('Other')
-            colors[other_index] = (0.8, 0.8, 0.8)  # Light gray for 'Other'
+        fig, ax = plt.subplots(figsize=(10, 8))
+        colors = sns.color_palette("Blues", len(labels))
 
-        wedges, texts, autotexts = ax.pie(
-            sizes,
-            autopct='%1.1f%%',
-            startangle=140,
-            colors=colors,
-            pctdistance=0.85,  # Adjust this value to position the percentage labels
-            wedgeprops={'edgecolor': 'grey', 'linewidth': 1},
-            textprops={'fontsize': 12, 'color': 'black'}
-        )
+        ax.barh(labels, percentages, color=colors, edgecolor='grey')
+        ax.set_xlabel('Percentage (%)', fontsize=12)
+        ax.set_ylabel('Sectors', fontsize=12)
+        ax.set_title('Top {} Phishing Targets by Sector'.format(topk), fontsize=14)
+        ax.tick_params(axis='both', which='major', labelsize=10)
 
-        # Draw a white circle at the center to make it a donut chart
-        centre_circle = plt.Circle((0, 0), 0.70, fc='white', edgecolor='grey', linewidth=1)
-        fig.gca().add_artist(centre_circle)
-
-        # Add a legend with the sector labels
-        plt.legend(
-            loc="upper left",
-            labels=labels,
-            prop={'size': 10},
-            title="Sectors",
-            bbox_to_anchor=(1, 1)
-        )
-
-        plt.axis('equal')  # Equal aspect ratio ensures pie is drawn as a circle.
-        plt.title('Distribution of Phishing Targets by Sector', fontsize=14)
+        sns.despine(left=True, bottom=True)
         plt.tight_layout()
         plt.savefig('./field_study/plots/brand_sector.png')
         plt.close()
+
 
 class IPAnalysis:
 
@@ -407,42 +389,60 @@ class CampaignAnalysis:
         return clusters_path
 
     def visualize_campaign(self, clusters):
-
-        # Create a new figure.
+        # Initialize Figure
         plt.figure(figsize=(10, 6))
 
-        # Use a professional color palette
-        colors = sns.color_palette("husl", len(clusters))
+        # Define Color Palette
+        colors = cycle(sns.color_palette("husl", 5))
 
-        # Collect all unique dates
+        # Extract Unique Dates
         all_dates = set()
         for cluster in clusters:
             _, dates, targets = zip(*cluster)
             all_dates.update(dates)
         all_dates = sorted(list(all_dates), key=lambda date: datetime.strptime(date, '%Y-%m-%d'))
 
-        # Convert each cluster into a timeseries and plot it.
-        for i, (cluster, color) in enumerate(zip(clusters, colors)):
-            # Skip clusters with fewer than 3 items or only seen on a single date
+        # Plot Time Series for Each Cluster
+        for i, cluster in enumerate(clusters):
             _, dates, targets = zip(*cluster)
-            if len(cluster) < 4 or len(set(dates)) == 1 or targets[0] == 'outlook.com':
+
+            # Filter Clusters
+            if len(cluster) < 4 or targets[0] == 'outlook.com':
                 continue
             print(cluster)
+            # Convert Cluster to Time Series
             dates, counts = self.cluster_to_timeseries(cluster, all_dates)
-            plt.plot(dates, counts, marker='o', color=color, label=f'Target = {targets[0]}')
 
-        # Add a legend and labels.
+            # Identify Indices for First and Last Increases
+            first_increase_index, last_increase_index = None, None
+            for i in range(1, len(counts)):
+                if counts[i] > counts[i - 1]:
+                    last_increase_index = i
+                    if first_increase_index is None:
+                        first_increase_index = i
+
+            # Trim and Plot Time Series
+            if first_increase_index is not None and last_increase_index is not None:
+                trimmed_dates = dates[first_increase_index:last_increase_index + 1]
+                trimmed_counts = counts[first_increase_index:last_increase_index + 1]
+                color = next(colors)
+                plt.plot(trimmed_dates, trimmed_counts, marker='o', color=color, label=f'Target = {targets[0]}')
+
+        # Configure Plot Aesthetics
         plt.xticks(range(len(all_dates)), all_dates, rotation=45)
-        plt.legend()
+        plt.ylim(bottom=0)
+        plt.yticks(np.arange(np.floor(min(counts)), np.ceil(max(counts)) + 1, 1))
         plt.xlabel('Date')
         plt.ylabel('Cumulative number of screenshots')
         plt.title('Phishing Campaign over Time')
+        plt.legend()
 
+        # Add Minimalist Grid Lines
+        plt.grid(axis='x', linestyle='--', linewidth=0.5, color='gray')
+        plt.grid(axis='y', linestyle='--', linewidth=0.5, color='gray')
+
+        # Finalize and Save Plot
         plt.tight_layout()
-        plt.grid(True)  # Adding a grid for better readability
-        sns.despine(left=True, bottom=True)  # Remove the top and right spines
-
-        # Save the figure.
         plt.savefig('./field_study/plots/campaign.png')
         plt.close()
 
@@ -506,10 +506,16 @@ if __name__ == '__main__':
 
 # [('./datasets/phishing_TP_examples/2023-08-12/luka.sui.ducoccho1.click/shot.png', '2023-08-12', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-15/webfb.anhlongvedithoi.click/shot.png', '2023-08-15', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-09/www.lf.wuangu1.click/shot.png', '2023-08-09', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-13/zuk.pergugu.click/shot.png', '2023-08-13', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-21/ca.quynhquynh1.click/shot.png', '2023-08-21', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-08/login-france.xuanbac.click/shot.png', '2023-08-08', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-08/login-usa.xuanbac.click/shot.png', '2023-08-08', 'facebook.com')]
 
-# [('./datasets/phishing_TP_examples/2023-08-23/tr13915752.consultoriaprotecciondedatos.es/shot.png', '2023-08-23', 'ccc.de'),
-# ('./datasets/phishing_TP_examples/2023-08-23/tr95674037.econcontabilidade.com.br/shot.png', '2023-08-23', 'ccc.de'),
-# ('./datasets/phishing_TP_examples/2023-08-25/tr220943940.impulseducacio.org/shot.png', '2023-08-25', 'ccc.de'),
-# ('./datasets/phishing_TP_examples/2023-08-28/tr171152683.conhecimentoelevado.com/shot.png', '2023-08-28', 'ccc.de'),
-# ('./datasets/phishing_TP_examples/2023-08-23/tr4641605.goldsecurity.cl/shot.png', '2023-08-23', 'ccc.de'),
-# ('./datasets/phishing_TP_examples/2023-08-24/tr146097701.foto-metal.online/shot.png', '2023-08-24', 'ccc.de')]
+#[('./datasets/phishing_TP_examples/2023-08-12/device-28d57a5d-3dcf-4627-b8aa-91ce9b079e2a.remotewd.com/shot.png', '2023-08-12', 'sonicwall.com'),
+# ('./datasets/phishing_TP_examples/2023-08-09/device-1d0a7d34-ad6b-44fb-980a-ca0c2d6af315.remotewd.com/shot.png', '2023-08-09', 'sonicwall.com'),
+# ('./datasets/phishing_TP_examples/2023-08-21/device-87026422-3800-4f5b-81ab-83428f9fbc7f.remotewd.com/shot.png', '2023-08-21', 'sonicwall.com'),
+# ('./datasets/phishing_TP_examples/2023-08-15/device-457d2002-8d84-452f-a228-4e218e3cf58a.remotewd.com/shot.png', '2023-08-15', 'sonicwall.com')]
+# frame embedded into the webpage, trigger timeout after certain seconds setTimeout('timedOut()', 1 * 60000 - 1000);
+
+#[('./datasets/phishing_TP_examples/2023-08-21/cmajouledemo.stacksplatform.com/shot.png', '2023-08-21', 'ebsco.com'),
+# ('./datasets/phishing_TP_examples/2023-08-14/camvdemo.stacksplatform.com/shot.png', '2023-08-14', 'ebsco.com'),
+# ('./datasets/phishing_TP_examples/2023-08-17/admwilddemo.stacksplatform.com/shot.png', '2023-08-17', 'ebsco.com'),
+# ('./datasets/phishing_TP_examples/2023-08-14/tpmeddemodemo.stacksplatform.com/shot.png', '2023-08-14', 'ebsco.com')]
+# register button does not work, has a email sharing button that can distribute the URLs to other audience, Powered By EBSCO Stacks is linked to the real absco.com page
+
 
