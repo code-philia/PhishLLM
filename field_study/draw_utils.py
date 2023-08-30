@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 import seaborn as sns
 from typing import List
 import cv2
+from Levenshtein import distance as levenshtein_distance
 
 def draw_annotated_image_nobox(image: Image.Image, txt: str):
     # Convert the image to RGBA for transparent overlay
@@ -339,15 +340,30 @@ class IPAnalysis:
 
 class CampaignAnalysis:
     @staticmethod
-    def similarity_threshold_clustering(similarity_matrix, threshold):
-        # Create a graph from the similarity matrix
+    def similarity_threshold_clustering(mask, domain_name_list, threshold):
         G = nx.Graph()
-        n = len(similarity_matrix)
+        n = len(mask)
 
         for i in range(n):
             for j in range(i + 1, n):
-                if similarity_matrix[i, j] >= threshold:
-                    G.add_edge(i, j)
+                if mask[i, j] == 1:
+                    domain1 = domain_name_list[i]
+                    domain2 = domain_name_list[j]
+
+                    subdomain1, subdomain2 = tldextract.extract(domain1).subdomain, tldextract.extract(domain2).subdomain
+                    domain1, domain2 = tldextract.extract(domain1).domain, tldextract.extract(domain2).domain
+
+                    edit_distance = levenshtein_distance(domain1, domain2)
+                    normalized_edit_distance = edit_distance / max(len(domain1), len(domain2))
+
+                    edit_distance_sub = levenshtein_distance(subdomain1, subdomain2)
+                    if len(subdomain1) and len(subdomain2):
+                        normalized_edit_distance_sub = edit_distance_sub / max(len(subdomain1), len(subdomain2))
+                    else:
+                        normalized_edit_distance_sub = 1
+
+                    if normalized_edit_distance <= threshold or normalized_edit_distance_sub <= threshold:
+                        G.add_edge(i, j)
 
         # Use NetworkX's connected_components function to get the clusters
         clusters = list(nx.connected_components(G))
@@ -369,36 +385,24 @@ class CampaignAnalysis:
         return all_dates, cumulative_counts
 
     def cluster_shot_representations(self, shot_path_list, target_list):
-        # Load and resize all images.
-        model = models.resnet50(pretrained=True)
-        model = model.eval()
+        n = len(shot_path_list)
+        same_target_mask = np.zeros((n, n))
 
-        # Use the layer before the final fully-connected layer for feature extraction.
-        feature_extractor = torch.nn.Sequential(*list(model.children())[:-1])
+        for i in range(n):
+            for j in range(i + 1, n):
+                same_target = target_list[i] == target_list[j]
+                if same_target:
+                    same_target_mask[i, j] = 1
+                    same_target_mask[j, i] = 1  # The matrix is symmetric
 
-        # Define the image transforms.
-        transform = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
-
-        # Extract features for all images.
-        features = []
-        for image_path in shot_path_list:
-            image = Image.open(image_path).convert('RGB')
-            image = transform(image).unsqueeze(0)
-            with torch.no_grad():
-                feature = feature_extractor(image).squeeze().numpy()
-            features.append(feature)
-
-        # Compute pairwise distances between the features.
-        similarity_matrix = cosine_similarity(features)
-        clusters = self.similarity_threshold_clustering(similarity_matrix, 0.99)
+        domain_name_list = [os.path.basename(os.path.dirname(x)) for x in shot_path_list]
+        clusters = self.similarity_threshold_clustering(same_target_mask, domain_name_list, 0.5)
 
         clusters_path = []
         for it, cls in enumerate(clusters):
-            shots_under_cls = [(shot_path_list[ind], os.path.basename(os.path.dirname(os.path.dirname(shot_path_list[ind]))), target_list[ind]) for ind in cls]
+            shots_under_cls = [(shot_path_list[ind],
+                                os.path.basename(os.path.dirname(os.path.dirname(shot_path_list[ind]))),
+                                target_list[ind]) for ind in cls]
             clusters_path.append(shots_under_cls)
         return clusters_path
 
@@ -495,9 +499,9 @@ if __name__ == '__main__':
     #     if not os.path.exists(shot_path):
     #         print(shot_path)
     # exit()
-    # campaign = CampaignAnalysis()
-    # clusters_path = campaign.cluster_shot_representations(shot_path_list, brands)
-    # campaign.visualize_campaign(clusters_path)
+    campaign = CampaignAnalysis()
+    clusters_path = campaign.cluster_shot_representations(shot_path_list, brands)
+    campaign.visualize_campaign(clusters_path)
 
 
 # [('./datasets/phishing_TP_examples/2023-08-12/luka.sui.ducoccho1.click/shot.png', '2023-08-12', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-15/webfb.anhlongvedithoi.click/shot.png', '2023-08-15', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-09/www.lf.wuangu1.click/shot.png', '2023-08-09', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-13/zuk.pergugu.click/shot.png', '2023-08-13', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-21/ca.quynhquynh1.click/shot.png', '2023-08-21', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-08/login-france.xuanbac.click/shot.png', '2023-08-08', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-08/login-usa.xuanbac.click/shot.png', '2023-08-08', 'facebook.com')]
