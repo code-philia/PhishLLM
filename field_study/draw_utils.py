@@ -202,7 +202,7 @@ class DomainAnalysis:
 
 class BrandAnalysis:
 
-    def visualize_brands(brand_list, topk=10):
+    def visualize_brands(brand_list, topk=20):
         sns.set_style("whitegrid")
         brand_counts = Counter(brand_list)
 
@@ -495,7 +495,17 @@ if __name__ == '__main__':
     #     if not os.path.exists(shot_path):
     #         print(shot_path)
     # exit()
-    campaign = CampaignAnalysis()
-    clusters_path = campaign.cluster_shot_representations(shot_path_list, brands)
-    campaign.visualize_campaign(clusters_path)
+    # campaign = CampaignAnalysis()
+    # clusters_path = campaign.cluster_shot_representations(shot_path_list, brands)
+    # campaign.visualize_campaign(clusters_path)
+
+
+# [('./datasets/phishing_TP_examples/2023-08-12/luka.sui.ducoccho1.click/shot.png', '2023-08-12', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-15/webfb.anhlongvedithoi.click/shot.png', '2023-08-15', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-09/www.lf.wuangu1.click/shot.png', '2023-08-09', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-13/zuk.pergugu.click/shot.png', '2023-08-13', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-21/ca.quynhquynh1.click/shot.png', '2023-08-21', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-08/login-france.xuanbac.click/shot.png', '2023-08-08', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-08/login-usa.xuanbac.click/shot.png', '2023-08-08', 'facebook.com')]
+
+# [('./datasets/phishing_TP_examples/2023-08-23/tr13915752.consultoriaprotecciondedatos.es/shot.png', '2023-08-23', 'ccc.de'),
+# ('./datasets/phishing_TP_examples/2023-08-23/tr95674037.econcontabilidade.com.br/shot.png', '2023-08-23', 'ccc.de'),
+# ('./datasets/phishing_TP_examples/2023-08-25/tr220943940.impulseducacio.org/shot.png', '2023-08-25', 'ccc.de'),
+# ('./datasets/phishing_TP_examples/2023-08-28/tr171152683.conhecimentoelevado.com/shot.png', '2023-08-28', 'ccc.de'),
+# ('./datasets/phishing_TP_examples/2023-08-23/tr4641605.goldsecurity.cl/shot.png', '2023-08-23', 'ccc.de'),
+# ('./datasets/phishing_TP_examples/2023-08-24/tr146097701.foto-metal.online/shot.png', '2023-08-24', 'ccc.de')]
 
