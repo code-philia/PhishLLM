@@ -189,10 +189,9 @@ class DomainAnalysis:
         sns.histplot(domain_age_list, bins=20, color='lightgray', edgecolor='black',
                      kde=False)  # Match color and edgecolor
 
-        # plt.title('Distribution of Domain Ages', fontsize=14)
-        plt.xlabel('Domain Age (in years)', fontsize=12)
-        plt.ylabel('Frequency', fontsize=12)
-        ax.tick_params(axis='both', which='major', labelsize=10)
+        plt.xlabel('Domain Age (in years)', fontsize=20)
+        plt.ylabel('Frequency', fontsize=20)
+        ax.tick_params(axis='both', which='major', labelsize=20)
         ax.yaxis.grid(True, linestyle='--', linewidth=0.5, color='gray', alpha=0.7)  # Light grid lines only for y-axis
 
         plt.xlim(left=0)
@@ -216,13 +215,12 @@ class BrandAnalysis:
         brands_sorted = [item[0] for item in sorted_brands][:topk]
         counts_sorted = [item[1] for item in sorted_brands][:topk]
 
-        plt.figure(figsize=(16, 6))  # Wider figure
+        plt.figure(figsize=(20, 10))  # Wider figure
         plt.bar(brands_sorted, counts_sorted, color='lightgray', edgecolor='black')
-        plt.xlabel('Brands', fontsize=12)
-        plt.ylabel('Number of Times Targeted', fontsize=12)
-        # plt.title(f'Top {topk} Phishing Targets by Frequency', fontsize=14)
-        plt.xticks(rotation=45, fontsize=10)
-        plt.yticks(np.arange(0, max(counts_sorted) + 1, 1), fontsize=10)
+        plt.xlabel('Brands', fontsize=20)
+        plt.ylabel('Number of Times Targeted', fontsize=20)
+        plt.xticks(rotation=45, fontsize=20)
+        plt.yticks(np.arange(0, max(counts_sorted) + 1, 1), fontsize=15)
         plt.gca().spines['top'].set_visible(False)
         plt.gca().spines['right'].set_visible(False)
         plt.grid(axis='y', linestyle='--', linewidth=0.5, color='gray')  # Light grid lines only for y-axis
@@ -293,7 +291,7 @@ class IPAnalysis:
 
         world['counts'] = world['name'].map(country_counts).fillna(0)
 
-        fig, ax = plt.subplots(1, 1, figsize=(15, 10),
+        fig, ax = plt.subplots(1, 1, figsize=(30, 10),
                                subplot_kw={'projection': ccrs.Robinson()})  # Set the projection to Robinson
 
         # Color countries based on counts
@@ -389,7 +387,7 @@ class CampaignAnalysis:
         plt.figure(figsize=(10, 6))
 
         # Define Color Palette
-        colors = cycle(sns.color_palette("husl", 5))
+        colors = cycle(sns.color_palette("husl", 6))
 
         # Extract Unique Dates and Sort Clusters
         all_dates = set()
@@ -414,6 +412,7 @@ class CampaignAnalysis:
             if len(cluster) < 4 or targets[0] == 'outlook.com':
                 continue
 
+            print(cluster)
             # Convert Cluster to Time Series
             dates, counts = self.cluster_to_timeseries(cluster, all_dates)
 
@@ -436,10 +435,11 @@ class CampaignAnalysis:
                 trimmed_dates = dates[first_increase_index:last_increase_index + 1]
                 trimmed_counts = offset_counts[first_increase_index:last_increase_index + 1]
                 color = next(colors)
-                plt.plot(trimmed_dates, trimmed_counts, marker='o', color=color, label=f'Target = {targets[0]}')
+                trimmed_indices = [all_dates.index(date) for date in trimmed_dates]
+                plt.plot(trimmed_indices, trimmed_counts, marker='o', color=color, label=f'Target = {targets[0]}')
 
         # Configure Plot Aesthetics
-        plt.xticks(range(len(all_dates)), all_dates, rotation=45)
+        plt.xticks(range(len(all_dates)), all_dates, rotation=90)
         plt.ylim(bottom=0)
         plt.yticks(np.arange(0, 6, 1))
         plt.xlabel('Date')
