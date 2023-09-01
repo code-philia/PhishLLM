@@ -16,7 +16,7 @@ Existing reference-based phishing detection
 In our PhishLLM, we build a reference-based phishing detection framework
 - ✅ Without a pre-defined reference list
 - ✅ Requires light-weight training
-- ✅ Mirrors human cognitive process during web interaction, therefore provides enhanced explainability 
+- ✅ Fully explainable, since it mirrors human cognitive process during web interaction, provides natural laguagne explanations at every step 
 
 ## Framework
 <img src="./figures/phishllm.png">
@@ -60,7 +60,9 @@ In our PhishLLM, we build a reference-based phishing detection framework
     ./setup.sh
 ```
 - Step 2: Register openai API key: See https://platform.openai.com/. Save the API key to './datasets/openai_key2.txt'
-- Step 3: Run!
+- Step 3 (Optional): All hyperparameter configurations are stored in param_dict.yaml, e.g. the parameters for GPT, the threshold for OCR etc. 
+Please edit the file if you want to play with different combinations of parameters.
+- Step 4: Run!
 ```bash
     conda activate myenv
     python -m field_study.test --folder [folder to test, e.g. ./datasets/field_study/2023-08-21/] --date [e.g. 2023-08-21]
@@ -70,8 +72,32 @@ Note that this will improve the phishing report precision but at the same time i
 ```bash
     python -m field_study.test --folder [folder to test] --date [e.g. 2023-08-21] --validate 
 ```
-- All hyperparameter configurations are stored in param_dict.yaml, e.g. the parameters for GPT, the threshold for OCR etc. 
-Please edit the file if you want to play with different combinations of parameters.
+
+<details>
+<summary> A .log file will be created during the run, which will log the explanations for each model prediction, click to see the sampled log</summary>
+    <pre><code>
+      [PhishLLMLogger][DEBUG] Folder ./datasets/field_study/2023-09-01/device-862044b2-5124-4735-b6d5-f114eea4a232.remotewd.com
+      [PhishLLMLogger][DEBUG] Logo caption: the logo for sonicwall network security appliance
+      [PhishLLMLogger][DEBUG] Logo OCR: SONICWALL Network Security Appliance Username
+      [PhishLLMLogger][DEBUG] Industry: Technology
+      [PhishLLMLogger][DEBUG] LLM prediction time: 0.9699530601501465
+      [PhishLLMLogger][DEBUG] Detected brand: sonicwall.com
+      [PhishLLMLogger][DEBUG] Domain sonicwall.com is valid and alive
+      [PhishLLMLogger][DEBUG] CRP prediction: There is no confusing token. Then we find the keywords that are related to login: LOG IN. Additionally, the presence of "Username" suggests that this page requires credentials. Therefore, the answer would be A.
+      [⚠️] Phishing discovered, phishing target is sonicwall.com
+      [PhishLLMLogger][DEBUG] Folder ./datasets/field_study/2023-09-01/lp.aldooliveira.com
+      [PhishLLMLogger][DEBUG] Logo caption: a black and white photo of the word hello world
+      [PhishLLMLogger][DEBUG] Logo OCR: Hello world! Welcome to WordPress. This is your first post. Edit or delete it, then start writing! dezembro 2, 2021 publicado
+      [PhishLLMLogger][DEBUG] Industry: Uncategorized
+      [PhishLLMLogger][DEBUG] LLM prediction time: 0.8813009262084961
+      [PhishLLMLogger][DEBUG] Detected brand: wordpress.com
+      [PhishLLMLogger][DEBUG] Domain wordpress.com is valid and alive
+      [PhishLLMLogger][DEBUG] CRP prediction: There is no token or keyword related to login or sensitive information. Therefore the answer would be B.
+      [PhishLLMLogger][DEBUG] No candidate login button to click
+       [✅] Benign
+    </code></pre>
+</details>
+
 
 ## Findings
 <details>
@@ -84,7 +110,7 @@ Please edit the file if you want to play with different combinations of paramete
 </details>
 <details>
   <summary>Phishing domain TLD distribution</summary>
-
+  
   | Top-5 TLD | Frequency      |
   |----------------| --------------- |
   | .com    | 256 occurrences |
