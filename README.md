@@ -84,7 +84,7 @@ Note that this will improve the phishing report precision but at the same time i
       [PhishLLMLogger][DEBUG] Detected brand: sonicwall.com
       [PhishLLMLogger][DEBUG] Domain sonicwall.com is valid and alive
       [PhishLLMLogger][DEBUG] CRP prediction: There is no confusing token. Then we find the keywords that are related to login: LOG IN. Additionally, the presence of "Username" suggests that this page requires credentials. Therefore, the answer would be A.
-      [⚠️] Phishing discovered, phishing target is sonicwall.com
+      [💀] Phishing discovered, phishing target is sonicwall.com
       [PhishLLMLogger][DEBUG] Folder ./datasets/field_study/2023-09-01/lp.aldooliveira.com
       [PhishLLMLogger][DEBUG] Logo caption: a black and white photo of the word hello world
       [PhishLLMLogger][DEBUG] Logo OCR: Hello world! Welcome to WordPress. This is your first post. Edit or delete it, then start writing! dezembro 2, 2021 publicado
