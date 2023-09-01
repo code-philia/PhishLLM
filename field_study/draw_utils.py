@@ -4,10 +4,6 @@ from field_study.monitor_url import *
 from field_study.results_statistics import get_pos_site, daterange
 import os
 import networkx as nx
-from sklearn.metrics.pairwise import cosine_similarity
-import torch
-import torchvision.models as models
-import torchvision.transforms as transforms
 from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
@@ -157,7 +153,7 @@ class GeneralAnalysis:
         # Labels and title
         plt.xlabel('Date', fontsize=12)
         plt.ylabel('Number of Phishing Reported', fontsize=12)
-        plt.title('Daily Phishing Reports by Solution', fontsize=14)
+        # plt.title('Daily Phishing Reports by Solution', fontsize=14)
 
         # X-axis ticks
         plt.xticks([r + width for r in range(len(df['Date']))], df['Date'], rotation=45)
@@ -193,7 +189,7 @@ class DomainAnalysis:
         sns.histplot(domain_age_list, bins=20, color='lightgray', edgecolor='black',
                      kde=False)  # Match color and edgecolor
 
-        plt.title('Distribution of Domain Ages', fontsize=14)
+        # plt.title('Distribution of Domain Ages', fontsize=14)
         plt.xlabel('Domain Age (in years)', fontsize=12)
         plt.ylabel('Frequency', fontsize=12)
         ax.tick_params(axis='both', which='major', labelsize=10)
@@ -211,7 +207,7 @@ class DomainAnalysis:
 
 class BrandAnalysis:
 
-    def visualize_brands(brand_list, topk=20):
+    def visualize_brands(brand_list, topk=10):
         sns.set_style("whitegrid")
         brand_counts = Counter(brand_list)
 
@@ -224,7 +220,7 @@ class BrandAnalysis:
         plt.bar(brands_sorted, counts_sorted, color='lightgray', edgecolor='black')
         plt.xlabel('Brands', fontsize=12)
         plt.ylabel('Number of Times Targeted', fontsize=12)
-        plt.title(f'Top {topk} Phishing Targets by Frequency', fontsize=14)
+        # plt.title(f'Top {topk} Phishing Targets by Frequency', fontsize=14)
         plt.xticks(rotation=45, fontsize=10)
         plt.yticks(np.arange(0, max(counts_sorted) + 1, 1), fontsize=10)
         plt.gca().spines['top'].set_visible(False)
@@ -316,7 +312,7 @@ class IPAnalysis:
         ax.grid(True, which='both', linestyle='--', linewidth=0.5, color='#d9d9d9')  # Subtle grid
 
         plt.tight_layout()
-        plt.title('Geolocation Distribution of Phishing IPs')
+        # plt.title('Geolocation Distribution of Phishing IPs')
         plt.savefig('./field_study/plots/geo.png')
         plt.close()
 
@@ -395,23 +391,37 @@ class CampaignAnalysis:
         # Define Color Palette
         colors = cycle(sns.color_palette("husl", 5))
 
-        # Extract Unique Dates
+        # Extract Unique Dates and Sort Clusters
         all_dates = set()
         for cluster in clusters:
-            _, dates, targets = zip(*cluster)
+            _, dates, _ = zip(*cluster)
             all_dates.update(dates)
         all_dates = sorted(list(all_dates), key=lambda date: datetime.strptime(date, '%Y-%m-%d'))
 
+        # Sort clusters by their earliest date
+        sorted_clusters = sorted(clusters,
+                                 key=lambda cluster: min(datetime.strptime(date, '%Y-%m-%d') for _, date, _ in cluster))
+
+        # Offset variable
+        offset = 0
+        offset_increment = 0.01  # You can adjust this value
+
         # Plot Time Series for Each Cluster
-        for i, cluster in enumerate(clusters):
+        for i, cluster in enumerate(sorted_clusters):
             _, dates, targets = zip(*cluster)
 
             # Filter Clusters
             if len(cluster) < 4 or targets[0] == 'outlook.com':
                 continue
-            print(cluster)
+
             # Convert Cluster to Time Series
             dates, counts = self.cluster_to_timeseries(cluster, all_dates)
+
+            # Add offset to counts
+            offset_counts = [count + offset for count in counts]
+
+            # Increment offset for next line
+            offset += offset_increment
 
             # Identify Indices for First and Last Increases
             first_increase_index, last_increase_index = None, None
@@ -424,17 +434,17 @@ class CampaignAnalysis:
             # Trim and Plot Time Series
             if first_increase_index is not None and last_increase_index is not None:
                 trimmed_dates = dates[first_increase_index:last_increase_index + 1]
-                trimmed_counts = counts[first_increase_index:last_increase_index + 1]
+                trimmed_counts = offset_counts[first_increase_index:last_increase_index + 1]
                 color = next(colors)
                 plt.plot(trimmed_dates, trimmed_counts, marker='o', color=color, label=f'Target = {targets[0]}')
 
         # Configure Plot Aesthetics
         plt.xticks(range(len(all_dates)), all_dates, rotation=45)
         plt.ylim(bottom=0)
-        plt.yticks(np.arange(np.floor(min(counts)), np.ceil(max(counts)) + 1, 1))
+        plt.yticks(np.arange(0, 6, 1))
         plt.xlabel('Date')
         plt.ylabel('Cumulative number of screenshots')
-        plt.title('Phishing Campaign over Time')
+        # plt.title('Phishing Campaign over Time')
         plt.legend()
 
         # Add Minimalist Grid Lines
@@ -481,8 +491,8 @@ if __name__ == '__main__':
     domains = list(map(lambda x: x['foldername'], rows))
     domain_ages = list(map(lambda x: x['domain_age'], rows))
     DomainAnalysis.tld_distribution(domains)
-    # alexa_urls = [x.strip().split(',')[1] for x in open('./datasets/top-1m.csv').readlines()]
-    # DomainAnalysis.tld_distribution(alexa_urls)
+    alexa_urls = [x.strip().split(',')[1] for x in open('./datasets/top-1m.csv').readlines()]
+    DomainAnalysis.tld_distribution(alexa_urls)
     DomainAnalysis.domain_age_distribution(domain_ages)
 
     '''brand'''
@@ -495,10 +505,6 @@ if __name__ == '__main__':
 
     '''phishing campaign'''
     shot_path_list = list(map(lambda x: os.path.join(base, x['date'], x['foldername'], 'shot.png'), rows))
-    # for shot_path in shot_path_list:
-    #     if not os.path.exists(shot_path):
-    #         print(shot_path)
-    # exit()
     campaign = CampaignAnalysis()
     clusters_path = campaign.cluster_shot_representations(shot_path_list, brands)
     campaign.visualize_campaign(clusters_path)
