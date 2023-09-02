@@ -188,6 +188,7 @@ if __name__ == '__main__':
                         print('Sector: ', sector)
                         sector = str(sector)
                     gs_sheet.update_cell(id, country, geo_loc, org, domain_age, sector)
+                    time.sleep(0.5)
 
 
     except KeyboardInterrupt:

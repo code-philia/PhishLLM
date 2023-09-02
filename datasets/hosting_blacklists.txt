@@ -264,3 +264,4 @@ meshcentral.com
 glpi-project.org
 facturascripts.com
 keyweb.de
+blizzard.com

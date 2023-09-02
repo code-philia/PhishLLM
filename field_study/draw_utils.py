@@ -384,7 +384,7 @@ class CampaignAnalysis:
 
     def visualize_campaign(self, clusters):
         # Initialize Figure
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(20, 10))
 
         # Define Color Palette
         colors = cycle(sns.color_palette("husl", 6))
@@ -402,7 +402,7 @@ class CampaignAnalysis:
 
         # Offset variable
         offset = 0
-        offset_increment = 0.01  # You can adjust this value
+        offset_increment = 0.02  # You can adjust this value
 
         # Plot Time Series for Each Cluster
         for i, cluster in enumerate(sorted_clusters):
@@ -436,16 +436,15 @@ class CampaignAnalysis:
                 trimmed_counts = offset_counts[first_increase_index:last_increase_index + 1]
                 color = next(colors)
                 trimmed_indices = [all_dates.index(date) for date in trimmed_dates]
-                plt.plot(trimmed_indices, trimmed_counts, marker='o', color=color, label=f'Target = {targets[0]}')
+                plt.plot(trimmed_indices, trimmed_counts, marker='o', color=color, label=f'Target = {targets[0]}', linewidth=2, markersize=8)
 
         # Configure Plot Aesthetics
-        plt.xticks(range(len(all_dates)), all_dates, rotation=90)
+        plt.xticks(range(len(all_dates)), all_dates, rotation=45, fontsize=15)
+        plt.yticks(np.arange(0, 6, 1), fontsize=15)
         plt.ylim(bottom=0)
-        plt.yticks(np.arange(0, 6, 1))
-        plt.xlabel('Date')
-        plt.ylabel('Cumulative number of screenshots')
-        # plt.title('Phishing Campaign over Time')
-        plt.legend()
+        plt.xlabel('Date', fontsize=20)
+        plt.ylabel('Cumulative number of screenshots', fontsize=20)
+        plt.legend(fontsize=20)
 
         # Add Minimalist Grid Lines
         plt.grid(axis='x', linestyle='--', linewidth=0.5, color='gray')
@@ -524,4 +523,7 @@ if __name__ == '__main__':
 # ('./datasets/phishing_TP_examples/2023-08-14/tpmeddemodemo.stacksplatform.com/shot.png', '2023-08-14', 'ebsco.com')]
 # register button does not work, has a email sharing button that can distribute the URLs to other audience, Powered By EBSCO Stacks is linked to the real absco.com page
 
-
+# [('./datasets/phishing_TP_examples/2023-08-27/device-0c3dd2f9-816a-4394-82d4-5d4a3b168755.remotewd.com/shot.png', '2023-08-27', 'avm.de'),
+# ('./datasets/phishing_TP_examples/2023-08-24/device-495d5ae5-2238-4cc5-8d49-9fe6a8945844.remotewd.com/shot.png', '2023-08-24', 'avm.de'),
+# ('./datasets/phishing_TP_examples/2023-08-31/device-1d78904f-4498-4d9b-92a2-f0516f474f75.remotewd.com/shot.png', '2023-08-31', 'avm.de'),
+# ('./datasets/phishing_TP_examples/2023-08-23/device-1db7da60-9577-4f77-9aed-f17f4acf10fb.remotewd.com/shot.png', '2023-08-23', 'avm.de')]
