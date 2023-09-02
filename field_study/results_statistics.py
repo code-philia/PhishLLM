@@ -59,8 +59,6 @@ def runtime_base(result_txt):
 
 if __name__ == '__main__':
     '''Save reported phishing'''
-    start_date = date(2023, 8, 1)
-    end_date = date(2023, 8, 2)
     g = gwrapper()
     all_records = g.get_records()
 
