@@ -229,7 +229,7 @@ class BrandAnalysis:
         plt.savefig('./field_study/plots/brand_freq.png')
         plt.close()
 
-    def visualize_sectors(sectors, topk=10):
+    def visualize_sectors(sectors, topk=5):
         # Aggregate the sectors
         sector_counts = Counter(sectors)
 
@@ -254,10 +254,10 @@ class BrandAnalysis:
         colors = sns.color_palette("Blues", len(labels))
 
         ax.barh(labels, percentages, color=colors, edgecolor='grey')
-        ax.set_xlabel('Percentage (%)', fontsize=12)
-        ax.set_ylabel('Sectors', fontsize=12)
-        ax.set_title('Top {} Phishing Targets by Sector'.format(topk), fontsize=14)
-        ax.tick_params(axis='both', which='major', labelsize=10)
+        ax.set_xlabel('Percentage (%)', fontsize=20)
+        ax.set_ylabel('Sectors', fontsize=20)
+        # ax.set_title('Top {} Phishing Targets by Sector'.format(topk), fontsize=20)
+        ax.tick_params(axis='both', which='major', labelsize=15)
 
         sns.despine(left=True, bottom=True)
         plt.tight_layout()
@@ -338,7 +338,7 @@ class CampaignAnalysis:
                     else:
                         normalized_edit_distance_sub = 1
 
-                    if normalized_edit_distance <= threshold or normalized_edit_distance_sub <= threshold:
+                    if normalized_edit_distance <= threshold or normalized_edit_distance_sub <= threshold and max(len(subdomain1), len(subdomain2))>3:
                         G.add_edge(i, j)
 
         # Use NetworkX's connected_components function to get the clusters
@@ -409,7 +409,7 @@ class CampaignAnalysis:
             _, dates, targets = zip(*cluster)
 
             # Filter Clusters
-            if len(cluster) < 4 or targets[0] == 'outlook.com':
+            if len(cluster) < 4 or targets[0] == 'outlook.com' or targets[0] == 'microsoft.com':
                 continue
 
             print(cluster)

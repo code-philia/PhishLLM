@@ -20,17 +20,10 @@ class TestBaseline():
         return phish_category, phish_target, str(phishpedia_runtime), plotvis
 
     def test_phishintention(self, URL, screenshot_path, ph_driver, obfuscate=False):
-        # XDriver.set_headless()
-        # ph_driver = XDriver.boot(chrome=True)
-        # time.sleep(5)
-        # ph_driver.set_page_load_timeout(30)
-        # ph_driver.set_script_timeout(60)
-
         start_time = time.time()
         phish_category, phish_target, plotvis, siamese_conf, dynamic, time_breakdown, pred_boxes, pred_classes = \
             self.phishintention_cls.test_orig_phishintention(URL, screenshot_path, ph_driver, obfuscate=obfuscate)
         phishintention_runtime = time.time() - start_time
-        # ph_driver.quit()
         return phish_category, phish_target, str(phishintention_runtime), plotvis
 
 
@@ -59,8 +52,8 @@ if __name__ == '__main__':
                 URL = list(pk_info['URL'])[0]
             except IndexError:
                 URL = f'http://127.0.0.5/{hash}'
-            pred, brand, runtime = base_cls.test_phishpedia(URL, shot_path)
-            # pred, brand, runtime = base_cls.test_phishintention(URL, shot_path)
+            pred, brand, runtime, _ = base_cls.test_phishpedia(URL, shot_path)
+            # pred, brand, runtime, _ = base_cls.test_phishintention(URL, shot_path)
 
             with open(result, 'a+') as f:
                 f.write(hash + '\t' + str(pred) + '\t' + str(brand) + '\t' + str(runtime) + '\n')
