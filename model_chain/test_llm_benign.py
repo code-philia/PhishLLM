@@ -1,14 +1,18 @@
 from model_chain.test_llm import *
-os.environ['CUDA_VISIBLE_DEVICES'] = "1"
-os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read()
-
+os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key2.txt').read()
 
 if __name__ == '__main__':
+    with open('./param_dict.yaml') as file:
+        param_dict = yaml.load(file, Loader=yaml.FullLoader)
 
     phishintention_cls = PhishIntentionWrapper()
-    llm_cls = TestLLM(phishintention_cls)
+    lm_cls = TestLLM(phishintention_cls,
+                     param_dict=param_dict,
+                     proxies={"http": "http://127.0.0.1:7890",
+                              "https": "http://127.0.0.1:7890",
+                              })
     openai.api_key = os.getenv("OPENAI_API_KEY")
-    # openai.proxy = "http://127.0.0.1:7890" # proxy
+    openai.proxy = "http://127.0.0.1:7890" # proxy
     web_func = WebUtil()
 
     sleep_time = 3; timeout_time = 60
@@ -35,9 +39,17 @@ if __name__ == '__main__':
         html_path = os.path.join(target_folder, 'index.html')
 
         if os.path.exists(shot_path):
-            pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, _ = llm_cls.test(URL, None, shot_path, html_path, driver)
+            logo_box, reference_logo = llm_cls.detect_logo(shot_path)
+            pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, _ = llm_cls.test(URL,
+                                                                                                    reference_logo,
+                                                                                                    logo_box,
+                                                                                                    shot_path,
+                                                                                                    html_path,
+                                                                                                    driver,
+                                                                                                    brand_recognition_do_validation=True
+                                                                                                    )
             with open(result, 'a+') as f:
-                f.write(target+'\t'+pred+'\t'+brand+'\t'+str(brand_recog_time)+'\t'+str(crp_prediction_time)+'\t'+str(crp_transition_time)+'\n')
+                f.write(target+'\t'+str(pred)+'\t'+str(brand)+'\t'+str(brand_recog_time)+'\t'+str(crp_prediction_time)+'\t'+str(crp_transition_time)+'\n')
 
     driver.quit()
 

@@ -153,10 +153,9 @@ class GeneralAnalysis:
         # Labels and title
         plt.xlabel('Date', fontsize=12)
         plt.ylabel('Number of Phishing Reported', fontsize=12)
-        # plt.title('Daily Phishing Reports by Solution', fontsize=14)
 
         # X-axis ticks
-        plt.xticks([r + width for r in range(len(df['Date']))], df['Date'], rotation=45)
+        plt.xticks([r + width for r in range(len(df['Date']))], df['Date'], rotation=90)
 
         # Adding grid
         ax.yaxis.grid(True, linestyle='--', linewidth=0.7, alpha=0.7)
@@ -291,8 +290,7 @@ class IPAnalysis:
 
         world['counts'] = world['name'].map(country_counts).fillna(0)
 
-        fig, ax = plt.subplots(1, 1, figsize=(30, 10),
-                               subplot_kw={'projection': ccrs.Robinson()})  # Set the projection to Robinson
+        fig, ax = plt.subplots(1, 1, figsize=(20, 10), subplot_kw={'projection': ccrs.Robinson()})  # Set the projection to Robinson
 
         # Color countries based on counts
         world = world.to_crs(ccrs.Robinson().proj4_init)
