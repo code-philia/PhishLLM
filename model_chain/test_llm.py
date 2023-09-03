@@ -619,9 +619,12 @@ if __name__ == '__main__':
 
     driver.quit()
 
-    # Total = 6075, LLM recall = 0.7501234567901235, LLM HTML obfuscation recall = 0.703045267489712
+    # 3.236595869064331
+    # 0.3363449573516845
+    # 0.3751556873321533
+    # Total = 6075, LLM recall = 0.7501234567901235,
     # Phishpedia recall = 0.4388477366255144, PhishIntention recall = 0.33925925925925926
-    # LLM precision = 0.9440646364201367, Phishpedia precision = 0.9077289751447055, PhishIntention precision = 0.9795627376425855,
+    # LLM precision = 1.0, Phishpedia precision = 0.9077289751447055, PhishIntention precision = 0.9795627376425855,
 
 
 
