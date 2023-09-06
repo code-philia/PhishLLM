@@ -168,8 +168,12 @@ def is_alive_domain(domain: str, proxies: Optional[Dict]=None) -> bool:
     while ct_limit < 3:
         try:
             response = requests.get('https://' + domain, timeout=60, proxies=proxies)
-            if response.status_code == 200:  # it is alive
+            if response.status_code < 400:
                 PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+                return True
+            elif response.history and any([r.status_code < 400 for r in response.history]):
+                PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix,
+                                    debug=True)
                 return True
             break
         except Exception as err:

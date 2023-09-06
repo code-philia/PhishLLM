@@ -1,11 +1,16 @@
 # PhishLLM
 
-<p align="center">
-  • <a href="">Paper</a> •
-  <a href="">Website</a> •
-  <a href="https://drive.google.com/drive/folders/1x6N6QEt_34B-pMStbBANUrjim-2ixG6T?usp=sharing">Datasets</a>  •
-  <a href="#citation">Citation</a> •
-</p>
+[//]: # (<p align="center">)
+
+[//]: # (  • <a href="">Paper</a> •)
+
+[//]: # (  <a href="">Website</a> •)
+
+[//]: # (  <a href="https://drive.google.com/drive/folders/1x6N6QEt_34B-pMStbBANUrjim-2ixG6T?usp=sharing">Datasets</a>  •)
+
+[//]: # (  <a href="#citation">Citation</a> •)
+
+[//]: # (</p>)
 
 ## Introductions
 Existing reference-based phishing detection
@@ -98,7 +103,6 @@ Note that this will improve the phishing report precision but at the same time i
     </code></pre>
 </details>
 
-
 ## Findings
 <details>
   <summary>Number of phishing caught</summary>
@@ -113,11 +117,11 @@ Note that this will improve the phishing report precision but at the same time i
   
   | Top-5 TLD | Frequency      |
   |----------------| --------------- |
-  | .com    | 256 occurrences |
-  | .de   | 39 occurrences |
-  | .info    | 31 occurrences |
-  | .online    |  30 occurrences |
-  | .net    | 30 occurrences |
+  | .com | 447 occurrences |
+  | .de | 60 occurrences |
+  | .online | 58 occurrences |
+  | .info | 52 occurrences |
+  | .xyz | 52 occurrences |
 
 </details>
 <details>

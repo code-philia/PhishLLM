@@ -6,8 +6,8 @@ import yaml
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--folder", default="./datasets/field_study/2023-08-28/")
-    parser.add_argument("--date", default="2023-08-28", help="%Y-%m-%d")
+    parser.add_argument("--folder", default="./datasets/field_study/2023-09-03/")
+    parser.add_argument("--date", default="2023-09-03", help="%Y-%m-%d")
     parser.add_argument("--validate", action='store_true', help="Whether or not to activate the results validation for brand recognition model")
     parser.add_argument("--config", default='./param_dict.yaml', help="Config .yaml path")
     args = parser.parse_args()
@@ -56,7 +56,7 @@ if __name__ == '__main__':
         if folder in [x.split('\t')[0] for x in open(result_txt, encoding='ISO-8859-1').readlines()]:
             continue
         # if folder not in [
-        #                    'systemsblog.blog.test.wp.kolaybet.org',
+        #                    'amazon-clone.jmclery.dev',
         #                 ]:
         #     continue
 
