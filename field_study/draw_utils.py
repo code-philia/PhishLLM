@@ -385,7 +385,7 @@ class CampaignAnalysis:
         plt.figure(figsize=(20, 10))
 
         # Define Color Palette
-        colors = cycle(sns.color_palette("husl", 6))
+        colors = cycle(sns.color_palette("husl", 7))
 
         # Extract Unique Dates and Sort Clusters
         all_dates = set()
