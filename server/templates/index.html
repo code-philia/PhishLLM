@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@next/css/pico.min.css" />
+  <title>PhishLLM Demo</title>
+</head>
+
+<body>
+  <main class="container">
+    <h1>PhishLLM Demo</h1>
+    <section>
+      <form id="url-form" role="group">
+        <input id="url-search-bar" type="url" name="url" placeholder="Input the URL here" required />
+        <input id="url-search-button" type="submit" value="Submit" />
+      </form>
+
+      <article id="url-result" style="display:none;">
+        <div id="url-loading" aria-busy="true">
+          Capturing screenshot
+        </div>
+
+        <div id="url-screenshot"></div>
+
+        <div id="url-success">
+          <hr />
+          <div class="grid">
+            <button onclick="getInference()">Run PhishLLM</button>
+            <button class="outline secondary" onclick="resetAll()">Go Back</button>
+          </div>
+        </div>
+
+        <div id="url-fail">
+          <h6 style="color:#ff3333;">Failed to crawl screenshot</h6>
+          <div class="grid">
+            <button onclick="getScreenshot()">Retry</button>
+            <button class="outline secondary" onclick="resetAll()">Go Back</button>
+          </div>
+        </div>
+      </article>
+
+      <article id="inference-result" style="display:none;">
+        <div id="inference-logs"></div>
+
+        <div id="inference-loading" aria-busy="true"><i>PhishLLM is Processing...</i></div>
+
+        <div id="inference-success">
+          <hr />
+          <h6>PhishLLM has finished running.</h6>
+          <div class="grid">
+            <button class="outline secondary" onclick="resetAll()">Go Back</button>
+          </div>
+        </div>
+
+        <div id="inference-fail">
+          <hr />
+          <h6 style="color:#ff3333;">Something went wrong. Please try again.</h6>
+          <div class="grid">
+            <button class="outline secondary" onclick="resetAll()">Go Back</button>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+
+<script src="{{url_for('static', filename='index.js')}}"></script>
+
+<style>
+  @media screen and (min-width: 768px) {
+    body {
+      width: 60vw;
+      margin: auto;
+    }
+  }
+</style>
+
+</html>
