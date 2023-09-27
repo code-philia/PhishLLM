@@ -1,14 +1,13 @@
 from model_chain.test_baseline import *
+from model_chain.web_utils import CustomWebDriver
 import argparse
 import cv2
-from xdriver.xutils.Logger import Logger
-
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--folder", default="./datasets/field_study/2023-08-26/")
-    parser.add_argument("--date", default="2023-08-26", help="%Y-%m-%d")
+    parser.add_argument("--folder", default="./datasets/field_study/2023-09-05/")
+    parser.add_argument("--date", default="2023-09-05", help="%Y-%m-%d")
     parser.add_argument("--method", default='phishpedia', choices=['phishpedia', 'phishintention'])
     args = parser.parse_args()
 
@@ -18,12 +17,9 @@ if __name__ == '__main__':
 
     # Xdriver
     sleep_time = 3; timeout_time = 60
-    XDriver.set_headless()
-    driver = XDriver.boot(chrome=True)
-    driver.set_script_timeout(timeout_time/2)
+    driver = CustomWebDriver.boot(proxy_server="http://127.0.0.1:7890")  # Using the proxy_url variable
+    driver.set_script_timeout(timeout_time / 2)
     driver.set_page_load_timeout(timeout_time)
-    time.sleep(sleep_time)
-    Logger.set_debug_on()
 
     os.makedirs('./field_study/results/', exist_ok=True)
     result_txt = './field_study/results/{}_{}.txt'.format(args.date, args.method)
@@ -76,10 +72,8 @@ if __name__ == '__main__':
 
         if (ct + 501) % 500 == 0:
             driver.quit()
-            XDriver.set_headless()
-            driver = XDriver.boot(chrome=True)
+            driver = CustomWebDriver.boot(proxy_server="http://127.0.0.1:7890")  # Using the proxy_url variable
             driver.set_script_timeout(timeout_time / 2)
             driver.set_page_load_timeout(timeout_time)
-            time.sleep(sleep_time)
 
     driver.quit()
