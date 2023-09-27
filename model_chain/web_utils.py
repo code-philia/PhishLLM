@@ -11,10 +11,18 @@ from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
 import base64
 from webdriver_manager.chrome import ChromeDriverManager
-from xdriver.XDriver import XDriver
 from typing import *
 from model_chain.logger_utils import PhishLLMLogger
 from xdriver.xutils.PhishIntentionWrapper import PhishIntentionWrapper
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import *
+from seleniumwire.webdriver import ChromeOptions
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+import json
 
 class WebUtil():
     home_page_heuristics = [
@@ -144,6 +152,375 @@ class WebUtil():
         return False
 
 
+class CustomWebDriver(webdriver.Chrome):
+    _MAX_RETRIES = 3
+    _last_url = 'https://google.com'
+    _CHROME_OPTIONS = ChromeOptions()
+    _CHROME_OPTIONS.add_argument("--no-sandbox")
+    _CHROME_OPTIONS.add_argument("--disable-dev-shm-usage")
+    _CHROME_OPTIONS.add_argument('--disable-gpu')
+    _CHROME_OPTIONS.add_argument("--window-size=1920,1080")
+    _CHROME_OPTIONS.add_argument("--headless")
+    _CHROME_OPTIONS.add_argument(
+        "user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36")
+    _CHROME_OPTIONS.add_argument("--disable-features=IsolateOrigins,site-per-process")
+    _CHROME_OPTIONS.add_argument("--incognito")
+    _CHROME_OPTIONS.add_argument("--disable-extensions")
+    _CHROME_OPTIONS.add_argument("--ignore-certificate-errors")
+    _CHROME_OPTIONS.add_argument("--enable-tcp-fast-open")
+    _CHROME_OPTIONS.add_argument("--disable-infobars")
+    _CHROME_OPTIONS.add_argument("--disable-notifications")
+    _CHROME_OPTIONS.add_argument("--disable-application-cache")
+    _CHROME_OPTIONS.add_argument("--disk-cache-dir=null")
+    _CHROME_OPTIONS.add_argument("--mute-audio")
+    _CHROME_OPTIONS.add_argument("--disable-sync")
+    _CHROME_OPTIONS.add_argument("--disable-blink-features=AutomationControlled")
+    _CHROME_OPTIONS.add_argument("--disable-local-storage")  # Disables local storage (includes cookies)
+    _CHROME_OPTIONS.add_argument("--disable-cookies")  # Disables cookies
+
+    _CHROME_OPTIONS.add_argument("--proxy-server=http://127.0.0.1:7890")  # todo
+
+    _CHROME_CAPS = DesiredCapabilities.CHROME
+    _CHROME_CAPS['acceptSslCerts'] = True
+    _CHROME_CAPS['acceptInsecureCerts'] = True
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(ChromeDriverManager().install(),
+                         chrome_options=self._CHROME_OPTIONS,
+                         desired_capabilities=self._CHROME_CAPS)
+
+        self._RETRIES = kwargs.get("retries", {})
+        self._REFS = kwargs.get("refs", {})
+        self._recoverable_crashes = ["chrome not reachable", "page crash",
+                                     "cannot determine loading status",
+                                     "Message: unknown error"]
+        with open('./model_chain/web_utils_scripts.js', 'r') as f:
+            js_content = f.read()
+        self.add_script(js_content)
+
+    def send(self, cmd, params={}):
+        resource = "/session/%s/chromium/send_command_and_get_result" % self.session_id
+        url = self.command_executor._url + resource
+        body = json.dumps({'cmd': cmd, 'params': params})
+        response = self.command_executor._request('POST', url, body)
+
+    def add_script(self, script):
+        self.send(cmd="Page.addScriptToEvaluateOnNewDocument", params={"source": script})
+
+    @classmethod
+    def boot(cls, **kwargs):
+        return cls(**kwargs)
+
+    def reboot(self):
+        self.quit()
+        new_instance = CustomWebDriver.boot()
+        self.__dict__.update(new_instance.__dict__)
+
+    '''Exception handling'''
+    @staticmethod
+    def stringify_exception(e, strip=False):
+        exception_str = ""
+        try:
+            exception_str = str(e)
+            if strip:  # Only return first line. Useful for webdriver exceptions
+                exception_str = exception_str.split("\n")[0]
+        except Exception as e:
+            exception_str = "Could not stringify exception"
+        return exception_str
+
+    def enter_retry(self, method, max_retries=10):
+        retries, max_retries = self._RETRIES.get(method, [0,
+                                                          max_retries])  # Necessary so nested `_invokes` of the same method won't reset the retry counter
+        self._RETRIES[method] = [retries, max_retries]
+        if retries <= max_retries:
+            return True
+        return False
+
+    def exit_retry(self, method):
+        self._RETRIES.pop(method, None)  # Only need to pop the method name
+
+    def _invoke_exception_handler(self, handler, *args, **kwargs):
+        try:
+            return handler(*args, **kwargs)
+        except UnexpectedAlertPresentException:
+            self._invoke_exception_handler(self._UnexpectedAlertPresentException_handler)
+        except NoAlertPresentException:  # This was raised during the _UnexpectedAlertPresentException_handler call.
+            self.execute_script("window.alert = null;")
+        except TimeoutException:
+            return False
+
+    def _UnexpectedAlertPresentException_handler(self):
+        alert = self.switch_to.alert
+        alert.dismiss()
+        self.execute_script("window.alert = null;")  # Try to prevent the page from popping any more alerts
+        self.switch_to.default_content()
+
+    def _StaleElementReference_handler(self, webelement):
+        element_ref = id(webelement)
+        if element_ref not in self._REFS:
+            return False
+        method, args, kwargs = self._REFS[element_ref]
+        kwargs["timeout"] = 3  # add some max timeout
+        new_element = method(*args, **kwargs)  # refetch element
+        if not new_element:  # The element is not in the DOM, it's not just stale
+            return False
+
+        webelement.__dict__.update(new_element.__dict__)  # Transparently update old webelement's reference
+        return True
+
+    def _TimeoutException_handler(self):
+        print("Handling browser crash. Will try to restore webdriver.")
+        self.reboot()  # We don't want to clear the _REFS, delete the profile or the proxy config
+        return True
+
+    def _invoke(self, method, *args, **kwargs):
+        original_kwargs = dict(kwargs)  # In case we re-_invoke it, we need the original kwargs
+        ex = None
+        ret_val = None
+
+        try:
+            if kwargs.pop("retry", True):  # By default, retry all methods if possible, otherwise explicitly requested
+                self.enter_retry(method, max_retries=kwargs.pop("max_retries", self._MAX_RETRIES))
+            web_element = kwargs.pop("webelement", None)
+            ret_val = method(*args, **kwargs)
+            if method == super(CustomWebDriver, self).get:
+                ret_val = True  # Need to explicitly set the ret value for WebDriver's get
+            self.exit_retry(method)  # The operation completed, no need to keep the retry counter
+            return ret_val
+        except UnexpectedAlertPresentException as ex:
+            self._invoke_exception_handler(self._UnexpectedAlertPresentException_handler)
+            if method == super(CustomWebDriver, self).get:  # Nothing more to do for a `get`
+                ret_val = True
+        except (InvalidSwitchToTargetException, NoSuchFrameException, NoSuchWindowException) as ex:
+            if len(self.window_handles) == 0:  # If no windows remain for some reason, raise it
+                raise
+            self.switch_to.default_content()  # Return to the default handle
+            ret_val = False
+        except (InvalidSelectorException) as ex:
+            ret_val = False
+        except (InvalidElementStateException, ElementNotSelectableException, ElementNotVisibleException,
+                MoveTargetOutOfBoundsException) as ex:
+            ret_val = False  # No need to retry the operation since these won't change
+        except NoSuchElementException:  ## Experimental ##
+            ret_val = False
+        except (StaleElementReferenceException, NoSuchElementException) as ex:
+            # Check _REFS for given WebElement.
+            if not self._invoke_exception_handler(self._StaleElementReference_handler, web_element):
+                raise
+            ret_val = False
+        except (TimeoutException, WebDriverException, ErrorInResponseException, RemoteDriverServerException,
+                InvalidCookieDomainException, UnableToSetCookieException, ImeNotAvailableException,
+                ImeActivationFailedException) as ex:
+            str_ex = self.stringify_exception(ex)
+            if ex is TimeoutException or any([crash in str_ex for crash in self._recoverable_crashes]):
+                # Reboot browser, maintain state and retry the operation
+                if not self._invoke_exception_handler(self._TimeoutException_handler):
+                    raise
+                if method != super(CustomWebDriver, self).get:
+                    self.get(
+                        self._last_url)  # If it was `get`, it will be retried later on. For anything else, we need to manually go back to the last known URL
+                ret_val = False
+            else:
+                raise
+
+        retries, max_retries = self._RETRIES.get(method, [None, None])
+        # If we are not in retry mode OR if the retries have exceeded the threshold, either return a default value (if set) or raise the exception to the caller
+        if method not in self._RETRIES or retries >= max_retries:
+            self.exit_retry(method)
+            if ret_val != None:  # If a return value has been set, return it instead of raising the exception
+                return ret_val
+            raise  # These are considered fatal
+
+        # About to re-invoke method. Increment retry counter
+        self._RETRIES[method][0] += 1
+        print("Retrying for the {}th time...".format(self._RETRIES[method][0]))
+        return self._invoke(method, *args, **original_kwargs)
+
+    def get_screenshot_encoding(self):
+        return self._invoke(super(CustomWebDriver, self).get_screenshot_as_base64)
+
+    '''Find dom elements'''
+
+    def _webelement_find_element_by(self, element, by=By.ID, value=None):
+        return element.find_element(by=by, value=value)
+
+    def _webelement_find_elements_by(self, element, by=By.ID, value=None, *args, **kwargs):
+        return element.find_elements(by=by, value=value, *args, **kwargs)
+
+    def find_element(self, by=By.ID, value=None, timeout=0, visible=False, webelement=None):
+        if timeout == 0 and visible is False:
+            ret = self._invoke(super(CustomWebDriver, self).find_element, by=by, value=value) if webelement is None \
+                else self._invoke(self._webelement_find_element_by, webelement, by=by, value=value)
+        else:
+            try:
+                condition = EC.presence_of_element_located if not visible else EC.visibility_of_element_located
+                ret = WebDriverWait(self, timeout).until(condition((by, value)))
+            except TimeoutException:
+                return None
+        ref = id(ret)
+        if ret:
+            self._REFS[ref] = (self.find_element, (), {"by": by, "value": value, "timeout": timeout, "visible": visible,
+                                                       "webelement": webelement})
+        return ret
+
+    def find_elements(self, by=By.ID, value=None, timeout=0, visible=False, webelement=None, *args, **kwargs):
+        if timeout > 0:
+            self.find_element(by=by, value=value, timeout=timeout, visible=visible, webelement=webelement, *args,
+                              **kwargs)
+        ret_elements = self._invoke(super(CustomWebDriver, self).find_elements, by=by, value=value, *args,
+                                    **kwargs) if webelement is None \
+            else self._invoke(self._webelement_find_elements_by, webelement, by=by, value=value, webelement=webelement,
+                              *args, **kwargs)
+        if ret_elements:
+            to_remove = set()
+            for el in ret_elements:
+                try:
+                    el_dompath = self.get_dompath(el)
+                except StaleElementReferenceException:
+                    to_remove.add(el)
+                    continue
+                # Make sure the returned elements are robust against StaleElementReferenceExceptions by simulating a `find_element_by_xpath`
+                ref = id(el)
+                if ref not in self._REFS:  # If not already previously fetched
+                    self._REFS[ref] = (
+                    self.find_element, (), {"by": By.XPATH, "value": el_dompath, "timeout": 3, "visible": False})
+
+            for el in to_remove:
+                ret_elements.remove(el)
+
+        return ret_elements
+
+    def find_elements_by_xpath(self, xpath_, timeout=0, visible=False, webelement=None, *args, **kwargs):
+        return self.find_elements(By.XPATH, value=xpath_, timeout=timeout, visible=visible, webelement=webelement,
+                                  *args, **kwargs)
+
+    def get_dompath(self, element):
+        try:
+            dompath = self._invoke(self.execute_script, "return get_dompath(arguments[0]).toLowerCase();", element,
+                                   webelement=element)
+        except Exception as e:
+            raise  # Debug debug Debug
+        return "//html%s" % "/".join(
+            [part if ":" not in part else "*" for part in dompath.split("/")]) if dompath else dompath
+
+    def get_all_buttons(self):
+        ret = self._invoke(self.execute_script, "return get_all_buttons();")
+        interested_buttons = []
+        interested_buttons_dom = []
+
+        for button_ele in ret:
+            button, button_dompath = button_ele
+            interested_buttons.append(button)
+            interested_buttons_dom.append(button_dompath)
+            self._REFS[id(button)] = (
+            self.find_element, (), {"by": By.XPATH, "value": button_dompath, "timeout": 3, "visible": False})
+
+        return interested_buttons, interested_buttons_dom
+
+    def get_all_links(self):
+        ret = self._invoke(self.execute_script, "return get_all_links();")
+        interested_links = []
+        link_doms = []
+        link_sources = []
+        for link_ele in ret:
+            link, link_dompath, link_source = link_ele
+            interested_links.append(link)
+            link_doms.append(link_dompath)
+            link_sources.append(link_source)
+            self._REFS[id(link)] = (
+            self.find_element, (), {"by": By.XPATH, "value": link_dompath, "timeout": 3, "visible": False})
+
+        return interested_links, link_doms, link_sources
+
+    def get_all_clickable_elements(self):
+        btns, btns_dom = self.get_all_buttons()
+        links, links_dom, _ = self.get_all_links()
+        image_elements = self._invoke(self.execute_script, "return get_all_clickable_imgs();")
+        all_leaf_node_xpath = ["//span[not(*)]", "//div[not(*)]",
+                               "//p[not(*)]", "//i[not(*)]"]
+        other_elements_pre = []
+        other_elements = []
+        other_elements_dom = []
+        for path in all_leaf_node_xpath:
+            elements = self.find_elements_by_xpath(path)
+            if elements:
+                other_elements_pre.extend(elements)
+
+        for ele in other_elements_pre:
+            try:
+                dompath = self.get_dompath(ele)
+                other_elements_dom.append(dompath)
+                other_elements.append(ele)
+                self._REFS[id(ele)] = (
+                self.find_element, (), {"by": By.XPATH, "value": dompath, "timeout": 3, "visible": False})
+            except:
+                continue
+
+        images = []
+        images_dom = []
+
+        for ele in image_elements:
+            img, dompath = ele
+            images.append(img)
+            images_dom.append(dompath)
+            self._REFS[id(img)] = (
+            self.find_element, (), {"by": By.XPATH, "value": dompath, "timeout": 3, "visible": False})
+
+        return (btns, btns_dom), (links, links_dom), (images, images_dom), \
+               (other_elements, other_elements_dom)
+
+    def get_location(self, element):
+        try:
+            loc = self._invoke(self.execute_script, 'return get_loc(arguments[0]);', element, webelement=element)
+            return loc
+        except StaleElementReferenceException as e:
+            return [0, 0, 0, 0]
+
+    # Get element text
+    def get_text(self, element):
+        try:
+            text = self._invoke(self.execute_script, 'return arguments[0].innerText;', element, webelement=element)
+            return text
+        except StaleElementReferenceException as e:
+            return ''
+
+    # Get element's attribute
+    def get_attribute(self, element, attribute):
+        return self._invoke(self._get_attribute, element, attribute, webelement=element)
+
+    def _get_attribute(self, element, attribute):
+        try:
+            attribute = element.get_attribute(attribute)
+            return attribute
+        except StaleElementReferenceException:
+            return ''
+
+    '''Perform action'''
+    def move_to_element(self, element):
+        return self._invoke(self._move_to_element, element, webelement=element)
+
+    def _move_to_element(self, element):
+        ActionChains(self).move_to_element(element).perform()
+        return True
+
+    def click(self, element):
+        return self._invoke(self._click, element, webelement=element)
+
+    def _click(self, element):
+        ActionChains(self).move_to_element(element).click().perform()
+        return True
+
+    # Scroll to top of the page
+    def scroll_to_top(self):
+        try:
+            self.execute_script("window.scrollTo(0, 0);")
+            return True
+        except Exception as e:
+            return False
+
+
+
+
 '''Validate the domain'''
 def is_valid_domain(domain: str) -> bool:
     '''
@@ -167,7 +544,9 @@ def is_alive_domain(domain: str, proxies: Optional[Dict]=None) -> bool:
     ct_limit = 0
     while ct_limit < 3:
         try:
-            response = requests.get('https://' + domain, timeout=60, proxies=proxies)
+            response = requests.head('https://' + domain, timeout=10, proxies=proxies)  # Reduced timeout and used HEAD
+            PhishLLMLogger.spit(f'Status code {response.status_code}', caller_prefix=PhishLLMLogger._caller_prefix,
+                                debug=True)
             if response.status_code < 400:
                 PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
                 return True
@@ -275,7 +654,7 @@ def get_images(image_urls: List[str], proxies: Optional[Dict]=None) -> List[Imag
     return images
 
 '''Webdriver element clicking'''
-def page_transition(driver: XDriver, dom: str, save_html_path: str, save_shot_path: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+def page_transition(driver: CustomWebDriver, dom: str, save_html_path: str, save_shot_path: str) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
     '''
         Click an element and save the updated screenshot and HTML
         :param driver:
@@ -292,25 +671,28 @@ def page_transition(driver: XDriver, dom: str, save_html_path: str, save_shot_pa
             except:
                 pass
             driver.move_to_element(element[0])
+            etext = driver.get_text(element[0])
+            if (not etext) or len(etext) == 0:
+                etext = driver.get_attribute(element[0], "value")
             driver.click(element[0])
             time.sleep(7)  # fixme: must allow some loading time here, dynapd is slow
-        current_url = driver.current_url()
+        current_url = driver.current_url
     except Exception as e:
         PhishLLMLogger.spit('Exception {} when clicking the login button'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
-        return None, None, None
+        return None, None, None, None
 
     try:
         driver.save_screenshot(save_shot_path)
         PhishLLMLogger.spit('CRP transition is successful! New screenshot has been saved', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
         with open(save_html_path, "w", encoding='utf-8') as f:
-            f.write(driver.page_source())
-        return current_url, save_html_path, save_shot_path
+            f.write(driver.page_source)
+        return etext, current_url, save_html_path, save_shot_path
     except Exception as e:
         PhishLLMLogger.spit('Exception {} when saving the new screenshot'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
-        return None, None, None
+        return None, None, None, None
 
 
-def get_screenshot_elements(phishintention_cls: PhishIntentionWrapper, driver: XDriver) -> List[int]:
+def get_screenshot_elements(phishintention_cls: PhishIntentionWrapper, driver: CustomWebDriver) -> List[int]:
     pred_boxes, pred_classes = phishintention_cls.return_all_bboxes(driver.get_screenshot_encoding())
     if pred_boxes is None:
         screenshot_elements = []
@@ -318,7 +700,7 @@ def get_screenshot_elements(phishintention_cls: PhishIntentionWrapper, driver: X
         screenshot_elements = pred_classes.numpy().tolist()
     return screenshot_elements
 
-def has_page_content_changed(phishintention_cls: PhishIntentionWrapper, driver: XDriver, prev_screenshot_elements: List[int]) -> bool:
+def has_page_content_changed(phishintention_cls: PhishIntentionWrapper, driver: CustomWebDriver, prev_screenshot_elements: List[int]) -> bool:
     screenshot_elements = get_screenshot_elements(phishintention_cls, driver)
     bincount_prev_elements = np.bincount(prev_screenshot_elements)
     bincount_curr_elements = np.bincount(screenshot_elements)
@@ -331,4 +713,7 @@ def has_page_content_changed(phishintention_cls: PhishIntentionWrapper, driver: 
     else:
         PhishLLMLogger.spit(f"Webpage content didn't change", caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
         return False
+
+
+
 

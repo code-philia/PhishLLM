@@ -129,8 +129,9 @@ const getInference = () => {
   const showMessage = async (isPrompt, msg) => {
     var inferenceNode = document.createElement('div');
     var color = isPrompt ? PROMPT_COLOR : RESPONSE_COLOR;
+    var chat_caption = isPrompt ? 'Prompt' : 'Response'
     
-    inferenceNode.innerHTML = `<hgroup><kbd style='background-color: ${color};'>Prompt</kbd><div id=msg-${eventNumber}></div></hgroup><hr />`;
+    inferenceNode.innerHTML = `<hgroup><kbd style='background-color: ${color};'>${chat_caption}</kbd><div id=msg-${eventNumber}></div></hgroup><hr />`;
     inferenceLogs.appendChild(inferenceNode);
     scrollIntoView(inferenceResult);
 
@@ -188,5 +189,6 @@ const getInference = () => {
     scrollIntoView(inferenceFail);
     eventSource.close();
   };
+
 }
 
