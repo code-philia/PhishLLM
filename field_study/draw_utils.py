@@ -401,6 +401,7 @@ class CampaignAnalysis:
         # Offset variable
         offset = 0
         offset_increment = 0.02  # You can adjust this value
+        campaign_period = []
 
         # Plot Time Series for Each Cluster
         for i, cluster in enumerate(sorted_clusters):
@@ -435,7 +436,9 @@ class CampaignAnalysis:
                 color = next(colors)
                 trimmed_indices = [all_dates.index(date) for date in trimmed_dates]
                 plt.plot(trimmed_indices, trimmed_counts, marker='o', color=color, label=f'Target = {targets[0]}', linewidth=2, markersize=8)
+                campaign_period.append(last_increase_index - first_increase_index + 1)
 
+        print('Average campaign period: ', np.mean(campaign_period))
         # Configure Plot Aesthetics
         plt.xticks(range(len(all_dates)), all_dates, rotation=45, fontsize=15)
         plt.yticks(np.arange(0, 6, 1), fontsize=15)
@@ -506,6 +509,7 @@ if __name__ == '__main__':
     clusters_path = campaign.cluster_shot_representations(shot_path_list, brands)
     campaign.visualize_campaign(clusters_path)
 
+    print('Num of phishing using the Western Digital MyCloud service = ', np.sum(['remotewd.com' in x for x in domains]))
 
 # [('./datasets/phishing_TP_examples/2023-08-12/luka.sui.ducoccho1.click/shot.png', '2023-08-12', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-15/webfb.anhlongvedithoi.click/shot.png', '2023-08-15', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-09/www.lf.wuangu1.click/shot.png', '2023-08-09', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-13/zuk.pergugu.click/shot.png', '2023-08-13', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-21/ca.quynhquynh1.click/shot.png', '2023-08-21', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-08/login-france.xuanbac.click/shot.png', '2023-08-08', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-08/login-usa.xuanbac.click/shot.png', '2023-08-08', 'facebook.com')]
 

@@ -8,6 +8,8 @@ from datetime import datetime
 from flask import Flask, Response, request, session, jsonify, render_template
 from flask_cors import CORS
 from flask_session import Session
+from selenium import webdriver
+from seleniumwire.webdriver import ChromeOptions
 
 from server.announcer import Announcer
 from model_chain.test_llm import *
@@ -39,8 +41,13 @@ with open('./param_dict.yaml') as file:
 
 # PhishLLM
 phishintention_cls = PhishIntentionWrapper()
-llm_cls = TestLLM(phishintention_cls, param_dict=param_dict)
+llm_cls = TestLLM(phishintention_cls, param_dict=param_dict,
+                  proxies={"http": "http://127.0.0.1:7890",
+                           "https": "http://127.0.0.1:7890",
+                           }
+                  ) # todo
 openai.api_key = os.getenv("OPENAI_API_KEY")
+openai.proxy = "http://127.0.0.1:7890" # # todo
 
 @app.route("/")
 def interface():
@@ -58,10 +65,12 @@ def crawl():
     success = False
 
     try:
-        driver.get(url, click_popup=True, allow_redirections=False)
+        driver.delete_all_cookies()
+        driver.get(url)
+        time.sleep(3) # wait for the page to be fully loaded
         success = driver.save_screenshot(screenshot_path)
         with open(html_path, "w") as f:
-            f.write(driver.page_source())
+            f.write(driver.page_source)
         driver.quit()
     except:
         driver.quit()
@@ -103,8 +112,7 @@ def listen():
 
 def get_xdriver():
     timeout_time = 60
-    XDriver.set_headless()
-    driver = XDriver.boot(chrome=True)
+    driver = CustomWebDriver.boot()
     driver.set_script_timeout(timeout_time/2)
     driver.set_page_load_timeout(timeout_time)
     return driver
@@ -119,7 +127,6 @@ def get_inference(url, screenshot_path, html_path, announcer):
         screenshot_path,
         html_path,
         driver,
-        limit=3,
         brand_recognition_do_validation=False,
         announcer=announcer
     )
