@@ -156,7 +156,7 @@ const getInference = () => {
       (function animate() {
         if (chars.length > 0) {
           element.innerHTML += chars.shift();
-          var running = setTimeout(animate, 20);
+          var running = setTimeout(animate, 10);
         } else {
           clearTimeout(running);
           resolve();
