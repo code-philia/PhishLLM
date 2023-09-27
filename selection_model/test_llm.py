@@ -11,7 +11,7 @@ from transformers import GPT2TokenizerFast
 import os
 import openai
 from selection_model.dataloader import *
-os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read()
+os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key2.txt').read()
 
 def test(result_file):
     correct = 0
@@ -25,6 +25,7 @@ def test(result_file):
     pbar = tqdm(result_lines, leave=False)
     for line in pbar:
         data = line.strip().split('\t')
+        print(data)
         url, gt, pred, time = data
 
         pred_pos += float('A.' in pred)
@@ -56,9 +57,12 @@ if __name__ == '__main__':
     dataset = ShotDataset(annot_path='./datasets/alexa_screenshots.txt')
     print(len(dataset))
     model = "gpt-3.5-turbo-16k"
-    result_file = './datasets/alexa_shot_testllm2.txt'
+    # result_file = './datasets/alexa_shot_testllm2.txt'
+    result_file = './datasets/alexa_shot_testllm_wo_cot.txt'
 
     for it in tqdm(range(len(dataset))):
+        # if it <= 1000:
+        #     continue
         start_time = time.time()
 
         if os.path.exists(result_file) and dataset.urls[it] in open(result_file).read():
@@ -66,7 +70,9 @@ if __name__ == '__main__':
         url, gt, html_text = dataset.__getitem__(it, True)
         question = question_template(html_text)
 
-        with open('./selection_model/prompt_defense.json', 'rb') as f:
+        # with open('./selection_model/prompt.json', 'rb') as f:
+        #     prompt = json.load(f)
+        with open('./selection_model/prompt_wo_cot.json', 'rb') as f:
             prompt = json.load(f)
         new_prompt = prompt
         new_prompt.append(question)
@@ -84,7 +90,6 @@ if __name__ == '__main__':
                 inference_done = True
             except Exception as e:
                 print(f"Error was: {e}")
-                # new_prompt = new_prompt[:65540]
                 new_prompt[-1]['content'] = new_prompt[-1]['content'][:len(new_prompt[-1]['content']) // 2]
                 time.sleep(10)
         total_time = time.time() - start_time
@@ -96,5 +101,5 @@ if __name__ == '__main__':
             f.write(url+'\t'+gt+'\t'+answer+'\t'+str(total_time)+'\n')
 
     test(result_file) # test classification acc: 0.9532414727806641, test precision: 0.9062499999921333 test recall: 0.9238938053015585
-
+    # without cot test classification acc: 0.929749265868534, test precision: 0.9004830917787394 test recall: 0.8247787610546481 Median runtime 11.03548264503479, Mean runtime 26.496140852937426
 

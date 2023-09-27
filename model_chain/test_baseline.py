@@ -1,6 +1,5 @@
 
 from xdriver.xutils.PhishIntentionWrapper import PhishIntentionWrapper
-from xdriver.XDriver import XDriver
 import time
 import os
 import pandas as pd

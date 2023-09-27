@@ -10,9 +10,9 @@ from flask_cors import CORS
 from flask_session import Session
 from selenium import webdriver
 from seleniumwire.webdriver import ChromeOptions
-
 from server.announcer import Announcer
 from model_chain.test_llm import *
+# os.environ['proxy_url'] = "http://127.0.0.1:7890"
 
 class Config:
     CURRENT_DIR = os.path.dirname(__file__)
@@ -21,6 +21,7 @@ class Config:
     PARAM_PATH = os.path.join(CURRENT_DIR, "../param_dict.yaml")
     SESSION_TYPE = "filesystem"
     SESSION_PERMANENT = False
+    TIMEOUT_TIME = 60
 
 # Initialize server and PhishLLM
 app = Flask(__name__)
@@ -40,14 +41,15 @@ with open('./param_dict.yaml') as file:
     param_dict = yaml.load(file, Loader=yaml.FullLoader)
 
 # PhishLLM
+proxy_url = os.environ.get('proxy_url', None)
 phishintention_cls = PhishIntentionWrapper()
 llm_cls = TestLLM(phishintention_cls, param_dict=param_dict,
-                  proxies={"http": "http://127.0.0.1:7890",
-                           "https": "http://127.0.0.1:7890",
+                  proxies={"http": proxy_url,
+                           "https": proxy_url,
                            }
                   ) # todo
 openai.api_key = os.getenv("OPENAI_API_KEY")
-openai.proxy = "http://127.0.0.1:7890" # # todo
+openai.proxy = proxy_url
 
 @app.route("/")
 def interface():
@@ -111,8 +113,8 @@ def listen():
     return Response(stream(url, screenshot_path, html_path), mimetype='text/event-stream')
 
 def get_xdriver():
-    timeout_time = 60
-    driver = CustomWebDriver.boot()
+    timeout_time = Config.TIMEOUT_TIME  # Moved to Config class
+    driver = CustomWebDriver.boot(proxy_server=proxy_url)  # Using the proxy_url variable
     driver.set_script_timeout(timeout_time/2)
     driver.set_page_load_timeout(timeout_time)
     return driver
