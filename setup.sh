@@ -62,4 +62,5 @@ fi
 # Download the ranking model
 mkdir checkpoints
 cd checkpoints
-curl -L "https://huggingface.co/Kelsey98/ranking_model/download/resolve/main/epoch4_model.pt" -o "epoch4_model.pt"
+pip install gdown
+gdown --id 1bpy-SRDOkL96j9r3ErBd7L5mDUdLAWaU
