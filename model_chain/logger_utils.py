@@ -1,10 +1,16 @@
-from xdriver.xutils.Logger import TxtColors
 import logging
 import re
 
+class TxtColors:
+	OK = '\033[92m'
+	DEBUG = '\033[94m'
+	WARNING = "\033[93m"
+	FATAL = '\033[91m'
+	EXCEPTION = '\033[100m'
+	ENDC = '\033[0m'
+
 '''Logging Utils'''
 class PhishLLMLogger():
-
     _caller_prefix = "PhishLLMLogger"
     _verbose = True
     _logfile = None

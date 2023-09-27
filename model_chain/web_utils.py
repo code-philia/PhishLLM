@@ -1,5 +1,4 @@
 import re
-from xdriver.xutils.Logger import Logger
 import numpy as np
 import cv2
 import requests
@@ -7,13 +6,10 @@ import time
 from PIL import Image
 import io
 from concurrent.futures import ThreadPoolExecutor
-from selenium import webdriver
-from selenium.common.exceptions import WebDriverException
 import base64
 from webdriver_manager.chrome import ChromeDriverManager
 from typing import *
 from model_chain.logger_utils import PhishLLMLogger
-from xdriver.xutils.PhishIntentionWrapper import PhishIntentionWrapper
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import *
@@ -22,6 +18,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+from model_chain.PhishIntentionWrapper import PhishIntentionWrapper
 import json
 
 class WebUtil():
@@ -113,7 +110,7 @@ class WebUtil():
             sorted_link_by_likelihood = links[sorted_index]
             driver.click(sorted_link_by_likelihood[0])
             time.sleep(2)
-            Logger.spit('After clicking URL={}'.format(driver.current_url()), debug=True)
+            print('After clicking URL={}'.format(driver.current_url()), debug=True)
             ct += 1
             if ct >= 10:
                 hang = True
@@ -155,6 +152,7 @@ class WebUtil():
 class CustomWebDriver(webdriver.Chrome):
     _MAX_RETRIES = 3
     _last_url = 'https://google.com'
+    _forbidden_suffixes = r"\.(mp3|wav|wma|ogg|mkv|zip|tar|xz|rar|z|deb|bin|iso|csv|tsv|dat|txt|css|log|sql|xml|sql|mdb|apk|bat|bin|exe|jar|wsf|fnt|fon|otf|ttf|ai|bmp|gif|ico|jp(e)?g|png|ps|psd|svg|tif|tiff|cer|rss|key|odp|pps|ppt|pptx|c|class|cpp|cs|h|java|sh|swift|vb|odf|xlr|xls|xlsx|bak|cab|cfg|cpl|cur|dll|dmp|drv|icns|ini|lnk|msi|sys|tmp|3g2|3gp|avi|flv|h264|m4v|mov|mp4|mp(e)?g|rm|swf|vob|wmv|doc(x)?|odt|rtf|tex|txt|wks|wps|wpd)$"
 
     def __init__(self, proxy_server=None, *args, **kwargs):
         chrome_options = ChromeOptions()
@@ -322,6 +320,19 @@ class CustomWebDriver(webdriver.Chrome):
     def get_screenshot_encoding(self):
         return self._invoke(super(CustomWebDriver, self).get_screenshot_as_base64)
 
+    def get_page_text(self):
+        try:
+            body = self.find_element_by_tag_name('html').text
+            return body
+        except:
+            return ''
+
+    def current_url(self):
+        return self._invoke(self._current_url)
+
+    def _current_url(self):
+        return super(CustomWebDriver, self).current_url
+
     '''Find elements'''
 
     def _webelement_find_element_by(self, element, by=By.ID, value=None):
@@ -395,6 +406,19 @@ class CustomWebDriver(webdriver.Chrome):
             self._REFS[id(button)] = (self.find_element, (), {"by": By.XPATH, "value": button_dompath, "timeout": 3, "visible": False})
 
         return interested_buttons, interested_buttons_dom
+
+    def get_all_links_orig(self):
+        ret = self._invoke(self.execute_script, "return get_all_links();")
+        interested_links = []
+        for link_ele in ret:
+            link, link_dompath, link_source = link_ele
+            if re.search(CustomWebDriver._forbidden_suffixes, link_source, re.IGNORECASE):
+                continue
+            if link not in interested_links:
+                interested_links.append([link, link_source])
+                self._REFS[id(link)] = (self.find_element, (), {"by": By.XPATH, "value": link_dompath, "timeout": 3, "visible": False})
+
+        return interested_links
 
     def get_all_links(self):
         ret = self._invoke(self.execute_script, "return get_all_links();")

@@ -12,6 +12,10 @@ from selenium import webdriver
 from seleniumwire.webdriver import ChromeOptions
 from server.announcer import Announcer
 from model_chain.test_llm import *
+from gevent.pywsgi import WSGIServer
+from apscheduler.schedulers.background import BackgroundScheduler
+import shutil
+
 # os.environ['proxy_url'] = "http://127.0.0.1:7890"
 
 class Config:
@@ -32,6 +36,20 @@ Session(app)
 
 os.makedirs(Config.LOGS_DIR, exist_ok=True)
 os.makedirs(Config.REQUESTS_DIR, exist_ok=True)
+
+
+def clear_directories():
+    if os.path.exists(Config.LOGS_DIR):
+        shutil.rmtree(Config.LOGS_DIR)
+    if os.path.exists(Config.REQUESTS_DIR):
+        shutil.rmtree(Config.REQUESTS_DIR)
+    os.makedirs(Config.LOGS_DIR, exist_ok=True)
+    os.makedirs(Config.REQUESTS_DIR, exist_ok=True)
+
+# Initialize scheduler
+scheduler = BackgroundScheduler()
+scheduler.add_job(func=clear_directories, trigger="interval", days=1)  # clear every day
+scheduler.start()
 
 PhishLLMLogger.set_debug_on()
 PhishLLMLogger.set_logfile(os.path.join(Config.LOGS_DIR, f"{datetime.now().strftime('%Y-%d-%m_%H%M%S')}.log"))
@@ -69,7 +87,7 @@ def crawl():
     try:
         driver.delete_all_cookies()
         driver.get(url)
-        time.sleep(3) # wait for the page to be fully loaded
+        time.sleep(1.5) # wait for the page to be fully loaded
         success = driver.save_screenshot(screenshot_path)
         with open(html_path, "w") as f:
             f.write(driver.page_source)
@@ -135,4 +153,6 @@ def get_inference(url, screenshot_path, html_path, announcer):
     driver.quit()
 
 if __name__ == "__main__":
-    app.run("0.0.0.0", port=6789, debug=True)
+
+    http_server = WSGIServer(("0.0.0.0", 6789), app)
+    http_server.serve_forever()
