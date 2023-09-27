@@ -25,3 +25,4 @@ gspread==5.10.0
 gspread-dataframe==3.0.8
 flask_cors
 flask_session
+transformers==4.25
