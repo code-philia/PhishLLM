@@ -11,8 +11,6 @@ from paddleocr import PaddleOCR
 import math
 import os
 from lxml import html
-from xdriver.xutils.PhishIntentionWrapper import PhishIntentionWrapper
-from xdriver.xutils.Logger import Logger
 from field_study.draw_utils import draw_annotated_image_box
 from typing import List, Tuple, Set, Dict, Optional, Union
 from lavis.models import load_model_and_preprocess
@@ -34,7 +32,7 @@ class TestLLM():
         self.clip_model, self.clip_preprocess = clip.load(param_dict['rank']['model_name'], device=self.device)
         if self.device == "cpu": # https://github.com/openai/CLIP/issues/57
             self.clip_model.float()
-        state_dict = torch.load(param_dict['rank']['checkpoint_path'])
+        state_dict = torch.load(param_dict['rank']['checkpoint_path'], map_location=self.device)
         self.clip_model.load_state_dict(state_dict)
 
         ## Image Captioning model
@@ -596,89 +594,90 @@ class TestLLM():
 
 
 
-# if __name__ == '__main__':
-#
-#     # load hyperparameters
-#     with open('./param_dict.yaml') as file:
-#         param_dict = yaml.load(file, Loader=yaml.FullLoader)
-#
-#     phishintention_cls = PhishIntentionWrapper()
-#     llm_cls = TestLLM(phishintention_cls, param_dict=param_dict)
-#     openai.api_key = os.getenv("OPENAI_API_KEY")
-#     # openai.proxy = "http://127.0.0.1:7890" # proxy
-#     web_func = WebUtil()
-#
-#     sleep_time = 3; timeout_time = 60
-#     # XDriver.set_headless()
-#     driver = XDriver.boot(chrome=True)
-#     driver.set_script_timeout(timeout_time/2)
-#     driver.set_page_load_timeout(timeout_time)
-#     time.sleep(sleep_time)  # fixme: you
-#     Logger.set_debug_on()
-#
-#     all_links = [x.strip().split(',')[-2] for x in open('./datasets/Brand_Labelled_130323.csv').readlines()[1:]]
-#
-#     root_folder = './datasets/dynapd'
-#     result = './datasets/dynapd_llm.txt'
-#     os.makedirs(root_folder, exist_ok=True)
-#
-#     for ct, target in enumerate(all_links):
-#         # if ct <= 5470:
-#         #     continue
-#         hash = target.split('/')[3]
-#         target_folder = os.path.join(root_folder, hash)
-#         os.makedirs(target_folder, exist_ok=True)
-#         if os.path.exists(result) and hash in open(result).read():
-#             continue
-#         shot_path = os.path.join(target_folder, 'shot.png')
-#         html_path = os.path.join(target_folder, 'index.html')
-#         URL = f'http://127.0.0.5/{hash}'
-#
-#         if os.path.exists(shot_path):
-#             try:
-#                 driver.get(URL, click_popup=True, allow_redirections=False)
-#                 time.sleep(2)
-#                 Logger.spit(f'Target URL = {URL}', caller_prefix=XDriver._caller_prefix, debug=True)
-#                 page_text = driver.get_page_text()
-#                 error_free = web_func.page_error_checking(driver)
-#                 if not error_free:
-#                     Logger.spit('Error page or White page', caller_prefix=XDriver._caller_prefix, debug=True)
-#                     continue
-#
-#                 if "Index of" in page_text:
-#                     # skip error URLs
-#                     error_free = web_func.page_interaction_checking(driver)
-#                     if not error_free:
-#                         Logger.spit('Error page or White page', caller_prefix=XDriver._caller_prefix,
-#                                     debug=True)
-#                         continue
-#
-#             except Exception as e:
-#                 Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
-#                 continue
-#
-#             target = driver.current_url()
-#             logo_box, reference_logo = llm_cls.detect_logo(shot_path)
-#             pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, _ = llm_cls.test(target,
-#                                                                                                     reference_logo,
-#                                                                                                     logo_box,
-#                                                                                                     shot_path,
-#                                                                                                     html_path,
-#                                                                                                     driver,
-#                                                                                                     limit=3,
-#                                                                                                     brand_recognition_do_validation=False
-#                                                                                                     )
-#             with open(result, 'a+') as f:
-#                 f.write(hash+'\t'+str(pred)+'\t'+str(brand)+'\t'+str(brand_recog_time)+'\t'+str(crp_prediction_time)+'\t'+str(crp_transition_time)+'\n')
-#
-#     driver.quit()
-#
-#     # 3.236595869064331
-#     # 0.3363449573516845
-#     # 0.3751556873321533
-#     # Total = 6075, LLM recall = 0.7501234567901235,
-#     # Phishpedia recall = 0.4388477366255144, PhishIntention recall = 0.33925925925925926
-#     # LLM precision = 1.0, Phishpedia precision = 0.9077289751447055, PhishIntention precision = 0.9795627376425855,
+if __name__ == '__main__':
+
+    # load hyperparameters
+    with open('./param_dict.yaml') as file:
+        param_dict = yaml.load(file, Loader=yaml.FullLoader)
+
+    phishintention_cls = PhishIntentionWrapper()
+    llm_cls = TestLLM(phishintention_cls,
+                      param_dict=param_dict,
+                      proxies={"http": "http://127.0.0.1:7890",
+                               "https": "http://127.0.0.1:7890",
+                               }
+                      )
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+    # openai.proxy = "http://127.0.0.1:7890" # proxy
+    web_func = WebUtil()
+
+    sleep_time = 3; timeout_time = 60
+    driver = CustomWebDriver.boot(proxy_server="http://127.0.0.1:7890")  # Using the proxy_url variable
+    driver.set_script_timeout(timeout_time / 2)
+    driver.set_page_load_timeout(timeout_time)
+
+    all_links = [x.strip().split(',')[-2] for x in open('./datasets/Brand_Labelled_130323.csv').readlines()[1:]]
+
+    root_folder = './datasets/dynapd'
+    result = './datasets/dynapd_llm.txt'
+    os.makedirs(root_folder, exist_ok=True)
+
+    for ct, target in enumerate(all_links):
+        # if ct <= 5470:
+        #     continue
+        hash = target.split('/')[3]
+        target_folder = os.path.join(root_folder, hash)
+        os.makedirs(target_folder, exist_ok=True)
+        if os.path.exists(result) and hash in open(result).read():
+            continue
+        shot_path = os.path.join(target_folder, 'shot.png')
+        html_path = os.path.join(target_folder, 'index.html')
+        URL = f'http://127.0.0.5/{hash}'
+
+        if os.path.exists(shot_path):
+            try:
+                driver.get(URL, click_popup=True, allow_redirections=False)
+                time.sleep(2)
+                print(f'Target URL = {URL}')
+                page_text = driver.get_page_text()
+                error_free = web_func.page_error_checking(driver)
+                if not error_free:
+                    print('Error page or White page')
+                    continue
+
+                if "Index of" in page_text:
+                    # skip error URLs
+                    error_free = web_func.page_interaction_checking(driver)
+                    if not error_free:
+                        print('Error page or White page')
+                        continue
+
+            except Exception as e:
+                print('Exception {}'.format(e))
+                continue
+
+            target = driver.current_url()
+            logo_box, reference_logo = llm_cls.detect_logo(shot_path)
+            pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, _ = llm_cls.test(target,
+                                                                                                    reference_logo,
+                                                                                                    logo_box,
+                                                                                                    shot_path,
+                                                                                                    html_path,
+                                                                                                    driver,
+                                                                                                    limit=3,
+                                                                                                    brand_recognition_do_validation=False
+                                                                                                    )
+            with open(result, 'a+') as f:
+                f.write(hash+'\t'+str(pred)+'\t'+str(brand)+'\t'+str(brand_recog_time)+'\t'+str(crp_prediction_time)+'\t'+str(crp_transition_time)+'\n')
+
+    driver.quit()
+
+    # 3.236595869064331
+    # 0.3363449573516845
+    # 0.3751556873321533
+    # Total = 6075, LLM recall = 0.7501234567901235,
+    # Phishpedia recall = 0.4388477366255144, PhishIntention recall = 0.33925925925925926
+    # LLM precision = 1.0, Phishpedia precision = 0.9077289751447055, PhishIntention precision = 0.9795627376425855,
 
 
 

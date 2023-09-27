@@ -14,8 +14,8 @@ import http.client
 import math
 import ast
 import json
-os.environ['ipinfo_token'] = open('./datasets/ipinfo_token.txt').read()
-os.environ['abstract_api'] = open('./datasets/abstract_api.txt').read()
+# os.environ['ipinfo_token'] = open('./datasets/ipinfo_token.txt').read()
+# os.environ['abstract_api'] = open('./datasets/abstract_api.txt').read()
 
 class gwrapper_monitor():
     def __init__(self):

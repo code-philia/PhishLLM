@@ -2,9 +2,7 @@
 from brand_recognition.test_llm import *
 import idna
 import pandas as pd
-from model_chain.web_utils import WebUtil, is_valid_domain
-from xdriver.xutils.Logger import Logger
-from xdriver.XDriver import XDriver
+from model_chain.web_utils import WebUtil, is_valid_domain, CustomWebDriver
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read()
 
 def test(result_file):
@@ -110,12 +108,10 @@ if __name__ == '__main__':
     web_func = WebUtil()
 
     sleep_time = 3; timeout_time = 60
-    # XDriver.set_headless()
-    driver = XDriver.boot(chrome=True)
-    driver.set_script_timeout(timeout_time/2)
+    driver = CustomWebDriver.boot(proxy_server="http://127.0.0.1:7890")  # Using the proxy_url variable
+    driver.set_script_timeout(timeout_time / 2)
     driver.set_page_load_timeout(timeout_time)
     time.sleep(sleep_time)
-    Logger.set_debug_on()
 
     for hash in tqdm(all_folders):
         target_folder = os.path.join(root_folder, hash)
@@ -174,19 +170,18 @@ if __name__ == '__main__':
                 try:
                     driver.get(URL, click_popup=True, allow_redirections=False)
                     time.sleep(5)
-                    Logger.spit(f'Target URL = {URL}', caller_prefix=XDriver._caller_prefix, debug=True)
+                    print(f'Target URL = {URL}')
                     page_text = driver.get_page_text()
                     error_free = web_func.page_error_checking(driver)
                     if not error_free:
-                        Logger.spit('Error page or White page', caller_prefix=XDriver._caller_prefix, debug=True)
+                        print('Error page or White page')
                         continue
 
                     if "Index of" in page_text:
                         # skip error URLs
                         error_free = web_func.page_interaction_checking(driver)
                         if not error_free:
-                            Logger.spit('Error page or White page', caller_prefix=XDriver._caller_prefix,
-                                        debug=True)
+                            print('Error page or White page')
                             continue
                         target = driver.current_url()
 
@@ -195,7 +190,7 @@ if __name__ == '__main__':
                     screenshot_img = Image.open(io.BytesIO(base64.b64decode(screenshot_encoding)))
                     screenshot_img.save(shot_path)
                 except Exception as e:
-                    Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
+                    print('Exception {}'.format(e))
                     continue
 
                 try:
@@ -203,7 +198,7 @@ if __name__ == '__main__':
                     with open(html_path, 'w+', encoding='utf-8') as f:
                         f.write(driver.page_source())
                 except Exception as e:
-                    Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
+                    print('Exception {}'.format(e))
                     pass
 
                 # report logo

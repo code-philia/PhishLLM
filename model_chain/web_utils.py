@@ -155,39 +155,25 @@ class WebUtil():
 class CustomWebDriver(webdriver.Chrome):
     _MAX_RETRIES = 3
     _last_url = 'https://google.com'
-    _CHROME_OPTIONS = ChromeOptions()
-    _CHROME_OPTIONS.add_argument("--no-sandbox")
-    _CHROME_OPTIONS.add_argument("--disable-dev-shm-usage")
-    _CHROME_OPTIONS.add_argument('--disable-gpu')
-    _CHROME_OPTIONS.add_argument("--window-size=1920,1080")
-    _CHROME_OPTIONS.add_argument("--headless")
-    _CHROME_OPTIONS.add_argument(
-        "user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36")
-    _CHROME_OPTIONS.add_argument("--disable-features=IsolateOrigins,site-per-process")
-    _CHROME_OPTIONS.add_argument("--incognito")
-    _CHROME_OPTIONS.add_argument("--disable-extensions")
-    _CHROME_OPTIONS.add_argument("--ignore-certificate-errors")
-    _CHROME_OPTIONS.add_argument("--enable-tcp-fast-open")
-    _CHROME_OPTIONS.add_argument("--disable-infobars")
-    _CHROME_OPTIONS.add_argument("--disable-notifications")
-    _CHROME_OPTIONS.add_argument("--disable-application-cache")
-    _CHROME_OPTIONS.add_argument("--disk-cache-dir=null")
-    _CHROME_OPTIONS.add_argument("--mute-audio")
-    _CHROME_OPTIONS.add_argument("--disable-sync")
-    _CHROME_OPTIONS.add_argument("--disable-blink-features=AutomationControlled")
-    _CHROME_OPTIONS.add_argument("--disable-local-storage")  # Disables local storage (includes cookies)
-    _CHROME_OPTIONS.add_argument("--disable-cookies")  # Disables cookies
 
-    _CHROME_OPTIONS.add_argument("--proxy-server=http://127.0.0.1:7890")  # todo
+    def __init__(self, proxy_server=None, *args, **kwargs):
+        chrome_options = ChromeOptions()
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument('--disable-gpu')
+        chrome_options.add_argument("--window-size=1920,1080")
+        chrome_options.add_argument("--headless")
 
-    _CHROME_CAPS = DesiredCapabilities.CHROME
-    _CHROME_CAPS['acceptSslCerts'] = True
-    _CHROME_CAPS['acceptInsecureCerts'] = True
+        if proxy_server:
+            chrome_options.add_argument(f"--proxy-server={proxy_server}")
 
-    def __init__(self, *args, **kwargs):
+        chrome_caps = DesiredCapabilities.CHROME
+        chrome_caps['acceptSslCerts'] = True
+        chrome_caps['acceptInsecureCerts'] = True
+
         super().__init__(ChromeDriverManager().install(),
-                         chrome_options=self._CHROME_OPTIONS,
-                         desired_capabilities=self._CHROME_CAPS)
+                         chrome_options=chrome_options,
+                         desired_capabilities=chrome_caps)
 
         self._RETRIES = kwargs.get("retries", {})
         self._REFS = kwargs.get("refs", {})
@@ -229,8 +215,7 @@ class CustomWebDriver(webdriver.Chrome):
         return exception_str
 
     def enter_retry(self, method, max_retries=10):
-        retries, max_retries = self._RETRIES.get(method, [0,
-                                                          max_retries])  # Necessary so nested `_invokes` of the same method won't reset the retry counter
+        retries, max_retries = self._RETRIES.get(method, [0, max_retries])  # Necessary so nested `_invokes` of the same method won't reset the retry counter
         self._RETRIES[method] = [retries, max_retries]
         if retries <= max_retries:
             return True
@@ -276,7 +261,7 @@ class CustomWebDriver(webdriver.Chrome):
     def _invoke(self, method, *args, **kwargs):
         original_kwargs = dict(kwargs)  # In case we re-_invoke it, we need the original kwargs
         ex = None
-        ret_val = None
+        ret_val = None # used to record whether the run is successful or not
 
         try:
             if kwargs.pop("retry", True):  # By default, retry all methods if possible, otherwise explicitly requested
@@ -296,12 +281,11 @@ class CustomWebDriver(webdriver.Chrome):
                 raise
             self.switch_to.default_content()  # Return to the default handle
             ret_val = False
-        except (InvalidSelectorException) as ex:
-            ret_val = False
-        except (InvalidElementStateException, ElementNotSelectableException, ElementNotVisibleException,
+        except (InvalidSelectorException,
+                InvalidElementStateException,
+                ElementNotSelectableException,
+                ElementNotVisibleException,
                 MoveTargetOutOfBoundsException) as ex:
-            ret_val = False  # No need to retry the operation since these won't change
-        except NoSuchElementException:  ## Experimental ##
             ret_val = False
         except (StaleElementReferenceException, NoSuchElementException) as ex:
             # Check _REFS for given WebElement.
@@ -317,8 +301,7 @@ class CustomWebDriver(webdriver.Chrome):
                 if not self._invoke_exception_handler(self._TimeoutException_handler):
                     raise
                 if method != super(CustomWebDriver, self).get:
-                    self.get(
-                        self._last_url)  # If it was `get`, it will be retried later on. For anything else, we need to manually go back to the last known URL
+                    self.get(self._last_url)  # If it was `get`, it will be retried later on. For anything else, we need to manually go back to the last known URL
                 ret_val = False
             else:
                 raise
@@ -339,7 +322,7 @@ class CustomWebDriver(webdriver.Chrome):
     def get_screenshot_encoding(self):
         return self._invoke(super(CustomWebDriver, self).get_screenshot_as_base64)
 
-    '''Find dom elements'''
+    '''Find elements'''
 
     def _webelement_find_element_by(self, element, by=By.ID, value=None):
         return element.find_element(by=by, value=value)
@@ -359,14 +342,12 @@ class CustomWebDriver(webdriver.Chrome):
                 return None
         ref = id(ret)
         if ret:
-            self._REFS[ref] = (self.find_element, (), {"by": by, "value": value, "timeout": timeout, "visible": visible,
-                                                       "webelement": webelement})
+            self._REFS[ref] = (self.find_element, (), {"by": by, "value": value, "timeout": timeout, "visible": visible, "webelement": webelement})
         return ret
 
     def find_elements(self, by=By.ID, value=None, timeout=0, visible=False, webelement=None, *args, **kwargs):
         if timeout > 0:
-            self.find_element(by=by, value=value, timeout=timeout, visible=visible, webelement=webelement, *args,
-                              **kwargs)
+            self.find_element(by=by, value=value, timeout=timeout, visible=visible, webelement=webelement, *args, **kwargs)
         ret_elements = self._invoke(super(CustomWebDriver, self).find_elements, by=by, value=value, *args,
                                     **kwargs) if webelement is None \
             else self._invoke(self._webelement_find_elements_by, webelement, by=by, value=value, webelement=webelement,
@@ -400,8 +381,7 @@ class CustomWebDriver(webdriver.Chrome):
                                    webelement=element)
         except Exception as e:
             raise  # Debug debug Debug
-        return "//html%s" % "/".join(
-            [part if ":" not in part else "*" for part in dompath.split("/")]) if dompath else dompath
+        return "//html%s" % "/".join([part if ":" not in part else "*" for part in dompath.split("/")]) if dompath else dompath
 
     def get_all_buttons(self):
         ret = self._invoke(self.execute_script, "return get_all_buttons();")
@@ -412,8 +392,7 @@ class CustomWebDriver(webdriver.Chrome):
             button, button_dompath = button_ele
             interested_buttons.append(button)
             interested_buttons_dom.append(button_dompath)
-            self._REFS[id(button)] = (
-            self.find_element, (), {"by": By.XPATH, "value": button_dompath, "timeout": 3, "visible": False})
+            self._REFS[id(button)] = (self.find_element, (), {"by": By.XPATH, "value": button_dompath, "timeout": 3, "visible": False})
 
         return interested_buttons, interested_buttons_dom
 
@@ -427,48 +406,56 @@ class CustomWebDriver(webdriver.Chrome):
             interested_links.append(link)
             link_doms.append(link_dompath)
             link_sources.append(link_source)
-            self._REFS[id(link)] = (
-            self.find_element, (), {"by": By.XPATH, "value": link_dompath, "timeout": 3, "visible": False})
+            self._REFS[id(link)] = (self.find_element, (), {"by": By.XPATH, "value": link_dompath, "timeout": 3, "visible": False})
 
         return interested_links, link_doms, link_sources
+
+    def get_all_clickable_images(self):
+        ret = self._invoke(self.execute_script, "return get_all_clickable_imgs();")
+        images = []
+        images_dom = []
+
+        for ele in ret:
+            img, dompath = ele
+            images.append(img)
+            images_dom.append(dompath)
+            self._REFS[id(img)] = (self.find_element, (), {"by": By.XPATH, "value": dompath, "timeout": 3, "visible": False})
+
+        return images, images_dom
+
+    def get_all_clickable_leaf_nodes(self):
+        all_leaf_node_xpath = ["//span[not(*)]", "//div[not(*)]",
+                               "//p[not(*)]", "//i[not(*)]"]
+        leaf_elements_pre = []
+        leaf_elements = []
+        leaf_elements_dom = []
+
+        for path in all_leaf_node_xpath:
+            elements = self.find_elements_by_xpath(path)
+            if elements:
+                leaf_elements_pre.extend(elements)
+
+        for ele in leaf_elements_pre:
+            try:
+                dompath = self.get_dompath(ele)
+                leaf_elements_dom.append(dompath)
+                leaf_elements.append(ele)
+                self._REFS[id(ele)] = (self.find_element, (), {"by": By.XPATH, "value": dompath, "timeout": 3, "visible": False})
+            except:
+                continue
+
+        return leaf_elements, leaf_elements_dom
 
     def get_all_clickable_elements(self):
         btns, btns_dom = self.get_all_buttons()
         links, links_dom, _ = self.get_all_links()
-        image_elements = self._invoke(self.execute_script, "return get_all_clickable_imgs();")
-        all_leaf_node_xpath = ["//span[not(*)]", "//div[not(*)]",
-                               "//p[not(*)]", "//i[not(*)]"]
-        other_elements_pre = []
-        other_elements = []
-        other_elements_dom = []
-        for path in all_leaf_node_xpath:
-            elements = self.find_elements_by_xpath(path)
-            if elements:
-                other_elements_pre.extend(elements)
+        images, images_dom = self.get_all_clickable_images()
+        leaf_elements, leaf_elements_dom = self.get_all_clickable_leaf_nodes()
 
-        for ele in other_elements_pre:
-            try:
-                dompath = self.get_dompath(ele)
-                other_elements_dom.append(dompath)
-                other_elements.append(ele)
-                self._REFS[id(ele)] = (
-                self.find_element, (), {"by": By.XPATH, "value": dompath, "timeout": 3, "visible": False})
-            except:
-                continue
+        return (btns, btns_dom), (links, links_dom), \
+               (images, images_dom), (leaf_elements, leaf_elements_dom)
 
-        images = []
-        images_dom = []
-
-        for ele in image_elements:
-            img, dompath = ele
-            images.append(img)
-            images_dom.append(dompath)
-            self._REFS[id(img)] = (
-            self.find_element, (), {"by": By.XPATH, "value": dompath, "timeout": 3, "visible": False})
-
-        return (btns, btns_dom), (links, links_dom), (images, images_dom), \
-               (other_elements, other_elements_dom)
-
+    # Get element location
     def get_location(self, element):
         try:
             loc = self._invoke(self.execute_script, 'return get_loc(arguments[0]);', element, webelement=element)
@@ -495,7 +482,7 @@ class CustomWebDriver(webdriver.Chrome):
         except StaleElementReferenceException:
             return ''
 
-    '''Perform action'''
+    # Perform action on the element
     def move_to_element(self, element):
         return self._invoke(self._move_to_element, element, webelement=element)
 
@@ -517,7 +504,6 @@ class CustomWebDriver(webdriver.Chrome):
             return True
         except Exception as e:
             return False
-
 
 
 

@@ -79,14 +79,12 @@ if __name__ == '__main__':
     model = "gpt-3.5-turbo-16k"
     # result_file = './datasets/alexa_brand_testllm_caption.txt'
     # result_file = './datasets/alexa_brand_testllm_caption_caponly.txt'
-    result_file = './datasets/alexa_brand_testllm_caption_ocronly.txt'
+    # result_file = './datasets/alexa_brand_testllm_caption_ocronly.txt'
     phishintention_cls = PhishIntentionWrapper()
 
     for it in tqdm(range(len(dataset))):
 
-        if os.path.exists(result_file) and dataset.urls[it] in open(result_file).read():
-            continue
-        # if not any([x in dataset.urls[it] for x in ['https://aliyundrive.com']]):
+        # if os.path.exists(result_file) and dataset.urls[it] in open(result_file).read():
         #     continue
         url, _, logo_caption, logo_ocr, html_text, reference_logo = dataset.__getitem__(it)
         print('Logo caption: ', logo_caption)
@@ -94,15 +92,17 @@ if __name__ == '__main__':
         domain = tldextract.extract(url).domain+'.'+tldextract.extract(url).suffix
 
         if len(logo_caption) or len(logo_ocr):
-            industry = ask_industry(model, html_text)
+            # industry = ask_industry(model, html_text)
 
-            # question = question_template_caption_industry(logo_caption, logo_ocr, industry)
+            question = question_template_caption_industry(logo_caption, logo_ocr, '')
             # ablation study
-            question = question_template_caption('', logo_ocr)
+            # question = question_template_caption('', logo_ocr)
             # question = question_template_caption(logo_caption, '')
 
             with open('./brand_recognition/prompt.json', 'rb') as f:
                 prompt = json.load(f)
+            # with open('./brand_recognition/simple_prompt.json', 'rb') as f:
+            #     prompt = json.load(f)
             new_prompt = prompt
             new_prompt.append(question)
 
@@ -162,12 +162,12 @@ if __name__ == '__main__':
         else:
             answer = 'no prediction'
 
-        with open(result_file, 'a+') as f:
-            f.write(url+'\t'+domain+'\t'+answer+'\t'+str(total_time)+'\n')
+        # with open(result_file, 'a+') as f:
+        #     f.write(url+'\t'+domain+'\t'+answer+'\t'+str(total_time)+'\n')
 
     # (.*failure.*\n)|(.*unable.*\n)|(.*not.*\n)|(.*no prediction.*\n)
 
-    test(result_file)
+    # test(result_file)
     # Completeness (% brand recognized) = 0.6548672566371682 Median runtime 0.8912811279296875, Mean runtime 1.384584855650906
     # Caption only Completeness (% brand recognized) = 0.3827433628318584 Median runtime 1.0176382064819336, Mean runtime 1.5962941735587288
     # OCR only Completeness (% brand recognized) = 0.5176991150442478 Median runtime 1.101432204246521, Mean runtime 1.804533622433654

@@ -16,12 +16,9 @@ if __name__ == '__main__':
     web_func = WebUtil()
 
     sleep_time = 3; timeout_time = 60
-    XDriver.set_headless()
-    driver = XDriver.boot(chrome=True)
-    driver.set_script_timeout(timeout_time/2)
+    driver = CustomWebDriver.boot(proxy_server="http://127.0.0.1:7890")  # Using the proxy_url variable
+    driver.set_script_timeout(timeout_time / 2)
     driver.set_page_load_timeout(timeout_time)
-    time.sleep(sleep_time)  # fixme: you
-    Logger.set_debug_on()
 
     root_folder = './datasets/alexa_login_test'
     result = './datasets/alexa7k_wo_validation.txt'
