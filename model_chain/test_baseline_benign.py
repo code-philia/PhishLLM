@@ -9,7 +9,6 @@ if __name__ == '__main__':
     root_folder = './datasets/alexa_login_test'
     # result = './datasets/alexa7k_phishpedia.txt'
     result = './datasets/alexa7k_phishintention.txt'
-    XDriver.set_headless()
 
 
     for ct, target in enumerate(os.listdir(root_folder)):

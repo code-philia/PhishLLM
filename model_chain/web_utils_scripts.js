@@ -91,7 +91,6 @@ var get_element_full_src=function(el){
     return el.outerHTML;
 }
 
-
 var get_all_links = function(){
     var links = document.getElementsByTagName('a');
     returned_links = [];
@@ -99,8 +98,7 @@ var get_all_links = function(){
         source = link.getAttribute("href");
         if (source != null) {
             returned_links.push([link, '//html' + get_dompath(link), source]);
-        }
-        else{
+        } else{
             returned_links.push([link, '//html' + get_dompath(link), "#"]);
         }
     }
