@@ -97,8 +97,12 @@ if __name__ == '__main__':
     '''Move reported phishing into a seperate folder, for labeling'''
     os.makedirs('./datasets/phishing_TP_examples', exist_ok=True)
     start_date = date(2023, 8, 7)
-    today = datetime.today().date()
-    end_date = today + timedelta(days=1)
+    # today = datetime.today().date()
+    # end_date = today + timedelta(days=1)
+    end_date = date(2023, 9, 6)
+    pedia_total = 0
+    intention_total = 0
+    llm_total = 0
     for single_date in daterange(start_date, end_date):
         today_date = single_date.strftime("%Y-%m-%d")
         df_pos = get_pos_site(f'./field_study/results/{today_date}_phishllm.txt')
@@ -109,6 +113,9 @@ if __name__ == '__main__':
             pedia_pos = get_pos_site('./field_study/results/{}_phishpedia.txt'.format(today_date))
             intention_pos = get_pos_site('./field_study/results/{}_phishintention.txt'.format(today_date))
             print(f'Date {today_date} Phishllm # phishing = {len(df_pos)}, Phishpedia # phishing = {len(pedia_pos)}, PhishIntention # phishing = {len(intention_pos)} \n')
+            pedia_total += len(pedia_pos)
+            intention_total += len(intention_pos)
+            llm_total += len(df_pos)
 
         os.makedirs(os.path.join('./datasets/phishing_TP_examples', today_date), exist_ok=True)
         for folder in df_pos_folders:
@@ -119,4 +126,7 @@ if __name__ == '__main__':
                 continue
             except FileNotFoundError:
                 continue
-    print()
+    print(
+        f'Total Phishllm # phishing = {llm_total}, Phishpedia # phishing = {pedia_total}, PhishIntention # phishing = {intention_total} \n')
+    print((llm_total-pedia_total)/pedia_total)
+    print((llm_total-pedia_total)/30)

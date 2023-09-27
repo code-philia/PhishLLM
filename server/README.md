@@ -17,6 +17,12 @@ Overview
 - `AnnouncerEvent.SUCCESS`: PhishLLM has finished analysing, terminates user session
 - `AnnouncerEvent.FAIL`: something went wrong, terminates user session
 
+## Requirements
+```txt
+flask_cors
+flask_session
+```
+
 ## Usage
 Start the server
 ```

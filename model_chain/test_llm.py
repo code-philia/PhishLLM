@@ -19,7 +19,7 @@ from lavis.models import load_model_and_preprocess
 from functools import lru_cache
 import yaml
 from tldextract import tldextract
-os.environ['OPENAI_API_KEY'] = open('/home/xiwen/PhishLLM/datasets/openapi_key2.txt').read()
+os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key2.txt').read()
 os.environ['CURL_CA_BUNDLE'] = ''
 
 
@@ -183,7 +183,7 @@ class TestLLM():
                     )
                     inference_done = True
                 except Exception as e:
-                    Logger.spit('LLM Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, warning=True)
+                    Logger.spit('LLM Exception {}'.format(e), warning=True)
                     prompt[-1]['content'] = prompt[-1]['content'][:len(prompt[-1]['content']) // 2]
                     time.sleep(self.brand_recog_sleep)
 
@@ -210,10 +210,6 @@ class TestLLM():
             :return:
         '''
         company_domain, company_logo = None, None
-        industry = ''
-        if len(ocr_text) and self.get_industry:
-            industry = self.ask_industry(' '.join(ocr_text), announcer)
-
         if reference_logo:
             # generation image caption for logo
             logo_caption = self.generate_logo_caption(reference_logo)
@@ -228,7 +224,11 @@ class TestLLM():
             logo_caption = ''
             logo_ocr = ' '.join(ocr_text)
 
-        announcer.spit(f'Logo caption: {logo_caption}<br>Logo OCR: {logo_ocr}<br>Industry: {industry}', AnnouncerEvent.RESPONSE)
+        industry = ''
+        if len(ocr_text) and self.get_industry:
+            industry = self.ask_industry(' '.join(ocr_text), announcer)
+
+        announcer.spit(f'Recognized Logo caption: {logo_caption}<br>Logo OCR results: {logo_ocr}<br>Industry: {industry}', AnnouncerEvent.RESPONSE)
         PhishLLMLogger.spit(f'Logo caption: {logo_caption}', debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
         PhishLLMLogger.spit(f'Logo OCR: {logo_ocr}', debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
         PhishLLMLogger.spit(f'Industry: {industry}', debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
@@ -259,7 +259,7 @@ class TestLLM():
                     )
                     inference_done = True
                 except Exception as e:
-                    Logger.spit('LLM Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, warning=True)
+                    Logger.spit('LLM Exception {}'.format(e),  warning=True)
                     time.sleep(self.brand_recog_sleep) # retry
 
             answer = ''.join([choice["message"]["content"] for choice in response['choices']])
@@ -341,6 +341,7 @@ class TestLLM():
         inference_done = False
         while not inference_done:
             try:
+                start_time = time.time()
                 response = openai.ChatCompletion.create(
                     model=self.LLM_model,
                     messages=new_prompt,
@@ -349,12 +350,12 @@ class TestLLM():
                 )
                 inference_done = True
             except Exception as e:
-                Logger.spit('LLM Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, warning=True)
+                Logger.spit('LLM Exception {}'.format(e), warning=True)
                 new_prompt[-1]['content'] = new_prompt[-1]['content'][:len(new_prompt[-1]['content']) // 2] # maybe the prompt is too long, cut by half
                 time.sleep(self.crp_sleep)
 
         answer = ''.join([choice["message"]["content"] for choice in response['choices']])
-        msg = f'CRP prediction: {answer}'
+        msg = f'LLM prediction time: {time.time() - start_time}<br>CRP prediction: {answer}'
         announcer.spit(msg, AnnouncerEvent.RESPONSE)
         PhishLLMLogger.spit(msg, debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
         if 'A.' in answer:
@@ -362,8 +363,8 @@ class TestLLM():
         else:
             return False
 
-    def ranking_model(self, url: str, driver: XDriver, ranking_model_refresh_page: bool, announcer: Optional[Announcer]) -> \
-                                Tuple[Union[List, str], List[torch.Tensor], XDriver]:
+    def ranking_model(self, url: str, driver: CustomWebDriver, ranking_model_refresh_page: bool, announcer: Optional[Announcer]) -> \
+                                Tuple[Union[List, str], List[torch.Tensor], CustomWebDriver]:
         '''
             Use CLIP to rank the UI elements to find the most probable login button
             :param url:
@@ -378,8 +379,7 @@ class TestLLM():
             except Exception as e:
                 PhishLLMLogger.spit('Exception {} when visiting the webpage'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
                 driver.quit()
-                XDriver.set_headless()
-                driver = XDriver.boot(chrome=True)
+                driver = CustomWebDriver.boot()
                 driver.set_script_timeout(self.rank_driver_script_timeout)
                 driver.set_page_load_timeout(self.rank_driver_page_load_timeout)
                 time.sleep(self.rank_driver_sleep)
@@ -408,7 +408,7 @@ class TestLLM():
                 PhishLLMLogger.spit('Exception {} when taking screenshot of UI id={}'.format(e, it), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
                 continue
 
-            if x2 - x1 <= 0 or y2 - y1 <= 0 or y2 >= driver.get_window_size()['height']//2: # invisible or at the bottom
+            if x2 - x1 <= 0 or y2 - y1 <= 0 or y2 >= driver.get_window_size()['height']//3 or x1 < driver.get_window_size()['width']//2: # invisible or at the bottom/left
                 continue
 
             try:
@@ -450,7 +450,7 @@ class TestLLM():
 
     def test(self, url: str, reference_logo: Optional[Image.Image],
              logo_box: Optional[List[float]],
-             shot_path: str, html_path: str, driver: XDriver, limit: int=0,
+             shot_path: str, html_path: str, driver: CustomWebDriver, limit: int=0,
              brand_recog_time: float=0, crp_prediction_time: float=0, crp_transition_time: float=0,
              ranking_model_refresh_page: bool=True,
              skip_brand_recognition: bool=False,
@@ -493,9 +493,10 @@ class TestLLM():
         if company_domain:
             domain4pred = self.extract_domain(company_domain)
             domain4url = self.extract_domain(url)
-            phish_condition = (domain4pred.domain != domain4url.domain) or (domain4pred.suffix != domain4url.suffix)
+            domain_brand_inconsistent = (domain4pred.domain != domain4url.domain) or (domain4pred.suffix != domain4url.suffix)
         else:
-            phish_condition = False
+            domain_brand_inconsistent = False
+        phish_condition = domain_brand_inconsistent
 
         # Brand prediction results validation
         if phish_condition and (not skip_brand_recognition):
@@ -523,7 +524,7 @@ class TestLLM():
                     return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
                 else:
                     plotvis = draw_annotated_image_box(plotvis, company_domain, logo_box)
-                    msg = f'[\u26A0\uFE0F] Phishing discovered, phishing target is {company_domain}'
+                    msg = f'[\u2757\uFE0F] Phishing discovered, phishing target is {company_domain}'
                     announcer.spit(msg, AnnouncerEvent.SUCCESS)
                     PhishLLMLogger.spit(msg)
                     return 'phish', company_domain, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
@@ -545,19 +546,18 @@ class TestLLM():
                     save_shot_path = re.sub("shot[0-9]?.png", f"shot{limit}.png", shot_path)
 
                     if not ranking_model_refresh_page: # if previous click didnt refresh the page select the lower ranked element to click
-                        msg = f"Since previously the URL has not changed, trying to click the Top-{min(len(candidate_elements), limit+1)} login button instead ..."
-                        announcer.spit(msg, AnnouncerEvent.RESPONSE)
-                        PhishLLMLogger.spit(msg, caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+                        msg = f"Since previously the URL has not changed, trying to click the Top-{min(len(candidate_elements), limit+1)} login button instead: "
                         candidate_ele = candidate_elements[min(len(candidate_elements)-1, limit)]
                     else: # else, just click the top-1 element
-                        msg = "Trying to click the Top-1 login button ..."
-                        announcer.spit(msg, AnnouncerEvent.RESPONSE)
-                        PhishLLMLogger.spit(msg, caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+                        msg = "Trying to click the Top-1 login button: "
                         candidate_ele = candidate_elements[0]
 
                     # record the webpage elements before clicking the button
                     prev_screenshot_elements = get_screenshot_elements(self.phishintention_cls, driver)
-                    current_url, *_ = page_transition(driver, candidate_ele, save_html_path, save_shot_path)
+                    element_text, current_url, *_ = page_transition(driver, candidate_ele, save_html_path, save_shot_path)
+                    msg += f'{element_text}'
+                    announcer.spit(msg, AnnouncerEvent.RESPONSE)
+                    PhishLLMLogger.spit(msg, caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
                     if current_url: # click success
                         ranking_model_refresh_page = has_page_content_changed(self.phishintention_cls, driver, prev_screenshot_elements)
                         # logo detection on new webpage
@@ -565,100 +565,120 @@ class TestLLM():
                         return self.test(current_url, reference_logo, logo_box,
                                          save_shot_path, save_html_path, driver, limit+1,
                                          brand_recog_time, crp_prediction_time, crp_transition_time,
+                                         announcer=announcer,
                                          ranking_model_refresh_page=ranking_model_refresh_page,
                                          skip_brand_recognition=True, brand_recognition_do_validation=brand_recognition_do_validation,
                                          company_domain=company_domain, company_logo=company_logo)
 
-        msg = '[\U00002705] Benign'
+        # has prediction on brand
+        if company_domain:
+            if (not domain_brand_inconsistent):
+                msg = '[\U00002705] Benign, since the reported brand is consistent with the webpage domain'
+                announcer.spit(msg, AnnouncerEvent.SUCCESS)
+                PhishLLMLogger.spit(msg)
+                return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
+        else: # no prediction on brand
+            msg = '[\U00002705] Benign, since the PhishLLM cannot determine the brand of this webpage'
+            announcer.spit(msg, AnnouncerEvent.SUCCESS)
+            PhishLLMLogger.spit(msg)
+            return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
+
+        try:
+            if validation_success is False:
+                msg = '[\U00002705] Benign, since the PhishLLM may report an irrelevant or invalid brand'
+            else:
+                msg = '[\U00002705] Benign, since we cannot find the credential-requiring page'
+        except NameError:
+            msg = '[\U00002705] Benign, since we cannot find the credential-requiring page'
         announcer.spit(msg, AnnouncerEvent.SUCCESS)
         PhishLLMLogger.spit(msg)
         return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
 
 
 
-if __name__ == '__main__':
-
-    # load hyperparameters
-    with open('./param_dict.yaml') as file:
-        param_dict = yaml.load(file, Loader=yaml.FullLoader)
-
-    phishintention_cls = PhishIntentionWrapper()
-    llm_cls = TestLLM(phishintention_cls, param_dict=param_dict)
-    openai.api_key = os.getenv("OPENAI_API_KEY")
-    # openai.proxy = "http://127.0.0.1:7890" # proxy
-    web_func = WebUtil()
-
-    sleep_time = 3; timeout_time = 60
-    # XDriver.set_headless()
-    driver = XDriver.boot(chrome=True)
-    driver.set_script_timeout(timeout_time/2)
-    driver.set_page_load_timeout(timeout_time)
-    time.sleep(sleep_time)  # fixme: you
-    Logger.set_debug_on()
-
-    all_links = [x.strip().split(',')[-2] for x in open('./datasets/Brand_Labelled_130323.csv').readlines()[1:]]
-
-    root_folder = './datasets/dynapd'
-    result = './datasets/dynapd_llm.txt'
-    os.makedirs(root_folder, exist_ok=True)
-
-    for ct, target in enumerate(all_links):
-        # if ct <= 5470:
-        #     continue
-        hash = target.split('/')[3]
-        target_folder = os.path.join(root_folder, hash)
-        os.makedirs(target_folder, exist_ok=True)
-        if os.path.exists(result) and hash in open(result).read():
-            continue
-        shot_path = os.path.join(target_folder, 'shot.png')
-        html_path = os.path.join(target_folder, 'index.html')
-        URL = f'http://127.0.0.5/{hash}'
-
-        if os.path.exists(shot_path):
-            try:
-                driver.get(URL, click_popup=True, allow_redirections=False)
-                time.sleep(2)
-                Logger.spit(f'Target URL = {URL}', caller_prefix=XDriver._caller_prefix, debug=True)
-                page_text = driver.get_page_text()
-                error_free = web_func.page_error_checking(driver)
-                if not error_free:
-                    Logger.spit('Error page or White page', caller_prefix=XDriver._caller_prefix, debug=True)
-                    continue
-
-                if "Index of" in page_text:
-                    # skip error URLs
-                    error_free = web_func.page_interaction_checking(driver)
-                    if not error_free:
-                        Logger.spit('Error page or White page', caller_prefix=XDriver._caller_prefix,
-                                    debug=True)
-                        continue
-
-            except Exception as e:
-                Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
-                continue
-
-            target = driver.current_url()
-            logo_box, reference_logo = llm_cls.detect_logo(shot_path)
-            pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, _ = llm_cls.test(target,
-                                                                                                    reference_logo,
-                                                                                                    logo_box,
-                                                                                                    shot_path,
-                                                                                                    html_path,
-                                                                                                    driver,
-                                                                                                    limit=3,
-                                                                                                    brand_recognition_do_validation=False
-                                                                                                    )
-            with open(result, 'a+') as f:
-                f.write(hash+'\t'+str(pred)+'\t'+str(brand)+'\t'+str(brand_recog_time)+'\t'+str(crp_prediction_time)+'\t'+str(crp_transition_time)+'\n')
-
-    driver.quit()
-
-    # 3.236595869064331
-    # 0.3363449573516845
-    # 0.3751556873321533
-    # Total = 6075, LLM recall = 0.7501234567901235,
-    # Phishpedia recall = 0.4388477366255144, PhishIntention recall = 0.33925925925925926
-    # LLM precision = 1.0, Phishpedia precision = 0.9077289751447055, PhishIntention precision = 0.9795627376425855,
+# if __name__ == '__main__':
+#
+#     # load hyperparameters
+#     with open('./param_dict.yaml') as file:
+#         param_dict = yaml.load(file, Loader=yaml.FullLoader)
+#
+#     phishintention_cls = PhishIntentionWrapper()
+#     llm_cls = TestLLM(phishintention_cls, param_dict=param_dict)
+#     openai.api_key = os.getenv("OPENAI_API_KEY")
+#     # openai.proxy = "http://127.0.0.1:7890" # proxy
+#     web_func = WebUtil()
+#
+#     sleep_time = 3; timeout_time = 60
+#     # XDriver.set_headless()
+#     driver = XDriver.boot(chrome=True)
+#     driver.set_script_timeout(timeout_time/2)
+#     driver.set_page_load_timeout(timeout_time)
+#     time.sleep(sleep_time)  # fixme: you
+#     Logger.set_debug_on()
+#
+#     all_links = [x.strip().split(',')[-2] for x in open('./datasets/Brand_Labelled_130323.csv').readlines()[1:]]
+#
+#     root_folder = './datasets/dynapd'
+#     result = './datasets/dynapd_llm.txt'
+#     os.makedirs(root_folder, exist_ok=True)
+#
+#     for ct, target in enumerate(all_links):
+#         # if ct <= 5470:
+#         #     continue
+#         hash = target.split('/')[3]
+#         target_folder = os.path.join(root_folder, hash)
+#         os.makedirs(target_folder, exist_ok=True)
+#         if os.path.exists(result) and hash in open(result).read():
+#             continue
+#         shot_path = os.path.join(target_folder, 'shot.png')
+#         html_path = os.path.join(target_folder, 'index.html')
+#         URL = f'http://127.0.0.5/{hash}'
+#
+#         if os.path.exists(shot_path):
+#             try:
+#                 driver.get(URL, click_popup=True, allow_redirections=False)
+#                 time.sleep(2)
+#                 Logger.spit(f'Target URL = {URL}', caller_prefix=XDriver._caller_prefix, debug=True)
+#                 page_text = driver.get_page_text()
+#                 error_free = web_func.page_error_checking(driver)
+#                 if not error_free:
+#                     Logger.spit('Error page or White page', caller_prefix=XDriver._caller_prefix, debug=True)
+#                     continue
+#
+#                 if "Index of" in page_text:
+#                     # skip error URLs
+#                     error_free = web_func.page_interaction_checking(driver)
+#                     if not error_free:
+#                         Logger.spit('Error page or White page', caller_prefix=XDriver._caller_prefix,
+#                                     debug=True)
+#                         continue
+#
+#             except Exception as e:
+#                 Logger.spit('Exception {}'.format(e), caller_prefix=XDriver._caller_prefix, debug=True)
+#                 continue
+#
+#             target = driver.current_url()
+#             logo_box, reference_logo = llm_cls.detect_logo(shot_path)
+#             pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, _ = llm_cls.test(target,
+#                                                                                                     reference_logo,
+#                                                                                                     logo_box,
+#                                                                                                     shot_path,
+#                                                                                                     html_path,
+#                                                                                                     driver,
+#                                                                                                     limit=3,
+#                                                                                                     brand_recognition_do_validation=False
+#                                                                                                     )
+#             with open(result, 'a+') as f:
+#                 f.write(hash+'\t'+str(pred)+'\t'+str(brand)+'\t'+str(brand_recog_time)+'\t'+str(crp_prediction_time)+'\t'+str(crp_transition_time)+'\n')
+#
+#     driver.quit()
+#
+#     # 3.236595869064331
+#     # 0.3363449573516845
+#     # 0.3751556873321533
+#     # Total = 6075, LLM recall = 0.7501234567901235,
+#     # Phishpedia recall = 0.4388477366255144, PhishIntention recall = 0.33925925925925926
+#     # LLM precision = 1.0, Phishpedia precision = 0.9077289751447055, PhishIntention precision = 0.9795627376425855,
 
 
 
