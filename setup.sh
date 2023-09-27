@@ -44,6 +44,7 @@ fi
 conda run -n "$ENV_NAME" pip install -r requirements.txt
 
 # Install PaddleOCR
+conda run -n "$ENV_NAME" pip install paddlepaddle
 conda run -n "$ENV_NAME" pip install "paddleocr>=2.0.1"
 
 # Install Image Captioning model
