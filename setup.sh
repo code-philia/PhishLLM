@@ -13,20 +13,6 @@ else
     conda create -n "$ENV_NAME" python=3.8
 fi
 
-# install phishintention
-PACKAGE_NAME="phishintention"
-installed_packages=$(conda run -n "$ENV_NAME" conda list)
-if echo "$installed_packages" | grep -q "$PACKAGE_NAME"; then
-  echo "PhishIntention is already installed, skip installation"
-else
-  git clone https://github.com/lindsey98/PhishIntention.git
-  cd PhishIntention
-  chmod +x ./setup.sh
-  ./setup.sh
-  cd ../
-  rm -rf PhishIntention
-fi
-
 ## Install MyXDriver
 PACKAGE_NAME="xdriver"
 installed_packages=$(conda run -n "$ENV_NAME" conda list)
@@ -40,10 +26,13 @@ else
   cd ../
 fi
 
-## Install other requirements
-conda run -n "$ENV_NAME" pip install -r requirements.txt
-
 # Install PaddleOCR
+if command -v nvcc &> /dev/null; then
+  # cuda is available
+  conda run -n "$ENV_NAME" pip install paddlepaddle-gpu -i https://pypi.tuna.tsinghua.edu.cn/simple
+else # cpu-only
+  conda run -n "$ENV_NAME" pip install paddlepaddle -i https://pypi.tuna.tsinghua.edu.cn/simple
+fi
 conda run -n "$ENV_NAME" pip install "paddleocr>=2.0.1"
 
 # Install Image Captioning model
@@ -59,7 +48,11 @@ else
   rm -rf LAVIS
 fi
 
+## Install other requirements
+conda run -n "$ENV_NAME" pip install -r requirements.txt
+
 # Download the ranking model
 mkdir checkpoints
 cd checkpoints
-curl -L "https://huggingface.co/Kelsey98/ranking_model/download/resolve/main/epoch4_model.pt" -o "epoch4_model.pt"
+pip install gdown
+gdown --id 1bpy-SRDOkL96j9r3ErBd7L5mDUdLAWaU
