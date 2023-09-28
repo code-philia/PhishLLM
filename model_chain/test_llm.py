@@ -124,6 +124,8 @@ class TestLLM():
             result = ocr.ocr(shot_path, cls=True)
             if result is None:
                 break
+            if result[0] is None:
+                break
             median_conf = np.median([x[-1][1] for x in result[0]])
 
             if math.isnan(median_conf): # no text is detected
