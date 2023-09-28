@@ -132,7 +132,7 @@ if __name__ == '__main__':
             screenshot_img = screenshot_img.convert("RGB")
             with open(shot_path, "rb") as image_file:
                 screenshot_encoding = base64.b64encode(image_file.read())
-            logo_boxes = phishintention_cls.return_all_bboxes4type(screenshot_encoding, 'logo')
+            logo_boxes = phishintention_cls.predict_all_uis4type(screenshot_encoding, 'logo')
 
             orig_answer = 'no prediction'
             answer = 'no prediction'
@@ -206,7 +206,7 @@ if __name__ == '__main__':
                 screenshot_img = screenshot_img.convert("RGB")
                 with open(shot_path, "rb") as image_file:
                     screenshot_encoding = base64.b64encode(image_file.read())
-                logo_boxes = phishintention_cls.return_all_bboxes4type(screenshot_encoding, 'logo')
+                logo_boxes = phishintention_cls.predict_all_uis4type(screenshot_encoding, 'logo')
 
                 # get extra description on the webpage
                 ocr_text, ocr_coord = get_ocr_text_coord(shot_path)

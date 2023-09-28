@@ -20,6 +20,14 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from model_chain.PhishIntentionWrapper import PhishIntentionWrapper
 import json
+from unidecode import unidecode
+
+def lower(text):
+	alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝ'
+	return "translate(%s, '%s', '%s')" % (text, alphabet, alphabet.lower())
+
+def replace_nbsp(text, by=' '):
+	return "translate(%s, '\u00a0', %r)" % (text, by)
 
 class WebUtil():
     home_page_heuristics = [
@@ -327,11 +335,29 @@ class CustomWebDriver(webdriver.Chrome):
         except:
             return ''
 
+    def obfuscate_page(self):
+        self._invoke(self.execute_script, """
+                  var script = document.createElement('script');
+                  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.5.0-beta4/html2canvas.min.js';
+                  document.head.appendChild(script);
+                """)
+        time.sleep(1)
+        return self._invoke(self.execute_script, """obfuscate_button();""")
+
     def current_url(self):
         return self._invoke(self._current_url)
 
     def _current_url(self):
         return super(CustomWebDriver, self).current_url
+
+    def switch_to_window(self, window_handle):
+        return self._invoke(self._switch_to_window, window_handle)
+
+    def _switch_to_window(self, window_handle):
+        # Default `switch_to.window` hangs in case there is an open alert, so we need a dummy op to trigger the alert handling
+        self.execute_script("return 2;")
+        self.switch_to.window(window_handle)
+        return True
 
     '''Find elements'''
 
@@ -385,6 +411,9 @@ class CustomWebDriver(webdriver.Chrome):
     def find_elements_by_xpath(self, xpath_, timeout=0, visible=False, webelement=None, *args, **kwargs):
         return self.find_elements(By.XPATH, value=xpath_, timeout=timeout, visible=visible, webelement=webelement,
                                   *args, **kwargs)
+
+    def find_element_by_location(self, point_x, point_y):
+        return self._invoke(self.execute_script, 'return document.elementFromPoint(%r, %r);' % (point_x, point_y))
 
     def get_dompath(self, element):
         try:
@@ -478,6 +507,53 @@ class CustomWebDriver(webdriver.Chrome):
 
         return (btns, btns_dom), (links, links_dom), \
                (images, images_dom), (leaf_elements, leaf_elements_dom)
+
+    def _get_elements_xpath_contains(self, patterns, tag=None, role=None, is_input=False, is_free_text=False):
+        property_list = ["text()", "@class", "@title", "@value", "@label", "@aria-label"]
+
+        # For regular elements
+        tag_matching_regex = "//%s" % (tag if tag else "*")
+        pattern_matching_regex = " or ".join(
+            ["starts-with(normalize-space(%s), '%s')" % (lower(replace_nbsp(property)), patterns.lower()) for property
+             in property_list])
+        rule1 = tag_matching_regex + "[" + pattern_matching_regex + "]"
+
+        # For elements with roles
+        role_matching_regex = "//*[@role='%s']" % (role if role else "*")
+        pattern_matching_regex = "[%s]" % ("starts-with(normalize-space(.), '%s')" % patterns)
+        rule2 = role_matching_regex + pattern_matching_regex
+
+        # For input elements with specific types
+        if is_input:
+            rule1 = "//input[@type='submit' or @type='button'][" + pattern_matching_regex + "]"
+
+        # For free text elements
+        if is_free_text:
+            xpath_base = "//*[starts-with(normalize-space(%s), '%s')]" % (
+            lower(replace_nbsp("text()")), patterns.lower())
+            rule1 = '%s[not(self::script)][not(.%s)]' % (xpath_base, xpath_base)
+
+        return [rule1, rule2]
+
+    def get_clickable_elements_contains(self, patterns):
+
+        button_xpaths = self._get_elements_xpath_contains(patterns, tag='button', role='button')
+        link_xpaths = self._get_elements_xpath_contains(patterns, tag='a', role='link')
+        input_xpath = self._get_elements_xpath_contains(patterns, is_input=True)
+        free_text_xpath = self._get_elements_xpath_contains(patterns, is_free_text=True)
+
+        element_list = []
+        for path in button_xpaths + link_xpaths + [input_xpath] + [free_text_xpath]:
+            elements = self.find_elements_by_xpath(path)
+            if elements:
+                element_list.extend(elements)
+
+        return element_list
+
+    def get_all_visible_username_password_inputs(self):
+        ret_password, ret_username = self._invoke(self.execute_script,
+                                                  "return get_all_visible_password_username_inputs();")
+        return ret_password, ret_username
 
     # Get element location
     def get_location(self, element):
@@ -583,7 +659,7 @@ def url2logo(url, phishintention_cls):
         time.sleep(2)
         screenshot_encoding = driver.get_screenshot_as_base64()
         screenshot_img = Image.open(io.BytesIO(base64.b64decode(screenshot_encoding)))
-        logo_boxes = phishintention_cls.return_all_bboxes4type(screenshot_encoding, 'logo')
+        logo_boxes = phishintention_cls.predict_all_uis4type(screenshot_encoding, 'logo')
         if (logo_boxes is not None) and len(logo_boxes):
             logo_box = logo_boxes[0]  # get coordinate for logo
             x1, y1, x2, y2 = logo_box
@@ -703,7 +779,7 @@ def page_transition(driver: CustomWebDriver, dom: str, save_html_path: str, save
 
 
 def get_screenshot_elements(phishintention_cls: PhishIntentionWrapper, driver: CustomWebDriver) -> List[int]:
-    pred_boxes, pred_classes = phishintention_cls.return_all_bboxes(driver.get_screenshot_encoding())
+    pred_boxes, pred_classes = phishintention_cls.predict_all_uis(driver.get_screenshot_encoding())
     if pred_boxes is None:
         screenshot_elements = []
     else:
