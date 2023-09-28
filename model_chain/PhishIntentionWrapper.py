@@ -165,7 +165,7 @@ class PhishIntentionWrapper:
             return None
 
         pred_boxes, pred_classes = find_element_type(pred_boxes, pred_classes, bbox_type=type)
-        if not pred_boxes:
+        if pred_boxes is None:
             return None
 
         return pred_boxes.detach().cpu().numpy()
