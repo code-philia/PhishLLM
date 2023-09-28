@@ -51,7 +51,7 @@ function check_browsers {
 	for browser in ${!browsers[@]};
 	do
 		installed=false
-		dpkg -l "$browser" > /dev/null 2>&1
+		sudo dpkg -l "$browser" > /dev/null 2>&1
 		if [ $? -eq 0 ];
 		then
 			success "$browser is installed. (version: $($browser --version))"
@@ -76,6 +76,7 @@ function check_browsers {
 	return 0
 }
 
+# Install chrome binary
 check_browsers
 
 # Source the Conda configuration
