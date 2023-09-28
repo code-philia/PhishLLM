@@ -185,6 +185,7 @@ class TestLLM():
                     )
                     inference_done = True
                 except Exception as e:
+                    print(e)
                     PhishLLMLogger.spit('LLM Exception {}'.format(e), debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
                     prompt[-1]['content'] = prompt[-1]['content'][:len(prompt[-1]['content']) // 2]
                     time.sleep(self.brand_recog_sleep)
@@ -261,6 +262,7 @@ class TestLLM():
                     )
                     inference_done = True
                 except Exception as e:
+                    print(e)
                     PhishLLMLogger.spit('LLM Exception {}'.format(e), debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
                     time.sleep(self.brand_recog_sleep) # retry
 
@@ -352,6 +354,7 @@ class TestLLM():
                 )
                 inference_done = True
             except Exception as e:
+                print(e)
                 PhishLLMLogger.spit('LLM Exception {}'.format(e), debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
                 new_prompt[-1]['content'] = new_prompt[-1]['content'][:len(new_prompt[-1]['content']) // 2] # maybe the prompt is too long, cut by half
                 time.sleep(self.crp_sleep)
@@ -379,6 +382,7 @@ class TestLLM():
                 driver.get(url)
                 time.sleep(self.rank_driver_sleep)
             except Exception as e:
+                print(e)
                 PhishLLMLogger.spit('Exception {} when visiting the webpage'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
                 driver.quit()
                 driver = CustomWebDriver.boot()
@@ -393,6 +397,7 @@ class TestLLM():
                 (images, images_dom), \
                 (others, others_dom) = driver.get_all_clickable_elements()
         except Exception as e:
+            print(e)
             PhishLLMLogger.spit('Exception {} when getting all clickable UIs'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
             return [], [], driver
 
@@ -407,6 +412,7 @@ class TestLLM():
                 driver.scroll_to_top()
                 x1, y1, x2, y2 = driver.get_location(all_clickable[it])
             except Exception as e:
+                print(e)
                 PhishLLMLogger.spit('Exception {} when taking screenshot of UI id={}'.format(e, it), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
                 continue
 
@@ -418,6 +424,7 @@ class TestLLM():
                 candidate_uis_imgs.append(self.clip_preprocess(ele_screenshot_img))
                 candidate_uis.append(all_clickable_dom[it])
             except Exception as e:
+                print(e)
                 PhishLLMLogger.spit('Exception {} when when taking screenshot of UI id={}'.format(e, it), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
                 continue
 
