@@ -627,23 +627,19 @@ def is_valid_domain(domain: str) -> bool:
     return it_is_a_domain
 
 def is_alive_domain(domain: str, proxies: Optional[Dict]=None) -> bool:
-    ct_limit = 0
-    while ct_limit < 3:
-        try:
-            response = requests.head('https://' + domain, timeout=10, proxies=proxies)  # Reduced timeout and used HEAD
-            PhishLLMLogger.spit(f'Status code {response.status_code}', caller_prefix=PhishLLMLogger._caller_prefix,
+    try:
+        response = requests.head('https://' + domain, timeout=10, proxies=proxies)  # Reduced timeout and used HEAD
+        PhishLLMLogger.spit(f'Status code {response.status_code}', caller_prefix=PhishLLMLogger._caller_prefix,
+                            debug=True)
+        if response.status_code < 400:
+            PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+            return True
+        elif response.history and any([r.status_code < 400 for r in response.history]):
+            PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix,
                                 debug=True)
-            if response.status_code < 400:
-                PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
-                return True
-            elif response.history and any([r.status_code < 400 for r in response.history]):
-                PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix,
-                                    debug=True)
-                return True
-            break
-        except Exception as err:
-            print(f'Error {err} when checking the aliveness of domain {domain}')
-            ct_limit += 1
+            return True
+    except Exception as err:
+        print(f'Error {err} when checking the aliveness of domain {domain}')
     PhishLLMLogger.spit(f'Domain {domain} is invalid or dead', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
     return False
 
@@ -749,6 +745,7 @@ def page_transition(driver: CustomWebDriver, dom: str, save_html_path: str, save
         :param save_shot_path:
         :return:
     '''
+    orig_url = driver.current_url()
     try:
         element = driver.find_elements_by_xpath(dom)
         if element:
@@ -762,10 +759,10 @@ def page_transition(driver: CustomWebDriver, dom: str, save_html_path: str, save
                 etext = driver.get_attribute(element[0], "value")
             driver.click(element[0])
             time.sleep(7)  # fixme: must allow some loading time here, dynapd is slow
-        current_url = driver.current_url
+        current_url = driver.current_url()
     except Exception as e:
         PhishLLMLogger.spit('Exception {} when clicking the login button'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
-        return None, None, None, None
+        return None, orig_url, None, None
 
     try:
         driver.save_screenshot(save_shot_path)
@@ -775,7 +772,7 @@ def page_transition(driver: CustomWebDriver, dom: str, save_html_path: str, save
         return etext, current_url, save_html_path, save_shot_path
     except Exception as e:
         PhishLLMLogger.spit('Exception {} when saving the new screenshot'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
-        return None, None, None, None
+        return None, orig_url, None, None
 
 
 def get_screenshot_elements(phishintention_cls: PhishIntentionWrapper, driver: CustomWebDriver) -> List[int]:
