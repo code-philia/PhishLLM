@@ -1,18 +1,12 @@
 import os.path
-
-import torch
-import clip
 from ranking_model.train import *
-import shutil
-from xdriver.xutils.Regexes import Regexes
-from xdriver.xutils.Logger import Logger
 import base64
 import io
 import time
 import yaml
 from phishintention.src.crp_locator import login_config
-import phishintention
-from xdriver.XDriver import XDriver
+from model_chain.utils import Regexes
+from model_chain.web_utils import CustomWebDriver
 
 def heuristic_find_dom(driver, topk):
     ct = 0
@@ -33,7 +27,7 @@ def heuristic_find_dom(driver, topk):
         if len(keyword_finder) > 0:
             ct += 1
             # clicking the text
-            Logger.spit("Try clicking :{}".format(line), debug=True)
+            print("Try clicking :{}".format(line))
             elements = driver.get_clickable_elements_contains(line)
             prev_windows = driver.window_handles
             if len(elements):
@@ -70,7 +64,7 @@ def cv_find_dom(driver, crp_locator_model, topk):
         x1, y1, x2, y2 = bbox
         element = driver.find_element_by_location((x1 + x2) // 2,
                                                   (y1 + y2) // 2)  # click center point of predicted bbox for safe
-        Logger.spit("Try clicking point: ({}, {})".format((x1 + x2) // 2, (y1 + y2) // 2), debug=True)
+        print("Try clicking point: ({}, {})".format((x1 + x2) // 2, (y1 + y2) // 2))
         if element:
             dom = driver.get_dompath(element)
             if dom:
@@ -83,9 +77,9 @@ def crp_locator(driver, url, topk, heuristic=False):
     try:
         driver.get(url)
         time.sleep(7)
-        Logger.spit(f'URL = {url}', debug=True)
+        print(f'URL = {url}')
     except Exception as e:
-        Logger.spit(e, debug=True)
+        print(e)
         return None, 0
 
     if heuristic:
@@ -162,12 +156,9 @@ if __name__ == '__main__':
     grp = dict(list(grp), keys=lambda x: x[0])  # {url: List[dom_path, save_path]}
 
     # initiate driver
-    XDriver.set_headless()
-    Logger.set_debug_on()
-    driver = XDriver.boot(chrome=True)
+    driver = CustomWebDriver.boot(proxy_server="http://127.0.0.1:7890")  # Using the proxy_url variable
     driver.set_script_timeout(30)
     driver.set_page_load_timeout(30)
-    time.sleep(3)  # fixme: you have to sleep sometime, otherwise the browser will keep crashing
     result_file = './datasets/crp_locator_baseline.txt'
 
     runtime = []
@@ -208,8 +199,7 @@ if __name__ == '__main__':
         # select one: another model
         if (ct + 1) % 100 == 0:
             driver.quit()
-            XDriver.set_headless()
-            driver = XDriver.boot(chrome=True)
+            driver = CustomWebDriver.boot(proxy_server="http://127.0.0.1:7890")  # Using the proxy_url variable
             driver.set_script_timeout(30)
             driver.set_page_load_timeout(30)
             time.sleep(3)

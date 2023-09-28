@@ -26,3 +26,6 @@ gspread-dataframe==3.0.8
 flask_cors
 flask_session
 transformers==4.25
+gevent
+apscheduler
+tldextract
