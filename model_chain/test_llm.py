@@ -183,7 +183,7 @@ class TestLLM():
                     )
                     inference_done = True
                 except Exception as e:
-                    Logger.spit('LLM Exception {}'.format(e), warning=True)
+                    PhishLLMLogger.spit('LLM Exception {}'.format(e), debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
                     prompt[-1]['content'] = prompt[-1]['content'][:len(prompt[-1]['content']) // 2]
                     time.sleep(self.brand_recog_sleep)
 
@@ -259,7 +259,7 @@ class TestLLM():
                     )
                     inference_done = True
                 except Exception as e:
-                    Logger.spit('LLM Exception {}'.format(e),  warning=True)
+                    PhishLLMLogger.spit('LLM Exception {}'.format(e), debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
                     time.sleep(self.brand_recog_sleep) # retry
 
             answer = ''.join([choice["message"]["content"] for choice in response['choices']])
@@ -350,7 +350,7 @@ class TestLLM():
                 )
                 inference_done = True
             except Exception as e:
-                Logger.spit('LLM Exception {}'.format(e), warning=True)
+                PhishLLMLogger.spit('LLM Exception {}'.format(e), debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
                 new_prompt[-1]['content'] = new_prompt[-1]['content'][:len(new_prompt[-1]['content']) // 2] # maybe the prompt is too long, cut by half
                 time.sleep(self.crp_sleep)
 
