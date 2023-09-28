@@ -5,7 +5,6 @@ from phishintention.src.OCR_aided_siamese import pred_siamese_OCR
 from phishintention.src.OCR_siamese_utils.utils import brand_converter, resolution_alignment
 from phishintention.src.crp_classifier_utils.bit_pytorch.grid_divider import coord2pixel_reverse
 from phishintention.src.crp_classifier import html_heuristic, credential_classifier_mixed_al
-from model_chain.web_utils import CustomWebDriver
 from model_chain.utils import Regexes
 import re
 import os
@@ -287,7 +286,7 @@ class PhishIntentionWrapper:
                 print("Cannot go back to the original URL, Exit ...")
         return reach_crp, orig_url, current_url
 
-    def run_crp_locator_heuristic(self, driver: CustomWebDriver, obfuscate=False):
+    def run_crp_locator_heuristic(self, driver, obfuscate=False):
         ct = 0
         reach_crp = False
         orig_url = driver.current_url()
@@ -313,7 +312,7 @@ class PhishIntentionWrapper:
 
         return self.post_process_crp_locator(driver, reach_crp, orig_url, current_url, obfuscate)
 
-    def run_crp_locator_cv(self, driver: CustomWebDriver, obfuscate=False):
+    def run_crp_locator_cv(self, driver, obfuscate=False):
         reach_crp = False
         orig_url = driver.current_url()
         current_url = orig_url
@@ -361,11 +360,11 @@ class PhishIntentionWrapper:
                 print("Cannot go back to the original URL, Exit ...")
         return successful, orig_url, current_url
 
-    def dynamic_analysis_reimplement(self, driver: CustomWebDriver):
+    def dynamic_analysis_reimplement(self, driver):
         successful, orig_url, current_url = self.perform_crp_transition(driver)
         return successful, orig_url, current_url
 
-    def dynamic_analysis_and_save_reimplement(self, orig_url, screenshot_path, driver: CustomWebDriver, obfuscate=False):
+    def dynamic_analysis_and_save_reimplement(self, orig_url, screenshot_path, driver, obfuscate=False):
         new_screenshot_path = screenshot_path.replace('shot.png', 'new_shot.png')
         new_info_path = new_screenshot_path.replace('new_shot.png', 'new_info.txt')
         process_time = 0.
@@ -396,7 +395,7 @@ class PhishIntentionWrapper:
 
     '''PhishIntention'''
 
-    def test_orig_phishintention(self, url, screenshot_path, driver: CustomWebDriver,
+    def test_orig_phishintention(self, url, screenshot_path, driver,
                                  include_crp_locator=True,
                                  obfuscate=False):
         timings = {}
