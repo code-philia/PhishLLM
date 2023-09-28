@@ -89,7 +89,7 @@ class TestLLM():
         screenshot_img = Image.open(save_shot_path).convert("RGB")
         with open(save_shot_path, "rb") as image_file:
             screenshot_encoding = base64.b64encode(image_file.read())
-        logo_boxes = self.phishintention_cls.return_all_bboxes4type(screenshot_encoding, 'logo')
+        logo_boxes = self.phishintention_cls.predict_all_uis4type(screenshot_encoding, 'logo')
 
         if (logo_boxes is not None) and len(logo_boxes)>0:
             logo_box = logo_boxes[0]  # get coordinate for logo
