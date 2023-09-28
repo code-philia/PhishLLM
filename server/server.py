@@ -12,7 +12,6 @@ from selenium import webdriver
 from seleniumwire.webdriver import ChromeOptions
 from server.announcer import Announcer
 from model_chain.test_llm import *
-from gevent.pywsgi import WSGIServer
 from apscheduler.schedulers.background import BackgroundScheduler
 import shutil
 
@@ -153,6 +152,4 @@ def get_inference(url, screenshot_path, html_path, announcer):
     driver.quit()
 
 if __name__ == "__main__":
-
-    http_server = WSGIServer(("0.0.0.0", 6789), app)
-    http_server.serve_forever()
+    app.run("0.0.0.0", port=6789, debug=True)
