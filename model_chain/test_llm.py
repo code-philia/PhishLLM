@@ -18,7 +18,7 @@ from functools import lru_cache
 from model_chain.PhishIntentionWrapper import PhishIntentionWrapper
 import yaml
 from tldextract import tldextract
-os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key2.txt').read()
+os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key2.txt')
 os.environ['CURL_CA_BUNDLE'] = ''
 
 
@@ -64,6 +64,7 @@ class TestLLM():
 
         self.brand_recog_temperature, self.brand_recog_max_tokens = param_dict['brand_recog']['temperature'], param_dict['brand_recog']['max_tokens']
         self.brand_recog_sleep = param_dict['brand_recog']['sleep_time']
+        self.do_brand_validation = param_dict['brand_valid']['activate']
         self.brand_valid_k, self.brand_valid_siamese_thre = param_dict['brand_valid']['k'], param_dict['brand_valid']['siamese_thre']
         self.get_industry = param_dict['brand_recog']['ask_industry']
         self.industry_temperature, self.industry_max_tokens = param_dict['brand_recog']['industry']['temperature'], param_dict['brand_recog']['industry']['max_tokens']
@@ -82,12 +83,15 @@ class TestLLM():
 
     def update_params(self, param_dict):
 
+        ## Load hyperparameters
         self.brand_recog_temperature = param_dict['brand_recog']['temperature']
         self.brand_valid_k, self.brand_valid_siamese_thre = param_dict['brand_valid']['k'], param_dict['brand_valid']['siamese_thre']
-        self.get_industry = param_dict['brand_recog']['ask_industry']
+        self.industry_temperature = param_dict['brand_recog']['industry']['temperature']
 
         self.crp_temperature = param_dict['crp_pred']['temperature']
+
         self.interaction_limit = param_dict['rank']['depth_limit']
+        self.do_brand_validation = param_dict['brand_valid']['activate']
         print(param_dict)
 
     def extract_domain(self, domain:str):
@@ -197,7 +201,7 @@ class TestLLM():
                     inference_done = True
                 except Exception as e:
                     print(e)
-                    PhishLLMLogger.spit('LLM Exception {}'.format(e), debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
+                    #PhishLLMLogger.spit('LLM Exception {}'.format(e), debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
                     prompt[-1]['content'] = prompt[-1]['content'][:len(prompt[-1]['content']) // 2]
                     time.sleep(self.brand_recog_sleep)
 
@@ -244,21 +248,20 @@ class TestLLM():
 
         announcer.spit(f'Recognized Logo caption: {logo_caption}<br>Logo OCR results: {logo_ocr}<br>Industry: {industry}', AnnouncerEvent.RESPONSE)
         time.sleep(0.5)
-        PhishLLMLogger.spit(f'Logo caption: {logo_caption}', debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
-        PhishLLMLogger.spit(f'Logo OCR: {logo_ocr}', debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
-        PhishLLMLogger.spit(f'Industry: {industry}', debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
+        #PhishLLMLogger.spit(f'Logo caption: {logo_caption}', debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
+        #PhishLLMLogger.spit(f'Logo OCR: {logo_ocr}', debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
+        #PhishLLMLogger.spit(f'Industry: {industry}', debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
 
         if len(logo_caption) > 0 or len(logo_ocr) > 0:
             # ask gpt to predict brand
             if self.get_industry:
                 question = question_template_brand_industry(logo_caption, logo_ocr, industry)
                 announcer.spit(AnnouncerPrompt.question_template_brand_industry(logo_caption, logo_ocr, industry), AnnouncerEvent.PROMPT)
-                time.sleep(0.5)
             else:
                 question = question_template_brand(logo_caption, logo_ocr)
                 announcer.spit(AnnouncerPrompt.question_template_brand(logo_caption, logo_ocr), AnnouncerEvent.PROMPT)
-                time.sleep(0.5)
-
+	   
+            time.sleep(0.5)
             with open(self.brand_prompt, 'rb') as f:
                 prompt = json.load(f)
             new_prompt = prompt
@@ -277,15 +280,15 @@ class TestLLM():
                     inference_done = True
                 except Exception as e:
                     print(e)
-                    PhishLLMLogger.spit('LLM Exception {}'.format(e), debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
+                    #PhishLLMLogger.spit('LLM Exception {}'.format(e), debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
                     time.sleep(self.brand_recog_sleep) # retry
 
             answer = ''.join([choice["message"]["content"] for choice in response['choices']])
 
             announcer.spit(f"LLM prediction time: {time.time() - start_time}<br>Detected brand: {answer}", AnnouncerEvent.RESPONSE)
             time.sleep(0.5)
-            PhishLLMLogger.spit(f"LLM prediction time: {time.time() - start_time}", debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
-            PhishLLMLogger.spit(f"Detected brand: {answer}", debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
+            #PhishLLMLogger.spit(f"LLM prediction time: {time.time() - start_time}", debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
+            #PhishLLMLogger.spit(f"Detected brand: {answer}", debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
 
             # check the validity of the returned domain, i.e. liveness
             if len(answer) > 0 and is_valid_domain(answer):
@@ -294,8 +297,7 @@ class TestLLM():
         else:
             msg = 'No logo description'
             announcer.spit(msg, AnnouncerEvent.RESPONSE)
-            time.sleep(0.5)
-            PhishLLMLogger.spit(msg, debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
+            #PhishLLMLogger.spit(msg, debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
 
         return company_domain, company_logo
 
@@ -311,10 +313,8 @@ class TestLLM():
                                     proxies=self.proxies)
         logos = get_images(returned_urls, proxies=self.proxies)
         logo_cropping_time = time.time() - start_time
-        msg = f'Download logos from GImage time: {logo_cropping_time}'
-        announcer.spit(msg, AnnouncerEvent.RESPONSE)
-        time.sleep(0.5)
-        PhishLLMLogger.spit(msg, debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
+        print(f'Number of logos found on google images {len(logos)}')
+        #PhishLLMLogger.spit(msg, debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
 
         if len(logos) > 0:
             reference_logo_feat = pred_siamese_OCR(img=reference_logo,
@@ -335,16 +335,7 @@ class TestLLM():
                 validation_success = True
 
             logo_matching_time = time.time() - start_time
-            msg = f'Logo matching time: {logo_matching_time}'
-            announcer.spit(msg, AnnouncerEvent.RESPONSE)
-            time.sleep(0.5)
-            PhishLLMLogger.spit(msg, debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
 
-        if not validation_success:
-            msg = 'Fails logo matching'
-            announcer.spit(msg, AnnouncerEvent.RESPONSE)
-            time.sleep(0.5)
-            PhishLLMLogger.spit(msg, debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
         return validation_success, logo_cropping_time, logo_matching_time
 
     def crp_prediction_llm(self, html_text: str, announcer: Optional[Announcer]) -> bool:
@@ -355,7 +346,6 @@ class TestLLM():
         '''
         question = question_template_prediction(html_text)
         announcer.spit(AnnouncerPrompt.question_template_prediction(html_text), AnnouncerEvent.PROMPT)
-        time.sleep(0.5)
         with open(self.crp_prompt, 'rb') as f:
             prompt = json.load(f)
         new_prompt = prompt
@@ -375,7 +365,7 @@ class TestLLM():
                 inference_done = True
             except Exception as e:
                 print(e)
-                PhishLLMLogger.spit('LLM Exception {}'.format(e), debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
+                #PhishLLMLogger.spit('LLM Exception {}'.format(e), debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
                 new_prompt[-1]['content'] = new_prompt[-1]['content'][:len(new_prompt[-1]['content']) // 2] # maybe the prompt is too long, cut by half
                 time.sleep(self.crp_sleep)
 
@@ -383,7 +373,7 @@ class TestLLM():
         msg = f'LLM prediction time: {time.time() - start_time}<br>CRP prediction: {answer}'
         announcer.spit(msg, AnnouncerEvent.RESPONSE)
         time.sleep(0.5)
-        PhishLLMLogger.spit(msg, debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
+        #PhishLLMLogger.spit(msg, debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
         if 'A.' in answer:
             return True # CRP
         else:
@@ -404,7 +394,7 @@ class TestLLM():
                 time.sleep(self.rank_driver_sleep)
             except Exception as e:
                 print(e)
-                PhishLLMLogger.spit('Exception {} when visiting the webpage'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
+                #PhishLLMLogger.spit('Exception {} when visiting the webpage'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
                 driver.quit()
                 driver = CustomWebDriver.boot()
                 driver.set_script_timeout(self.rank_driver_script_timeout)
@@ -419,7 +409,7 @@ class TestLLM():
                 (others, others_dom) = driver.get_all_clickable_elements()
         except Exception as e:
             print(e)
-            PhishLLMLogger.spit('Exception {} when getting all clickable UIs'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
+            #PhishLLMLogger.spit('Exception {} when getting all clickable UIs'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
             return [], [], driver
 
         all_clickable = btns + links + images + others
@@ -434,7 +424,7 @@ class TestLLM():
                 x1, y1, x2, y2 = driver.get_location(all_clickable[it])
             except Exception as e:
                 print(e)
-                PhishLLMLogger.spit('Exception {} when taking screenshot of UI id={}'.format(e, it), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
+                #PhishLLMLogger.spit('Exception {} when taking screenshot of UI id={}'.format(e, it), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
                 continue
 
             if x2 - x1 <= 0 or y2 - y1 <= 0 or y2 >= driver.get_window_size()['height']//3 or x1 < driver.get_window_size()['width']//2: # invisible or at the bottom/left
@@ -446,7 +436,7 @@ class TestLLM():
                 candidate_uis.append(all_clickable_dom[it])
             except Exception as e:
                 print(e)
-                PhishLLMLogger.spit('Exception {} when when taking screenshot of UI id={}'.format(e, it), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
+                #PhishLLMLogger.spit('Exception {} when when taking screenshot of UI id={}'.format(e, it), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
                 continue
 
         # rank them
@@ -454,7 +444,7 @@ class TestLLM():
             msg = f'Find {len(candidate_uis_imgs)} candidate UIs'
             announcer.spit(msg, AnnouncerEvent.RESPONSE)
             time.sleep(0.5)
-            PhishLLMLogger.spit(msg, caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+            #PhishLLMLogger.spit(msg, caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
             final_probs = torch.tensor([], device='cpu')
             batch_size = self.rank_batch_size
             texts = clip.tokenize(["not a login button", "a login button"]).to(self.device)
@@ -476,7 +466,7 @@ class TestLLM():
             msg = 'No candidate login button to click'
             announcer.spit(msg, AnnouncerEvent.RESPONSE)
             time.sleep(0.5)
-            PhishLLMLogger.spit(msg, caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+            #PhishLLMLogger.spit(msg, caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
             return [], [], driver
 
 
@@ -486,7 +476,6 @@ class TestLLM():
              brand_recog_time: float=0, crp_prediction_time: float=0, crp_transition_time: float=0,
              ranking_model_refresh_page: bool=True,
              skip_brand_recognition: bool=False,
-             brand_recognition_do_validation: bool=False,
              company_domain: Optional[str]=None, company_logo: Optional[Image.Image]=None,
              announcer: Optional[Announcer]=None
              ):
@@ -503,7 +492,6 @@ class TestLLM():
             :param crp_transition_time:
             :param ranking_model_refresh_page:
             :param skip_brand_recognition:
-            :param brand_recognition_do_validation:
             :param company_domain:
             :param company_logo:
             :param announcer:
@@ -523,23 +511,27 @@ class TestLLM():
             time.sleep(self.brand_recog_sleep) # fixme: allow the openai api to rest, not sure whether this help
         # check domain-brand inconsistency
         if company_domain:
-            domain4pred = self.extract_domain(company_domain)
-            domain4url = self.extract_domain(url)
-            domain_brand_inconsistent = (domain4pred.domain != domain4url.domain) or (domain4pred.suffix != domain4url.suffix)
+            domain4pred, suffix4pred = tldextract.extract(company_domain).domain, tldextract.extract(company_domain).suffix
+            domain4url, suffix4url = tldextract.extract(url).domain, tldextract.extract(url).suffix 
+            domain_brand_inconsistent = (domain4pred != domain4url) or (suffix4pred != suffix4url)
         else:
             domain_brand_inconsistent = False
         phish_condition = domain_brand_inconsistent
 
         # Brand prediction results validation
         if phish_condition and (not skip_brand_recognition):
-            if brand_recognition_do_validation and (reference_logo is not None): # we can check the validity by comparing the logo on the webpage with the logos for the predicted brand
+            if self.do_brand_validation and (reference_logo is not None): # we can check the validity by comparing the logo on the webpage with the logos for the predicted brand
                 validation_success, logo_cropping_time, logo_matching_time = self.brand_validation(company_domain, reference_logo, announcer)
                 brand_recog_time += logo_cropping_time
                 brand_recog_time += logo_matching_time
                 phish_condition = validation_success
+                msg = f"Brand Validation: Download logos from GImage time: {logo_cropping_time}<br>Logo matching time: {logo_matching_time}<br>Domain {company_domain} is relevant and valid? {validation_success}"
+                announcer.spit(msg, AnnouncerEvent.RESPONSE)
+                time.sleep(0.5)
             else: # alternatively, we can check the aliveness of the predicted brand
                 validation_success = is_alive_domain(company_domain, self.proxies)
                 phish_condition = validation_success
+
 
         if phish_condition:
             # CRP prediction model
@@ -552,23 +544,20 @@ class TestLLM():
                 if company_domain in self.webhosting_domains:
                     msg = '[\U00002705] Benign, since it is a brand providing cloud services'
                     announcer.spit(msg, AnnouncerEvent.SUCCESS)
-                    time.sleep(0.5)
-                    PhishLLMLogger.spit(msg)
+                    #PhishLLMLogger.spit(msg)
                     return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
                 else:
                     plotvis = draw_annotated_image_box(plotvis, company_domain, logo_box)
                     msg = f'[\u2757\uFE0F] Phishing discovered, phishing target is {company_domain}'
                     announcer.spit(msg, AnnouncerEvent.SUCCESS)
-                    time.sleep(0.5)
-                    PhishLLMLogger.spit(msg)
+                    #PhishLLMLogger.spit(msg)
                     return 'phish', company_domain, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
             else:
                 # Not a CRP page => CRP transition
                 if limit >= self.interaction_limit:  # reach interaction limit -> just return
                     msg = '[\U00002705] Benign, reached interaction limit ...'
                     announcer.spit(msg, AnnouncerEvent.SUCCESS)
-                    time.sleep(0.5)
-                    PhishLLMLogger.spit(msg, caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+                    #PhishLLMLogger.spit(msg, caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
                     return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
 
                 # Ranking model
@@ -592,8 +581,7 @@ class TestLLM():
                     element_text, current_url, *_ = page_transition(driver, candidate_ele, save_html_path, save_shot_path)
                     msg += f'{element_text}'
                     announcer.spit(msg, AnnouncerEvent.RESPONSE)
-                    time.sleep(0.5)
-                    PhishLLMLogger.spit(msg, caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+                    #PhishLLMLogger.spit(msg, caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
                     if current_url: # click success
                         ranking_model_refresh_page = has_page_content_changed(self.phishintention_cls, driver, prev_screenshot_elements)
                         # logo detection on new webpage
@@ -603,34 +591,16 @@ class TestLLM():
                                          brand_recog_time, crp_prediction_time, crp_transition_time,
                                          announcer=announcer,
                                          ranking_model_refresh_page=ranking_model_refresh_page,
-                                         skip_brand_recognition=True, brand_recognition_do_validation=brand_recognition_do_validation,
+                                         skip_brand_recognition=True, 
                                          company_domain=company_domain, company_logo=company_logo)
+                else:
+                    msg = '[\U00002705] Benign'
+                    announcer.spit(msg, AnnouncerEvent.SUCCESS)
+                    return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
 
-        # has prediction on brand
-        if company_domain:
-            if (not domain_brand_inconsistent):
-                msg = '[\U00002705] Benign, since the reported brand is consistent with the webpage domain'
-                announcer.spit(msg, AnnouncerEvent.SUCCESS)
-                time.sleep(0.5)
-                PhishLLMLogger.spit(msg)
-                return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
-        else: # no prediction on brand
-            msg = '[\U00002705] Benign, since the PhishLLM cannot determine the brand of this webpage'
-            announcer.spit(msg, AnnouncerEvent.SUCCESS)
-            time.sleep(0.5)
-            PhishLLMLogger.spit(msg)
-            return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
-
-        try:
-            if validation_success is False:
-                msg = '[\U00002705] Benign, since the PhishLLM may report an irrelevant or invalid brand'
-            else:
-                msg = '[\U00002705] Benign, since we cannot find the credential-requiring page'
-        except NameError:
-            msg = '[\U00002705] Benign, since we cannot find the credential-requiring page'
+        msg = '[\U00002705] Benign'
         announcer.spit(msg, AnnouncerEvent.SUCCESS)
-        time.sleep(0.5)
-        PhishLLMLogger.spit(msg)
+        #PhishLLMLogger.spit(msg)
         return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
 
 

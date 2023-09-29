@@ -17,14 +17,9 @@ const inferenceFail = document.getElementById("inference-fail");
 let url = "";
 let eventNumber = 0;
 let eventQueue = [];
+const responseSound = new Audio('/static/facebookchatone.mp3');
 
-urlForm.addEventListener("submit", async function (e) {
-  e.preventDefault();
-  var formData = new FormData(e.target);
-  url = formData.get("url");
-  await getScreenshot();
-});
-
+// Function to show values when scrollin
 document.addEventListener("DOMContentLoaded", function() {
   // Initialize range value display
   const sliders = document.querySelectorAll('.slider');
@@ -37,13 +32,13 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 });
 
-// Resize the wrapper panel
+
 document.addEventListener('DOMContentLoaded', () => {
   const wrapper = document.querySelector('.wrapper');
   const handleRight = document.getElementById('resizeHandleRight');
   const handleBottom = document.getElementById('resizeHandleBottom');
   const handleCorner = document.getElementById('resizeHandleCorner');
-
+  
   let isResizingRight = false;
   let isResizingBottom = false;
   let isResizingCorner = false;
@@ -102,32 +97,35 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Listen for form submission
+
+
 document.getElementById('param-form').addEventListener('submit', function(event) {
-  // Prevent the default form submission action
   event.preventDefault();
 
-  // Create a FormData object from the form
   const formData = new FormData(event.target);
 
-  // Convert the FormData to an object
   const formObject = {};
   formData.forEach((value, key) => {
-    // Since our keys are in the format `group[key]`, we split them to nest our object
     const [group, subkey] = key.split('[').map(str => str.replace(']', ''));
 
-    // Initialize the group object if not already done
     if (!(group in formObject)) {
       formObject[group] = {};
     }
 
-    // If the value can be converted to a float, do so; otherwise, keep it as is
     const parsedValue = isNaN(parseFloat(value)) ? value : parseFloat(value);
 
-    // Assign the value
     formObject[group][subkey] = parsedValue;
   });
 
+  // Explicitly set the value for brand_valid['activate']
+  const toggleSwitch = document.getElementById('brand-valid-activate');
+  if (toggleSwitch) {
+    if ('brand_valid' in formObject) {
+      formObject['brand_valid']['activate'] = toggleSwitch.checked;
+    }
+  }
+
+  console.log(formObject);
   // Now, send `formObject` to your server to update the parameters
   fetch('/update_params', {
     method: 'POST',
@@ -151,6 +149,16 @@ document.getElementById('param-form').addEventListener('submit', function(event)
   });
 });
 
+
+
+
+
+urlForm.addEventListener("submit", async function (e) {
+  e.preventDefault();
+  var formData = new FormData(e.target);
+  url = formData.get("url");
+  await getScreenshot();
+});
 
 const scrollIntoView = (element) => {
   element.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -231,14 +239,17 @@ const getInference = () => {
   }
 
   const handlePromptEvent = async (event) => {
-    await showMessage(true, event.data);
+     responseSound.play();
+     await showMessage(true, event.data);
   }
 
   const handleResponseEvent = async (event) => {
+    responseSound.play();
     await showMessage(false, event.data);
   }
 
   const handleSuccessEvent = async (event) => {
+    responseSound.play();
     await showMessage(false, event.data);
     inferenceSuccess.style.display = "block";
     inferenceLoading.style.display = "none";
@@ -247,6 +258,7 @@ const getInference = () => {
   }
 
   const handleFailEvent = async (event) => {
+    responseSound.play();
     inferenceFail.style.display = "block";
     inferenceLoading.style.display = "none";
     scrollIntoView(inferenceFail);
