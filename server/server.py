@@ -28,14 +28,13 @@ class Config:
 
 # Initialize server and PhishLLM
 app = Flask(__name__)
-app.config['SESSION_TYPE'] = Config.SESSION_TYPE 
+app.config['SESSION_TYPE'] = Config.SESSION_TYPE
 app.config['SESSION_PERMANENT'] = Config.SESSION_PERMANENT
 CORS(app)
 Session(app)
 
 os.makedirs(Config.LOGS_DIR, exist_ok=True)
 os.makedirs(Config.REQUESTS_DIR, exist_ok=True)
-
 
 def clear_directories():
     if os.path.exists(Config.LOGS_DIR):
@@ -67,6 +66,7 @@ llm_cls = TestLLM(phishintention_cls, param_dict=param_dict,
                   ) # todo
 openai.api_key = os.getenv("OPENAI_API_KEY")
 openai.proxy = proxy_url
+
 
 @app.route("/")
 def interface():
@@ -129,6 +129,7 @@ def listen():
 
     return Response(stream(url, screenshot_path, html_path), mimetype='text/event-stream')
 
+
 @app.route("/update_params", methods=["POST"])
 def update_params():
      # Getting form data from request
@@ -140,10 +141,15 @@ def update_params():
             for param, value in params.items():
                 if param in param_dict[section]:
                     try:
-                        param_dict[section][param] = float(value)
+                        if param != 'activate':
+                            param_dict[section][param] = float(value)
+                        else:
+                            param_dict[section][param] = bool(value)
+                        print(section, param, value)
                     except ValueError:
                         return jsonify(success=False, message=f"Invalid value for {param} in {section}"), 400
 
+#    print(param_dict)
     # Update internal state of TestLLM
     llm_cls.update_params(param_dict)  # Assumes such a method exists
 
@@ -166,10 +172,10 @@ def get_inference(url, screenshot_path, html_path, announcer):
         screenshot_path,
         html_path,
         driver,
-        brand_recognition_do_validation=False,
         announcer=announcer
     )
     driver.quit()
 
 if __name__ == "__main__":
+
     app.run("0.0.0.0", port=6789, debug=True)
