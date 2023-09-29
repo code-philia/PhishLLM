@@ -80,6 +80,16 @@ class TestLLM():
         # webhosting domains as blacklist
         self.webhosting_domains = [x.strip() for x in open('./datasets/hosting_blacklists.txt').readlines()]
 
+    def update_params(self, param_dict):
+
+        self.brand_recog_temperature = param_dict['brand_recog']['temperature']
+        self.brand_valid_k, self.brand_valid_siamese_thre = param_dict['brand_valid']['k'], param_dict['brand_valid']['siamese_thre']
+        self.get_industry = param_dict['brand_recog']['ask_industry']
+
+        self.crp_temperature = param_dict['crp_pred']['temperature']
+        self.interaction_limit = param_dict['rank']['depth_limit']
+        print(param_dict)
+
     def extract_domain(self, domain:str):
         return tldextract.extract(domain)
 

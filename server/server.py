@@ -129,6 +129,26 @@ def listen():
 
     return Response(stream(url, screenshot_path, html_path), mimetype='text/event-stream')
 
+@app.route("/update_params", methods=["POST"])
+def update_params():
+     # Getting form data from request
+    form_data = request.get_json()
+
+    # Partially updating param_dict based on form data
+    for section, params in form_data.items():
+        if section in param_dict:
+            for param, value in params.items():
+                if param in param_dict[section]:
+                    try:
+                        param_dict[section][param] = float(value)
+                    except ValueError:
+                        return jsonify(success=False, message=f"Invalid value for {param} in {section}"), 400
+
+    # Update internal state of TestLLM
+    llm_cls.update_params(param_dict)  # Assumes such a method exists
+
+    return jsonify(success=True), 200
+
 def get_xdriver():
     timeout_time = Config.TIMEOUT_TIME  # Moved to Config class
     driver = CustomWebDriver.boot(proxy_server=proxy_url)  # Using the proxy_url variable

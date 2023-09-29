@@ -25,6 +25,133 @@ urlForm.addEventListener("submit", async function (e) {
   await getScreenshot();
 });
 
+document.addEventListener("DOMContentLoaded", function() {
+  // Initialize range value display
+  const sliders = document.querySelectorAll('.slider');
+  sliders.forEach((slider) => {
+    const valueElement = document.getElementById(`value-${slider.id}`);
+    valueElement.innerText = slider.value;
+    slider.addEventListener('input', function() {
+      valueElement.innerText = this.value;
+    });
+  });
+});
+
+// Resize the wrapper panel
+document.addEventListener('DOMContentLoaded', () => {
+  const wrapper = document.querySelector('.wrapper');
+  const handleRight = document.getElementById('resizeHandleRight');
+  const handleBottom = document.getElementById('resizeHandleBottom');
+  const handleCorner = document.getElementById('resizeHandleCorner');
+
+  let isResizingRight = false;
+  let isResizingBottom = false;
+  let isResizingCorner = false;
+
+  // Handle right resizer
+  handleRight.addEventListener('mousedown', (e) => {
+    isResizingRight = true;
+    document.addEventListener('mousemove', handleMouseMoveRight);
+    document.addEventListener('mouseup', () => {
+      isResizingRight = false;
+      document.removeEventListener('mousemove', handleMouseMoveRight);
+    });
+  });
+
+  // Handle bottom resizer
+  handleBottom.addEventListener('mousedown', (e) => {
+    isResizingBottom = true;
+    document.addEventListener('mousemove', handleMouseMoveBottom);
+    document.addEventListener('mouseup', () => {
+      isResizingBottom = false;
+      document.removeEventListener('mousemove', handleMouseMoveBottom);
+    });
+  });
+
+  // Handle corner resizer
+  handleCorner.addEventListener('mousedown', (e) => {
+    isResizingCorner = true;
+    document.addEventListener('mousemove', handleMouseMoveCorner);
+    document.addEventListener('mouseup', () => {
+      isResizingCorner = false;
+      document.removeEventListener('mousemove', handleMouseMoveCorner);
+    });
+  });
+
+  function handleMouseMoveRight(e) {
+    if (isResizingRight) {
+      const newWidth = e.clientX - wrapper.getBoundingClientRect().left;
+      wrapper.style.width = `${newWidth}px`;
+    }
+  }
+
+  function handleMouseMoveBottom(e) {
+    if (isResizingBottom) {
+      const newHeight = e.clientY - wrapper.getBoundingClientRect().top;
+      wrapper.style.height = `${newHeight}px`;
+    }
+  }
+
+  function handleMouseMoveCorner(e) {
+    if (isResizingCorner) {
+      const newWidth = e.clientX - wrapper.getBoundingClientRect().left;
+      const newHeight = e.clientY - wrapper.getBoundingClientRect().top;
+      wrapper.style.width = `${newWidth}px`;
+      wrapper.style.height = `${newHeight}px`;
+    }
+  }
+});
+
+// Listen for form submission
+document.getElementById('param-form').addEventListener('submit', function(event) {
+  // Prevent the default form submission action
+  event.preventDefault();
+
+  // Create a FormData object from the form
+  const formData = new FormData(event.target);
+
+  // Convert the FormData to an object
+  const formObject = {};
+  formData.forEach((value, key) => {
+    // Since our keys are in the format `group[key]`, we split them to nest our object
+    const [group, subkey] = key.split('[').map(str => str.replace(']', ''));
+
+    // Initialize the group object if not already done
+    if (!(group in formObject)) {
+      formObject[group] = {};
+    }
+
+    // If the value can be converted to a float, do so; otherwise, keep it as is
+    const parsedValue = isNaN(parseFloat(value)) ? value : parseFloat(value);
+
+    // Assign the value
+    formObject[group][subkey] = parsedValue;
+  });
+
+  // Now, send `formObject` to your server to update the parameters
+  fetch('/update_params', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(formObject)
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Update was successful
+      alert('Parameters updated successfully');
+    } else {
+      // Update failed
+      alert('Failed to update parameters');
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+  });
+});
+
+
 const scrollIntoView = (element) => {
   element.scrollIntoView({ behavior: "smooth", block: "end" });
 }
