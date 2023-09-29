@@ -3,12 +3,138 @@
 
 <head>
   <meta charset="utf-8">
+  <style>
+    .slider-container {
+      position: relative;
+    }
+    .label-value {
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 10px;
+    }
+    .slider {
+      display: inline-block;
+      vertical-align: middle;
+    }
+    /* For Chrome */
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+    }
+    /* For Firefox */
+    input[type=range]::-moz-range-thumb {
+      -moz-appearance: none;
+    }
+  /*!* Existing styles for screen width *!*/
+  /*@media screen and (min-width: 768px) {*/
+  /*  body {*/
+  /*    width: 100%;*/
+  /*    margin: auto;*/
+  /*  }*/
+  /*}*/
+
+  /* Flex layout to make wrapper and container side-by-side */
+  body {
+    display: flex;
+    flex-direction: row;
+  }
+
+    /* Styles for the wrapper containing the form */
+  .wrapper {
+    width: 20%; /* Adjust this to your needs */
+    padding: 1rem;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    resize: both;  /* Allows both vertical and horizontal resizing */
+    overflow: auto;  /* Enables resizing */
+    min-width: 200px;
+    max-width: 60%;
+    min-height: 400px;
+    max-height: 80vh;
+  }
+
+  /* Styles for the main content */
+  .container {
+    flex: 1; /* take up the remaining space */
+    padding: 1rem;
+  }
+
+  .resize-handle-right {
+    position: absolute;
+    cursor: e-resize;
+    width: 10px;
+    right: 0;
+    top: 0;
+    bottom: 0;
+  }
+
+  .resize-handle-bottom {
+    position: absolute;
+    cursor: n-resize;
+    height: 10px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+
+  .resize-handle-corner {
+    position: absolute;
+    cursor: nw-resize;
+    width: 10px;
+    height: 10px;
+    right: 0;
+    bottom: 0;
+  }
+
+  </style>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@next/css/pico.min.css" />
   <title>PhishLLM Demo</title>
 </head>
 
+
 <body>
+  <div class="wrapper">
+    <div class="resize-handle-right" id="resizeHandleRight"></div>
+    <div class="resize-handle-bottom" id="resizeHandleBottom"></div>
+    <div class="resize-handle-corner" id="resizeHandleCorner"></div>
+    <form id="param-form">
+     <h4>Adjust the Hyperparameters</h4>
+      <fieldset>
+
+        <div class="slider-container">
+          <label for="brand-recog-temperature">Temperature for the brand recognition LLM:</label>
+          <span class="label-value" id="value-brand-recog-temperature">0</span>
+          <input type="range" id="brand-recog-temperature" name="brand_recog[temperature]" step="0.01" min="0" max="1" value="0" class="slider">
+        </div>
+
+        <div class="slider-container">
+          <label for="brand-valid-k">k logo images used for brand validation:</label>
+          <span class="label-value" id="value-brand-valid-k">5</span>
+          <input type="range" id="brand-valid-k" name="brand_valid[k]" step="1" min="1" max="10" value="5" class="slider">
+        </div>
+
+        <div class="slider-container">
+          <label for="siamese-thre">Logo matching threshold used for brand validation:</label>
+          <span class="label-value" id="value-siamese-thre">0.7</span>
+          <input type="range" id="siamese-thre" name="brand_valid[siamese_thre]" step="0.01" min="0.5" max="1" value="0.7" class="slider">
+        </div>
+
+        <div class="slider-container">
+          <label for="crp-pred-temperature">Temperature for the CRP prediction LLM:</label>
+          <span class="label-value" id="value-crp-pred-temperature">0</span>
+          <input type="range" id="crp-pred-temperature" name="crp_pred[temperature]" step="0.01" min="0" max="1" value="0" class="slider">
+        </div>
+
+        <div class="slider-container">
+          <label for="rank-depth-limit">CRP transition exploration depth limit:</label>
+          <span class="label-value" id="value-rank-depth-limit">3</span>
+          <input type="range" id="rank-depth-limit" name="rank[depth_limit]" step="1" min="1" max="5" value="3" class="slider">
+        </div>
+
+      </fieldset>
+      <input type="submit" value="Update Parameters">
+    </form>
+  </div>
+
   <main class="container">
     <h1>PhishLLM Demo</h1>
     <section>
