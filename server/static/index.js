@@ -14,9 +14,176 @@ const inferenceResult = document.getElementById("inference-result");
 const inferenceLogs = document.getElementById("inference-logs");
 const inferenceSuccess = document.getElementById("inference-success");
 const inferenceFail = document.getElementById("inference-fail");
+const resetButton = document.getElementById("reset-button");
+const updateButton = document.getElementById('update-param-button');
 let url = "";
 let eventNumber = 0;
 let eventQueue = [];
+const responseSound = new Audio('/static/facebookchatone.mp3');
+
+// Function to show values when scrollin
+document.addEventListener("DOMContentLoaded", function() {
+  // Initialize range value display
+  const sliders = document.querySelectorAll('.slider');
+  sliders.forEach((slider) => {
+    const valueElement = document.getElementById(`value-${slider.id}`);
+    valueElement.innerText = slider.value;
+    slider.addEventListener('input', function() {
+      valueElement.innerText = this.value;
+    });
+  });
+});
+
+
+// Add click event listener to reset button
+resetButton.addEventListener("click", async function(e){
+  e.preventDefault();
+  // Reset sliders and checkboxes to their default values
+  document.getElementById("common-temperature").value = 0;
+  document.getElementById("brand-valid-activate").checked = false;
+  document.getElementById("brand-valid-k").value = 5;
+  document.getElementById("siamese-thre").value = 0.7;
+  document.getElementById("rank-depth-limit").value = 3;
+
+  // Update label values to match the default values
+  document.getElementById("value-common-temperature").innerText = "0";
+  document.getElementById("value-brand-valid-k").innerText = "5";
+  document.getElementById("value-siamese-thre").innerText = "0.7";
+  document.getElementById("value-rank-depth-limit").innerText = "3";
+
+  // Create an object with default values
+  const defaultParams = {
+    brand_recog: { temperature: 0 },
+    brand_valid: { activate: false, k: 5, siamese_thre: 0.7 },
+    crp_pred: { temperature: 0 },
+    rank: { depth_limit: 3 }
+  };
+
+  // Now, send `defaultParams` to your server to reset the parameters
+  fetch('/update_params', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(defaultParams)
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Reset was successful
+      alert('Parameters reset to default successfully');
+    } else {
+      // Reset failed
+      alert('Failed to reset parameters to default');
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+  });
+});
+
+updateButton.addEventListener('click', async function(event) {
+  event.preventDefault();
+  
+  // Create an object with default values
+  const defaultParams = {
+    brand_recog: { temperature: document.getElementById("common-temperature").value },
+    brand_valid: { activate: document.getElementById("brand-valid-activate").checked,
+                  k: document.getElementById("brand-valid-k").value,
+                  siamese_thre: document.getElementById("siamese-thre").value },
+    crp_pred: { temperature: document.getElementById("common-temperature").value },
+    rank: { depth_limit: document.getElementById("rank-depth-limit").value }
+  };
+
+  console.log(defaultParams);
+  // Now, send `defaultParams` to your server to reset the parameters
+  fetch('/update_params', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(defaultParams)
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Reset was successful
+      alert('Parameters reset to default successfully');
+    } else {
+      // Reset failed
+      alert('Failed to reset parameters to default');
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+  });
+});
+
+
+
+document.addEventListener('DOMContentLoaded', () => {
+  const wrapper = document.querySelector('.wrapper');
+  const handleRight = document.getElementById('resizeHandleRight');
+  const handleBottom = document.getElementById('resizeHandleBottom');
+  const handleCorner = document.getElementById('resizeHandleCorner');
+  
+  let isResizingRight = false;
+  let isResizingBottom = false;
+  let isResizingCorner = false;
+
+  // Handle right resizer
+  handleRight.addEventListener('mousedown', (e) => {
+    isResizingRight = true;
+    document.addEventListener('mousemove', handleMouseMoveRight);
+    document.addEventListener('mouseup', () => {
+      isResizingRight = false;
+      document.removeEventListener('mousemove', handleMouseMoveRight);
+    });
+  });
+
+  // Handle bottom resizer
+  handleBottom.addEventListener('mousedown', (e) => {
+    isResizingBottom = true;
+    document.addEventListener('mousemove', handleMouseMoveBottom);
+    document.addEventListener('mouseup', () => {
+      isResizingBottom = false;
+      document.removeEventListener('mousemove', handleMouseMoveBottom);
+    });
+  });
+
+  // Handle corner resizer
+  handleCorner.addEventListener('mousedown', (e) => {
+    isResizingCorner = true;
+    document.addEventListener('mousemove', handleMouseMoveCorner);
+    document.addEventListener('mouseup', () => {
+      isResizingCorner = false;
+      document.removeEventListener('mousemove', handleMouseMoveCorner);
+    });
+  });
+
+  function handleMouseMoveRight(e) {
+    if (isResizingRight) {
+      const newWidth = e.clientX - wrapper.getBoundingClientRect().left;
+      wrapper.style.width = `${newWidth}px`;
+    }
+  }
+
+  function handleMouseMoveBottom(e) {
+    if (isResizingBottom) {
+      const newHeight = e.clientY - wrapper.getBoundingClientRect().top;
+      wrapper.style.height = `${newHeight}px`;
+    }
+  }
+
+  function handleMouseMoveCorner(e) {
+    if (isResizingCorner) {
+      const newWidth = e.clientX - wrapper.getBoundingClientRect().left;
+      const newHeight = e.clientY - wrapper.getBoundingClientRect().top;
+      wrapper.style.width = `${newWidth}px`;
+      wrapper.style.height = `${newHeight}px`;
+    }
+  }
+});
 
 urlForm.addEventListener("submit", async function (e) {
   e.preventDefault();
@@ -104,14 +271,17 @@ const getInference = () => {
   }
 
   const handlePromptEvent = async (event) => {
-    await showMessage(true, event.data);
+     responseSound.play();
+     await showMessage(true, event.data);
   }
 
   const handleResponseEvent = async (event) => {
+    responseSound.play();
     await showMessage(false, event.data);
   }
 
   const handleSuccessEvent = async (event) => {
+    responseSound.play();
     await showMessage(false, event.data);
     inferenceSuccess.style.display = "block";
     inferenceLoading.style.display = "none";
@@ -120,6 +290,7 @@ const getInference = () => {
   }
 
   const handleFailEvent = async (event) => {
+    responseSound.play();
     inferenceFail.style.display = "block";
     inferenceLoading.style.display = "none";
     scrollIntoView(inferenceFail);
@@ -156,7 +327,7 @@ const getInference = () => {
       (function animate() {
         if (chars.length > 0) {
           element.innerHTML += chars.shift();
-          var running = setTimeout(animate, 20);
+          var running = setTimeout(animate, 10);
         } else {
           clearTimeout(running);
           resolve();

@@ -18,7 +18,7 @@ import math
 from collections import Counter
 from selection_model.dataloader import ShotDataset, get_ocr_text
 from tldextract import tldextract
-from xdriver.xutils.PhishIntentionWrapper import PhishIntentionWrapper
+from model_chain.PhishIntentionWrapper import PhishIntentionWrapper
 import torch
 from lavis.models import load_model_and_preprocess
 from PIL import Image
@@ -168,7 +168,7 @@ class ShotDataset_Caption(Dataset):
         screenshot_img = screenshot_img.convert("RGB")
         with open(img_path, "rb") as image_file:
             screenshot_encoding = base64.b64encode(image_file.read())
-        logo_boxes = self.phishintention_cls.return_all_bboxes4type(screenshot_encoding, 'logo')
+        logo_boxes = self.phishintention_cls.predict_all_uis4type(screenshot_encoding, 'logo')
         caption = ''
         extra_description = ''
         ocr_text = []

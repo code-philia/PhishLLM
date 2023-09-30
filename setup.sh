@@ -1,3 +1,84 @@
+install_dir="/tmp/"
+
+function success {
+	echo "[+] $1"
+}
+
+function fail {
+	echo "[-] $1"
+}
+
+function warn {
+	echo "[!] $1"
+}
+
+function prompt {
+	ret=""
+	while true; do
+    	read -p "$1 [y/n]: " yn
+	    case $yn in
+	        [Yy]* ) ret=1; break;;
+	        [Nn]* ) ret=0; break;;
+	        * ) echo "Please answer yes or no.";;
+    	esac
+	done
+	return $ret
+}
+
+function install_chrome {
+	debfile="google-chrome-stable_current_amd64.deb"
+	wget "https://dl.google.com/linux/direct/$debfile" -P "$install_dir"
+	if [ $? -ne 0 ];
+	then
+		fail "Could not download Chrome"
+		return 1
+	fi
+	sudo dpkg -i "$install_dir$debfile"
+	if [ $? -ne 0 ];
+	then
+		fail "Could not install Chrome package"
+		return 2
+	fi
+	success "Successfully installed Chrome"
+	return 0
+}
+
+
+declare -A browsers
+browsers=(["google-chrome-stable"]=install_chrome)
+
+function check_browsers {
+	for browser in ${!browsers[@]};
+	do
+		installed=false
+		sudo dpkg -l "$browser" > /dev/null 2>&1
+		if [ $? -eq 0 ];
+		then
+			success "$browser is installed. (version: $($browser --version))"
+			installed=true
+		else
+			warn "$browser does not seem to be installed"
+			prompt "Do you want to install its latest stable version?"
+			if [ $? -eq 1 ];
+			then
+				success "Installing $browser"
+				${browsers[$browser]}
+				if [ $? -eq 0 ];
+				then
+					installed=true
+				fi
+			else
+				fail "Skipping $browser installation"
+			fi
+		fi
+		echo -e ""
+	done
+	return 0
+}
+
+# Install chrome binary
+check_browsers
+
 # Source the Conda configuration
 CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE/etc/profile.d/conda.sh"
@@ -13,17 +94,19 @@ else
     conda create -n "$ENV_NAME" python=3.8
 fi
 
-## Install MyXDriver
-PACKAGE_NAME="xdriver"
+# Install phishintention
+PACKAGE_NAME="phishintention"
+# Fetch list of installed packages
 installed_packages=$(conda run -n "$ENV_NAME" conda list)
 if echo "$installed_packages" | grep -q "$PACKAGE_NAME"; then
-  echo "MyXdriver_pub is already installed, skip installation"
+  echo "$PACKAGE_NAME is already installed, skip installation"
 else
-  git clone https://github.com/lindsey98/MyXdriver_pub.git
-  cd MyXdriver_pub
+  git clone https://github.com/lindsey98/PhishIntention.git
+  cd PhishIntention
   chmod +x ./setup.sh
   ./setup.sh
   cd ../
+  rm -rf PhishIntention
 fi
 
 # Install PaddleOCR

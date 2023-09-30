@@ -12,6 +12,9 @@ from selenium import webdriver
 from seleniumwire.webdriver import ChromeOptions
 from server.announcer import Announcer
 from model_chain.test_llm import *
+from apscheduler.schedulers.background import BackgroundScheduler
+import shutil
+
 # os.environ['proxy_url'] = "http://127.0.0.1:7890"
 
 class Config:
@@ -25,13 +28,26 @@ class Config:
 
 # Initialize server and PhishLLM
 app = Flask(__name__)
-app.config['SESSION_TYPE'] = Config.SESSION_TYPE 
+app.config['SESSION_TYPE'] = Config.SESSION_TYPE
 app.config['SESSION_PERMANENT'] = Config.SESSION_PERMANENT
 CORS(app)
 Session(app)
 
 os.makedirs(Config.LOGS_DIR, exist_ok=True)
 os.makedirs(Config.REQUESTS_DIR, exist_ok=True)
+
+def clear_directories():
+    if os.path.exists(Config.LOGS_DIR):
+        shutil.rmtree(Config.LOGS_DIR)
+    if os.path.exists(Config.REQUESTS_DIR):
+        shutil.rmtree(Config.REQUESTS_DIR)
+    os.makedirs(Config.LOGS_DIR, exist_ok=True)
+    os.makedirs(Config.REQUESTS_DIR, exist_ok=True)
+
+# Initialize scheduler
+scheduler = BackgroundScheduler()
+scheduler.add_job(func=clear_directories, trigger="interval", days=1)  # clear every day
+scheduler.start()
 
 PhishLLMLogger.set_debug_on()
 PhishLLMLogger.set_logfile(os.path.join(Config.LOGS_DIR, f"{datetime.now().strftime('%Y-%d-%m_%H%M%S')}.log"))
@@ -51,6 +67,7 @@ llm_cls = TestLLM(phishintention_cls, param_dict=param_dict,
 openai.api_key = os.getenv("OPENAI_API_KEY")
 openai.proxy = proxy_url
 
+
 @app.route("/")
 def interface():
     session['ready'] = True
@@ -69,7 +86,7 @@ def crawl():
     try:
         driver.delete_all_cookies()
         driver.get(url)
-        time.sleep(3) # wait for the page to be fully loaded
+        time.sleep(1.5) # wait for the page to be fully loaded
         success = driver.save_screenshot(screenshot_path)
         with open(html_path, "w") as f:
             f.write(driver.page_source)
@@ -112,6 +129,32 @@ def listen():
 
     return Response(stream(url, screenshot_path, html_path), mimetype='text/event-stream')
 
+
+@app.route("/update_params", methods=["POST"])
+def update_params():
+     # Getting form data from request
+    form_data = request.get_json()
+
+    # Partially updating param_dict based on form data
+    for section, params in form_data.items():
+        if section in param_dict:
+            for param, value in params.items():
+                if param in param_dict[section]:
+                    try:
+                        if param != 'activate':
+                            param_dict[section][param] = float(value)
+                        else:
+                            param_dict[section][param] = bool(value)
+                        print(section, param, value)
+                    except ValueError:
+                        return jsonify(success=False, message=f"Invalid value for {param} in {section}"), 400
+
+#    print(param_dict)
+    # Update internal state of TestLLM
+    llm_cls.update_params(param_dict)  # Assumes such a method exists
+
+    return jsonify(success=True), 200
+
 def get_xdriver():
     timeout_time = Config.TIMEOUT_TIME  # Moved to Config class
     driver = CustomWebDriver.boot(proxy_server=proxy_url)  # Using the proxy_url variable
@@ -129,10 +172,10 @@ def get_inference(url, screenshot_path, html_path, announcer):
         screenshot_path,
         html_path,
         driver,
-        brand_recognition_do_validation=False,
         announcer=announcer
     )
     driver.quit()
 
 if __name__ == "__main__":
+
     app.run("0.0.0.0", port=6789, debug=True)

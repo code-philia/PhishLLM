@@ -1,5 +1,4 @@
 import re
-from xdriver.xutils.Logger import Logger
 import numpy as np
 import cv2
 import requests
@@ -7,13 +6,10 @@ import time
 from PIL import Image
 import io
 from concurrent.futures import ThreadPoolExecutor
-from selenium import webdriver
-from selenium.common.exceptions import WebDriverException
 import base64
 from webdriver_manager.chrome import ChromeDriverManager
 from typing import *
 from model_chain.logger_utils import PhishLLMLogger
-from xdriver.xutils.PhishIntentionWrapper import PhishIntentionWrapper
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import *
@@ -22,7 +18,16 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+from model_chain.PhishIntentionWrapper import PhishIntentionWrapper
 import json
+from unidecode import unidecode
+
+def lower(text):
+	alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝ'
+	return "translate(%s, '%s', '%s')" % (text, alphabet, alphabet.lower())
+
+def replace_nbsp(text, by=' '):
+	return "translate(%s, '\u00a0', %r)" % (text, by)
 
 class WebUtil():
     home_page_heuristics = [
@@ -113,7 +118,7 @@ class WebUtil():
             sorted_link_by_likelihood = links[sorted_index]
             driver.click(sorted_link_by_likelihood[0])
             time.sleep(2)
-            Logger.spit('After clicking URL={}'.format(driver.current_url()), debug=True)
+            print('After clicking URL={}'.format(driver.current_url()), debug=True)
             ct += 1
             if ct >= 10:
                 hang = True
@@ -155,6 +160,7 @@ class WebUtil():
 class CustomWebDriver(webdriver.Chrome):
     _MAX_RETRIES = 3
     _last_url = 'https://google.com'
+    _forbidden_suffixes = r"\.(mp3|wav|wma|ogg|mkv|zip|tar|xz|rar|z|deb|bin|iso|csv|tsv|dat|txt|css|log|sql|xml|sql|mdb|apk|bat|bin|exe|jar|wsf|fnt|fon|otf|ttf|ai|bmp|gif|ico|jp(e)?g|png|ps|psd|svg|tif|tiff|cer|rss|key|odp|pps|ppt|pptx|c|class|cpp|cs|h|java|sh|swift|vb|odf|xlr|xls|xlsx|bak|cab|cfg|cpl|cur|dll|dmp|drv|icns|ini|lnk|msi|sys|tmp|3g2|3gp|avi|flv|h264|m4v|mov|mp4|mp(e)?g|rm|swf|vob|wmv|doc(x)?|odt|rtf|tex|txt|wks|wps|wpd)$"
 
     def __init__(self, proxy_server=None, *args, **kwargs):
         chrome_options = ChromeOptions()
@@ -322,6 +328,37 @@ class CustomWebDriver(webdriver.Chrome):
     def get_screenshot_encoding(self):
         return self._invoke(super(CustomWebDriver, self).get_screenshot_as_base64)
 
+    def get_page_text(self):
+        try:
+            body = self.find_element_by_tag_name('html').text
+            return body
+        except:
+            return ''
+
+    def obfuscate_page(self):
+        self._invoke(self.execute_script, """
+                  var script = document.createElement('script');
+                  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.5.0-beta4/html2canvas.min.js';
+                  document.head.appendChild(script);
+                """)
+        time.sleep(1)
+        return self._invoke(self.execute_script, """obfuscate_button();""")
+
+    def current_url(self):
+        return self._invoke(self._current_url)
+
+    def _current_url(self):
+        return super(CustomWebDriver, self).current_url
+
+    def switch_to_window(self, window_handle):
+        return self._invoke(self._switch_to_window, window_handle)
+
+    def _switch_to_window(self, window_handle):
+        # Default `switch_to.window` hangs in case there is an open alert, so we need a dummy op to trigger the alert handling
+        self.execute_script("return 2;")
+        self.switch_to.window(window_handle)
+        return True
+
     '''Find elements'''
 
     def _webelement_find_element_by(self, element, by=By.ID, value=None):
@@ -375,6 +412,9 @@ class CustomWebDriver(webdriver.Chrome):
         return self.find_elements(By.XPATH, value=xpath_, timeout=timeout, visible=visible, webelement=webelement,
                                   *args, **kwargs)
 
+    def find_element_by_location(self, point_x, point_y):
+        return self._invoke(self.execute_script, 'return document.elementFromPoint(%r, %r);' % (point_x, point_y))
+
     def get_dompath(self, element):
         try:
             dompath = self._invoke(self.execute_script, "return get_dompath(arguments[0]).toLowerCase();", element,
@@ -395,6 +435,19 @@ class CustomWebDriver(webdriver.Chrome):
             self._REFS[id(button)] = (self.find_element, (), {"by": By.XPATH, "value": button_dompath, "timeout": 3, "visible": False})
 
         return interested_buttons, interested_buttons_dom
+
+    def get_all_links_orig(self):
+        ret = self._invoke(self.execute_script, "return get_all_links();")
+        interested_links = []
+        for link_ele in ret:
+            link, link_dompath, link_source = link_ele
+            if re.search(CustomWebDriver._forbidden_suffixes, link_source, re.IGNORECASE):
+                continue
+            if link not in interested_links:
+                interested_links.append([link, link_source])
+                self._REFS[id(link)] = (self.find_element, (), {"by": By.XPATH, "value": link_dompath, "timeout": 3, "visible": False})
+
+        return interested_links
 
     def get_all_links(self):
         ret = self._invoke(self.execute_script, "return get_all_links();")
@@ -454,6 +507,53 @@ class CustomWebDriver(webdriver.Chrome):
 
         return (btns, btns_dom), (links, links_dom), \
                (images, images_dom), (leaf_elements, leaf_elements_dom)
+
+    def _get_elements_xpath_contains(self, patterns, tag=None, role=None, is_input=False, is_free_text=False):
+        property_list = ["text()", "@class", "@title", "@value", "@label", "@aria-label"]
+
+        # For regular elements
+        tag_matching_regex = "//%s" % (tag if tag else "*")
+        pattern_matching_regex = " or ".join(
+            ["starts-with(normalize-space(%s), '%s')" % (lower(replace_nbsp(property)), patterns.lower()) for property
+             in property_list])
+        rule1 = tag_matching_regex + "[" + pattern_matching_regex + "]"
+
+        # For elements with roles
+        role_matching_regex = "//*[@role='%s']" % (role if role else "*")
+        pattern_matching_regex = "[%s]" % ("starts-with(normalize-space(.), '%s')" % patterns)
+        rule2 = role_matching_regex + pattern_matching_regex
+
+        # For input elements with specific types
+        if is_input:
+            rule1 = "//input[@type='submit' or @type='button'][" + pattern_matching_regex + "]"
+
+        # For free text elements
+        if is_free_text:
+            xpath_base = "//*[starts-with(normalize-space(%s), '%s')]" % (
+            lower(replace_nbsp("text()")), patterns.lower())
+            rule1 = '%s[not(self::script)][not(.%s)]' % (xpath_base, xpath_base)
+
+        return [rule1, rule2]
+
+    def get_clickable_elements_contains(self, patterns):
+
+        button_xpaths = self._get_elements_xpath_contains(patterns, tag='button', role='button')
+        link_xpaths = self._get_elements_xpath_contains(patterns, tag='a', role='link')
+        input_xpath = self._get_elements_xpath_contains(patterns, is_input=True)
+        free_text_xpath = self._get_elements_xpath_contains(patterns, is_free_text=True)
+
+        element_list = []
+        for path in button_xpaths + link_xpaths + [input_xpath] + [free_text_xpath]:
+            elements = self.find_elements_by_xpath(path)
+            if elements:
+                element_list.extend(elements)
+
+        return element_list
+
+    def get_all_visible_username_password_inputs(self):
+        ret_password, ret_username = self._invoke(self.execute_script,
+                                                  "return get_all_visible_password_username_inputs();")
+        return ret_password, ret_username
 
     # Get element location
     def get_location(self, element):
@@ -527,23 +627,19 @@ def is_valid_domain(domain: str) -> bool:
     return it_is_a_domain
 
 def is_alive_domain(domain: str, proxies: Optional[Dict]=None) -> bool:
-    ct_limit = 0
-    while ct_limit < 3:
-        try:
-            response = requests.head('https://' + domain, timeout=10, proxies=proxies)  # Reduced timeout and used HEAD
-            PhishLLMLogger.spit(f'Status code {response.status_code}', caller_prefix=PhishLLMLogger._caller_prefix,
+    try:
+        response = requests.head('https://' + domain, timeout=10, proxies=proxies)  # Reduced timeout and used HEAD
+        PhishLLMLogger.spit(f'Status code {response.status_code}', caller_prefix=PhishLLMLogger._caller_prefix,
+                            debug=True)
+        if response.status_code < 400:
+            PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+            return True
+        elif response.history and any([r.status_code < 400 for r in response.history]):
+            PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix,
                                 debug=True)
-            if response.status_code < 400:
-                PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
-                return True
-            elif response.history and any([r.status_code < 400 for r in response.history]):
-                PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix,
-                                    debug=True)
-                return True
-            break
-        except Exception as err:
-            print(f'Error {err} when checking the aliveness of domain {domain}')
-            ct_limit += 1
+            return True
+    except Exception as err:
+        print(f'Error {err} when checking the aliveness of domain {domain}')
     PhishLLMLogger.spit(f'Domain {domain} is invalid or dead', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
     return False
 
@@ -559,7 +655,7 @@ def url2logo(url, phishintention_cls):
         time.sleep(2)
         screenshot_encoding = driver.get_screenshot_as_base64()
         screenshot_img = Image.open(io.BytesIO(base64.b64decode(screenshot_encoding)))
-        logo_boxes = phishintention_cls.return_all_bboxes4type(screenshot_encoding, 'logo')
+        logo_boxes = phishintention_cls.predict_all_uis4type(screenshot_encoding, 'logo')
         if (logo_boxes is not None) and len(logo_boxes):
             logo_box = logo_boxes[0]  # get coordinate for logo
             x1, y1, x2, y2 = logo_box
@@ -649,6 +745,7 @@ def page_transition(driver: CustomWebDriver, dom: str, save_html_path: str, save
         :param save_shot_path:
         :return:
     '''
+    orig_url = driver.current_url()
     try:
         element = driver.find_elements_by_xpath(dom)
         if element:
@@ -662,10 +759,10 @@ def page_transition(driver: CustomWebDriver, dom: str, save_html_path: str, save
                 etext = driver.get_attribute(element[0], "value")
             driver.click(element[0])
             time.sleep(7)  # fixme: must allow some loading time here, dynapd is slow
-        current_url = driver.current_url
+        current_url = driver.current_url()
     except Exception as e:
         PhishLLMLogger.spit('Exception {} when clicking the login button'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
-        return None, None, None, None
+        return None, orig_url, None, None
 
     try:
         driver.save_screenshot(save_shot_path)
@@ -675,11 +772,11 @@ def page_transition(driver: CustomWebDriver, dom: str, save_html_path: str, save
         return etext, current_url, save_html_path, save_shot_path
     except Exception as e:
         PhishLLMLogger.spit('Exception {} when saving the new screenshot'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
-        return None, None, None, None
+        return None, orig_url, None, None
 
 
 def get_screenshot_elements(phishintention_cls: PhishIntentionWrapper, driver: CustomWebDriver) -> List[int]:
-    pred_boxes, pred_classes = phishintention_cls.return_all_bboxes(driver.get_screenshot_encoding())
+    pred_boxes, pred_classes = phishintention_cls.predict_all_uis(driver.get_screenshot_encoding())
     if pred_boxes is None:
         screenshot_elements = []
     else:
