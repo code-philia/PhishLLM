@@ -22,7 +22,7 @@ LLM_model: "gpt-3.5-turbo-16k"
 brand_recog:
   temperature: 0
   max_tokens: 10
-  sleep_time: 1
+  sleep_time: 0.5
   prompt_path: "./brand_recognition/prompt.json"
   ask_industry: True
   industry:
@@ -37,7 +37,7 @@ brand_valid:
 crp_pred:
   temperature: 0
   max_tokens: 100
-  sleep_time: 1
+  sleep_time: 0.5
   prompt_path: "./selection_model/prompt.json"
 
 rank:
