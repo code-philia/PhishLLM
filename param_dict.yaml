@@ -8,23 +8,9 @@ ocr:
     - 'ru'
     - 'japan'
     - 'fa'
-    - 'ar'
     - 'korean'
-    - 'vi'
-    - 'ms'
     - 'fr'
     - 'german'
-    - 'it'
-    - 'es'
-    - 'pt'
-    - 'uk'
-    - 'be'
-    - 'te'
-    - 'sa'
-    - 'ta'
-    - 'nl'
-    - 'tr'
-    - 'ga'
 
 logo_caption:
   model_name: "blip_caption"
@@ -44,6 +30,7 @@ brand_recog:
     max_tokens: 20
 
 brand_valid:
+  activate: False
   k: 5
   siamese_thre: 0.7
 
