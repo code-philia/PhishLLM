@@ -14,6 +14,8 @@ const inferenceResult = document.getElementById("inference-result");
 const inferenceLogs = document.getElementById("inference-logs");
 const inferenceSuccess = document.getElementById("inference-success");
 const inferenceFail = document.getElementById("inference-fail");
+const resetButton = document.getElementById("reset-button");
+const updateButton = document.getElementById('update-param-button');
 let url = "";
 let eventNumber = 0;
 let eventQueue = [];
@@ -31,6 +33,92 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   });
 });
+
+
+// Add click event listener to reset button
+resetButton.addEventListener("click", async function(e){
+  e.preventDefault();
+  // Reset sliders and checkboxes to their default values
+  document.getElementById("common-temperature").value = 0;
+  document.getElementById("brand-valid-activate").checked = false;
+  document.getElementById("brand-valid-k").value = 5;
+  document.getElementById("siamese-thre").value = 0.7;
+  document.getElementById("rank-depth-limit").value = 3;
+
+  // Update label values to match the default values
+  document.getElementById("value-common-temperature").innerText = "0";
+  document.getElementById("value-brand-valid-k").innerText = "5";
+  document.getElementById("value-siamese-thre").innerText = "0.7";
+  document.getElementById("value-rank-depth-limit").innerText = "3";
+
+  // Create an object with default values
+  const defaultParams = {
+    brand_recog: { temperature: 0 },
+    brand_valid: { activate: false, k: 5, siamese_thre: 0.7 },
+    crp_pred: { temperature: 0 },
+    rank: { depth_limit: 3 }
+  };
+
+  // Now, send `defaultParams` to your server to reset the parameters
+  fetch('/update_params', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(defaultParams)
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Reset was successful
+      alert('Parameters reset to default successfully');
+    } else {
+      // Reset failed
+      alert('Failed to reset parameters to default');
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+  });
+});
+
+updateButton.addEventListener('click', async function(event) {
+  event.preventDefault();
+  
+  // Create an object with default values
+  const defaultParams = {
+    brand_recog: { temperature: document.getElementById("common-temperature").value },
+    brand_valid: { activate: document.getElementById("brand-valid-activate").checked,
+                  k: document.getElementById("brand-valid-k").value,
+                  siamese_thre: document.getElementById("siamese-thre").value },
+    crp_pred: { temperature: document.getElementById("common-temperature").value },
+    rank: { depth_limit: document.getElementById("rank-depth-limit").value }
+  };
+
+  console.log(defaultParams);
+  // Now, send `defaultParams` to your server to reset the parameters
+  fetch('/update_params', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(defaultParams)
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Reset was successful
+      alert('Parameters reset to default successfully');
+    } else {
+      // Reset failed
+      alert('Failed to reset parameters to default');
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+  });
+});
+
 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -96,62 +184,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 });
-
-
-
-document.getElementById('param-form').addEventListener('submit', function(event) {
-  event.preventDefault();
-
-  const formData = new FormData(event.target);
-
-  const formObject = {};
-  formData.forEach((value, key) => {
-    const [group, subkey] = key.split('[').map(str => str.replace(']', ''));
-
-    if (!(group in formObject)) {
-      formObject[group] = {};
-    }
-
-    const parsedValue = isNaN(parseFloat(value)) ? value : parseFloat(value);
-
-    formObject[group][subkey] = parsedValue;
-  });
-
-  // Explicitly set the value for brand_valid['activate']
-  const toggleSwitch = document.getElementById('brand-valid-activate');
-  if (toggleSwitch) {
-    if ('brand_valid' in formObject) {
-      formObject['brand_valid']['activate'] = toggleSwitch.checked;
-    }
-  }
-
-  console.log(formObject);
-  // Now, send `formObject` to your server to update the parameters
-  fetch('/update_params', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(formObject)
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
-      // Update was successful
-      alert('Parameters updated successfully');
-    } else {
-      // Update failed
-      alert('Failed to update parameters');
-    }
-  })
-  .catch(error => {
-    console.error('Error:', error);
-  });
-});
-
-
-
-
 
 urlForm.addEventListener("submit", async function (e) {
   e.preventDefault();

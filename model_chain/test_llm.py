@@ -18,7 +18,7 @@ from functools import lru_cache
 from model_chain.PhishIntentionWrapper import PhishIntentionWrapper
 import yaml
 from tldextract import tldextract
-os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key2.txt')
+os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key2.txt').read()
 os.environ['CURL_CA_BUNDLE'] = ''
 
 

@@ -3,22 +3,45 @@
 <head>
   <meta charset="utf-8">
   <style>
-    .slider-container {
-      position: relative;
-    }
-    .label-value {
+
+/* CSS for button placement and styling */
+.button-container {
+  display: flex;
+  justify-content: start; /* Align buttons to the start */
+}
+
+
+.slider-container {
+  position: relative;
+}
+    
+.label-value {
+  font-weight: bold;
+  vertical-align: middle;
+  display: inline-block;
+  margin-left: 10px;
+  margin-right: 10px;
+}
+
+/* Make label text more formal */
+label {
+  font-size: 20px;
+}
+    
+.slider {
       display: inline-block;
       vertical-align: middle;
-      margin-right: 10px;
-    }
-    .slider {
-      display: inline-block;
-      vertical-align: middle;
-    }
-    /* For Chrome */
-    input[type=range]::-webkit-slider-thumb {
+ }
+
+input[type="submit"], .reset-button {
+  width: 50px; /* Smaller width */
+  height: 10px;
+}
+
+/* For Chrome */
+ input[type=range]::-webkit-slider-thumb {
       -webkit-appearance: none;
-    }
+ }
     /* For Firefox */
     input[type=range]::-moz-range-thumb {
       -moz-appearance: none;
@@ -32,7 +55,7 @@ body {
 
 /* Styles for the wrapper containing the form */
 .wrapper {
-  width: 20%; /* Adjust this to your needs */
+  width: 15%; /* Adjust this to your needs */
   padding: 1rem;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   resize: both;  /* Allows both vertical and horizontal resizing */
@@ -80,13 +103,13 @@ body {
 .switch {
   position: relative;
   display: inline-block;
-  width: 200px;
+  width: 100px;
   height: 34px;
 }
 
 .switch input {
   opacity: 0;
-  width: 200px;
+  width: 100px;
   height: 34px;
 }
 
@@ -112,7 +135,7 @@ body {
   background-color: white;
   transition: .4s;
   border-radius: 50%;
-  z-index: 1,
+  z-index: 1;
 }
 
 .on, .off {
@@ -137,7 +160,7 @@ input:checked + .slider-round {
 }
 
 input:checked + .slider-round:before {
-  transform: translateX(175px); /* Adjusted to fit text */
+  transform: translateX(75px); /* Adjusted to fit text */
 }
 
   </style>
@@ -151,28 +174,29 @@ input:checked + .slider-round:before {
       <div class="resize-handle-right" id="resizeHandleRight"></div>
       <div class="resize-handle-bottom" id="resizeHandleBottom"></div>
       <div class="resize-handle-corner" id="resizeHandleCorner"></div>
-   <form id="param-form">
-     <h4>Adjust the Hyperparameters</h4>
-      <fieldset>
+    <form id="param-form">
+      <h5>Adjust the Hyperparameters</h5>
+       <fieldset>
 
         <div class="slider-container">
-          <label for="brand-recog-temperature">Temperature for the brand recognition LLM:</label>
-          <span class="label-value" id="value-brand-recog-temperature">0</span>           
-          <input type="range" id="brand-recog-temperature" name="brand_recog[temperature]" step="0.1" min="0" max="1" value="0" class="slider">
+          <label for="common-temperature">Temperature for LLM <br> (0 for deterministic, 1 for more creative response):</label>
+          <span class="label-value" id="value-common-temperature">0</span>           
+          <input type="range" id="common-temperature" name="common_temperature" step="0.1" min="0" max="1" value="0" class="slider">
         </div>
 
-        <div class="toggle-container">
-       <label for="brand-valid-activate">Activate brand validation:</label>
-       <label class="switch">
+       <div class="toggle-container">
+         <label for="brand-valid-activate">Activate brand validation:</label>
+         <label class="switch">
           <input type="checkbox" id="brand-valid-activate" name="brand_valid[activate]" value="false">
             <span class="slider-round">
-            <span class="on">On</span>
-            <span class="off">Off</span>
-          </span>
+              <span class="on">On</span>
+              <span class="off">Off</span>
+            </span>
          </label>
         </div>
+
         <div class="slider-container">
-          <label for="brand-valid-k">No. logo images used for brand validation:</label>
+          <label for="brand-valid-k">Number of logo images used for brand validation:</label>
           <span class="label-value" id="value-brand-valid-k">5</span>
           <input type="range" id="brand-valid-k" name="brand_valid[k]" step="1" min="5" max="10" value="5" class="slider">
         </div>
@@ -184,19 +208,14 @@ input:checked + .slider-round:before {
         </div>
 
         <div class="slider-container">
-          <label for="crp-pred-temperature">Temperature for the CRP prediction LLM:</label>
-          <span class="label-value" id="value-crp-pred-temperature">0</span>
-          <input type="range" id="crp-pred-temperature" name="crp_pred[temperature]" step="0.1" min="0" max="1" value="0" class="slider">
-        </div>
-
-        <div class="slider-container">
           <label for="rank-depth-limit">CRP transition exploration depth limit:</label>
           <span class="label-value" id="value-rank-depth-limit">3</span>
           <input type="range" id="rank-depth-limit" name="rank[depth_limit]" step="1" min="1" max="3" value="3" class="slider">
         </div>
 
       </fieldset>
-      <input type="submit" value="Update Parameters">
+        <input type="submit" id="update-param-button" value="Update">
+        <input type="button" id="reset-button" value="Reset">
     </form>    
     </div>   
 
