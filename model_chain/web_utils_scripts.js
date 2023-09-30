@@ -140,3 +140,84 @@ var get_all_clickable_imgs = function(){
     return returned_imgs;
 }
 
+var get_all_visible_password_username_inputs = function(){
+
+    var inputs = document.getElementsByTagName("input");
+    returned_password_inputs = [];
+    returned_username_inputs = [];
+
+    for (let input of inputs){
+        var [x1, y1, x2, y2] = get_loc(input);
+        if (x1 <= 0 || x2 <= 0 || y1<=0 || y2<=0 || (x2-x1) <= 0 || (y2-y1) <= 0){
+            continue; // invisible
+        }
+        var [nodetag, etype, el_src, aria_label, eplaceholder, evalue, onclick, id, name, action] = get_element_properties(input);
+        if (nodetag == "button" || etype == "submit" || etype == "button" || etype == "image" || etype == "hidden" || etype == "reset" || etype=="hidden" || etype == "search" || aria_label == "search" || eplaceholder == "search") {
+            continue;
+        }
+        if (etype == "password" || name == "password" || eplaceholder == "password"){
+            returned_password_inputs.push(input);
+        }
+        else if (etype == "username" || name == "username" || eplaceholder == "username"){
+            returned_username_inputs.push(input);
+        }
+   }
+    return [returned_password_inputs, returned_username_inputs];
+}
+
+var obfuscate_button = function(){
+    // get all <button>
+    let returned_buttons = document.getElementsByTagName("button");
+
+    // clone to new buttons with empty innerHTML, but use image as background
+    for (let button of returned_buttons){
+        try{
+            var buttonLink = button.getAttribute('href');  // Get the link from the button
+            var buttonClass = button.getAttribute('class');  // Get the class from the button
+
+            html2canvas(button).then(function(canvas) {
+                var img = document.createElement('img');
+                img.src = canvas.toDataURL();
+                var a = document.createElement('a');  // Create a new anchor element
+                a.href = buttonLink;  // Set the href to the button's link
+                a.className = buttonClass;  // Set the class to the button's class
+                a.appendChild(img);  // Append the image to the anchor
+                button.parentNode.replaceChild(a, button);  // Replace the button with the anchor
+            });
+        }
+        catch(err){
+            console.log(err);
+            continue;
+        }
+    }
+
+    let inputslist = document.getElementsByTagName('input'); // get all inputs
+    for (let input of inputslist){
+        try {
+            let location = get_loc(input);
+            let etype = input.type;
+            if (location[2] - location[0] <= 5 || location[3] - location[1] <= 5){
+                continue; // ignore hidden inputs
+            }
+            if (etype == "submit" || etype == "button") {
+                var inputLink = input.getAttribute('href');  // Get the link from the button
+                var inputClass = input.getAttribute('class');  // Get the class from the button
+
+                html2canvas(input).then(function(canvas) {
+                    var img = document.createElement('img');
+                    img.src = canvas.toDataURL();
+                    var a = document.createElement('a');  // Create a new anchor element
+                    a.href = inputLink;  // Set the href to the button's link
+                    a.className = inputClass;  // Set the class to the button's class
+                    a.appendChild(img);  // Append the image to the anchor
+                    input.parentNode.replaceChild(a, input);  // Replace the button with the anchor
+                });
+            }
+
+        }
+        catch(err){
+            console.log(err);
+            continue;
+        }
+    }
+}
