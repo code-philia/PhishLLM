@@ -20,18 +20,19 @@ if __name__ == '__main__':
         param_dict = yaml.load(file, Loader=yaml.FullLoader)
 
     # PhishLLM
+    proxy_url = os.environ.get('proxy_url', None)
     phishintention_cls = PhishIntentionWrapper()
     llm_cls = TestLLM(phishintention_cls,
                       param_dict=param_dict,
-                      proxies={ "http": "http://127.0.0.1:7890",
-                                 "https": "http://127.0.0.1:7890",
+                      proxies={ "http": proxy_url,
+                                 "https": proxy_url,
                      })
     openai.api_key = os.getenv("OPENAI_API_KEY")
-    openai.proxy = "http://127.0.0.1:7890" # set openai proxy
+    openai.proxy = proxy_url # set openai proxy
 
     # boot driver
     sleep_time = 3; timeout_time = 60
-    driver = CustomWebDriver.boot(proxy_server="http://127.0.0.1:7890")  # Using the proxy_url variable
+    driver = CustomWebDriver.boot(proxy_server=proxy_url)  # Using the proxy_url variable
     driver.set_script_timeout(timeout_time / 2)
     driver.set_page_load_timeout(timeout_time)
 
@@ -49,14 +50,8 @@ if __name__ == '__main__':
             f.write("crp_transition_time" + "\n")
 
     for ct, folder in tqdm(enumerate(os.listdir(args.folder))):
-        # if ct <= 2984:
-        #     continue
         if folder in [x.split('\t')[0] for x in open(result_txt, encoding='ISO-8859-1').readlines()]:
             continue
-        # if folder not in [
-        #                    'amazon-clone.jmclery.dev',
-        #                 ]:
-        #     continue
 
         info_path = os.path.join(args.folder, folder, 'info.txt')
         html_path = os.path.join(args.folder, folder, 'html.txt')
@@ -76,11 +71,10 @@ if __name__ == '__main__':
         if url.startswith('cpanel'): # skip cpanel hosting
             continue
 
-        logo_box, reference_logo = llm_cls.detect_logo(shot_path)
         PhishLLMLogger.spit(f"Folder {os.path.join(args.folder, folder)}", caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+        logo_box, reference_logo = llm_cls.detect_logo(shot_path)
         pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis = llm_cls.test(url, reference_logo, logo_box,
                                                                                                         shot_path, html_path, driver,
-                                                                                                        brand_recognition_do_validation=args.validate
                                                                                                         )
 
         try:
@@ -99,14 +93,9 @@ if __name__ == '__main__':
 
         if (ct + 501) % 500 == 0:
             driver.quit()
-            driver = CustomWebDriver.boot(proxy_server="http://127.0.0.1:7890")  # Using the proxy_url variable
+            driver = CustomWebDriver.boot(proxy_server=proxy_url)  # Using the proxy_url variable
             driver.set_script_timeout(timeout_time / 2)
             driver.set_page_load_timeout(timeout_time)
 
     driver.quit()
 
-    '''GPT problem'''
-
-    '''Google Image search problem'''
-
-    '''OCR problem'''

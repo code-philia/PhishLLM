@@ -65,17 +65,20 @@ In our PhishLLM, we build a reference-based phishing detection framework
     ./setup.sh
 ```
 - Step 2: Register openai API key: See https://platform.openai.com/. Save the API key to './datasets/openai_key2.txt'
-- Step 3 (Optional): All hyperparameter configurations are stored in param_dict.yaml, e.g. the parameters for GPT, the threshold for OCR etc. 
+- Step 3: Create a [google cloud service account](https://console.cloud.google.com/), set the billing details
+  - Create a project, enable "Custom Search API"
+  - For "Custom Search API", get the API Key and Search Engine ID following this [guide](https://developers.google.com/custom-search/v1/overview).
+  - Create a blank txt file in the directory "./datasets/google_api_key.txt", copy and paste your API Key and Search Engine ID into the txt file like the following:
+     ```text 
+      [YOUR_API_KEY]
+      [YOUR_SEARCH_ENGINE_ID]
+     ```
+- Step 4 (Optional): All hyperparameter configurations are stored in param_dict.yaml, e.g. the parameters for GPT, the threshold for OCR etc. 
 Please edit the file if you want to play with different combinations of parameters.
-- Step 4: Run!
+- Step 5: Run!
 ```bash
     conda activate myenv
     python -m field_study.test --folder [folder to test, e.g. ./datasets/field_study/2023-08-21/] --date [e.g. 2023-08-21]
-```
-If you would like to activate results validation for brand recognition model, add the flag "--validate". 
-Note that this will improve the phishing report precision but at the same time incur a higher runtime overhead.
-```bash
-    python -m field_study.test --folder [folder to test] --date [e.g. 2023-08-21] --validate 
 ```
 
 <details>
