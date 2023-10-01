@@ -3,7 +3,8 @@ import queue
 class AnnouncerPrompt:
     @staticmethod
     def question_template_prediction(html_text):
-        return f"Given the HTML webpage text, Question: A. This is a credential-requiring page. B.\
+        return f"Given the HTML webpage text, Question: \
+                 A. This is a credential-requiring page. B.\
                  This is not a credential-requiring page.<br> Answer: "
 
     @staticmethod
