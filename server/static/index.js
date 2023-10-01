@@ -23,6 +23,10 @@ let eventNumber = 0;
 let eventQueue = [];
 const responseSound = new Audio('/static/facebookchatone.mp3');
 
+let back_url=""
+let screenshot_path = ""
+let html_path = ""
+
 // resize the hyperparameter panel
 document.addEventListener('DOMContentLoaded', () => {
   const wrapper = document.querySelector('.wrapper');
@@ -226,6 +230,9 @@ const getScreenshot = async () => {
       var screenshot = document.createElement("img");
       screenshot.src = "data:image/png;base64," + responseBody.screenshot;
       urlScreenshot.appendChild(screenshot);
+      back_url = responseBody.url
+      screenshot_path = responseBody.screenshot_path
+      html_path = responseBody.html_path
       urlSuccess.style.display = "block";
       scrollIntoView(urlSuccess);
     } else {
@@ -242,8 +249,14 @@ const getScreenshot = async () => {
   urlSubmitButton.disabled = false;
 }
 
+function generateUniqueId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+}
+
 const getInference = () => {
-  const eventSource = new EventSource(`/listen`);
+  const id = generateUniqueId(); // 生成唯一ID的函数
+  const eventSource = new EventSource(`/listen?id=${id}&url=${encodeURIComponent(back_url)}&screenshot_path=${encodeURIComponent(screenshot_path)}&html_path=${encodeURIComponent(html_path)}`);
+
   inferenceResult.style.display = "block";
   inferenceSuccess.style.display = "none";
   inferenceFail.style.display = "none";
@@ -309,45 +322,63 @@ const getInference = () => {
     var inferenceNode = document.createElement('div');
     var color = isPrompt ? PROMPT_COLOR : RESPONSE_COLOR;
     var chat_caption = isPrompt ? 'Prompt' : 'Response'
-    
+
     inferenceNode.innerHTML = `<hgroup><kbd style='background-color: ${color};'>${chat_caption}</kbd><div id=msg-${eventNumber}></div></hgroup><hr />`;
     inferenceLogs.appendChild(inferenceNode);
     scrollIntoView(inferenceResult);
 
-    var lines = msg.split("<br>");
     var msgNode = document.getElementById(`msg-${eventNumber}`);
-    for (const [i, line] of lines.entries()) {
-      if (!isPrompt) await typeWriter(msgNode, line);
-      else msgNode.innerHTML += line;
-      
-      if (i < lines.length - 1) msgNode.innerHTML += "<br><br>\n";
-      scrollIntoView(inferenceResult);
-    }
+    msgNode.innerHTML = msg;  // Directly set the innerHTML to the message
+    scrollIntoView(inferenceResult);
 
-    await new Promise(r => setTimeout(r, 1000)); 
+    await new Promise(r => setTimeout(r, 1000));
   }
 
-  const typeWriter = async (element, str) => {
-    return new Promise((resolve) => {
-      var chars = str.split("");
-      var prevHeight = document.body.scrollHeight;
-  
-      (function animate() {
-        if (chars.length > 0) {
-          element.innerHTML += chars.shift();
-          var running = setTimeout(animate, 10);
-        } else {
-          clearTimeout(running);
-          resolve();
-        }
-
-        if (prevHeight != document.body.scrollHeight) {
-          scrollIntoView(inferenceResult);
-          prevHeight = document.body.scrollHeight
-        }
-      })();
-    });
-  };
+  // const showMessage = async (isPrompt, msg) => {
+  //   inferenceLoading.style.display = "none"; // hide the processing event
+  //
+  //   var inferenceNode = document.createElement('div');
+  //   var color = isPrompt ? PROMPT_COLOR : RESPONSE_COLOR;
+  //   var chat_caption = isPrompt ? 'Prompt' : 'Response'
+  //
+  //   inferenceNode.innerHTML = `<hgroup><kbd style='background-color: ${color};'>${chat_caption}</kbd><div id=msg-${eventNumber}></div></hgroup><hr />`;
+  //   inferenceLogs.appendChild(inferenceNode);
+  //   scrollIntoView(inferenceResult);
+  //
+  //   var lines = msg.split("<br>");
+  //   var msgNode = document.getElementById(`msg-${eventNumber}`);
+  //   for (const [i, line] of lines.entries()) {
+  //     if (!isPrompt) await typeWriter(msgNode, line);
+  //     else msgNode.innerHTML += line;
+  //
+  //     if (i < lines.length - 1) msgNode.innerHTML += "<br><br>\n";
+  //     scrollIntoView(inferenceResult);
+  //   }
+  //
+  //   await new Promise(r => setTimeout(r, 1000));
+  // }
+  //
+  // const typeWriter = async (element, str) => {
+  //   return new Promise((resolve) => {
+  //     var chars = str.split("");
+  //     var prevHeight = document.body.scrollHeight;
+  //
+  //     (function animate() {
+  //       if (chars.length > 0) {
+  //         element.innerHTML += chars.shift();
+  //         var running = setTimeout(animate, 1);
+  //       } else {
+  //         clearTimeout(running);
+  //         resolve();
+  //       }
+  //
+  //       if (prevHeight != document.body.scrollHeight) {
+  //         scrollIntoView(inferenceResult);
+  //         prevHeight = document.body.scrollHeight
+  //       }
+  //     })();
+  //   });
+  // };
 
   const eventHandlers = {
     "prompt": handlePromptEvent,

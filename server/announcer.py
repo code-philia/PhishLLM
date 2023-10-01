@@ -3,28 +3,24 @@ import queue
 class AnnouncerPrompt:
     @staticmethod
     def question_template_prediction(html_text):
-        return f"Given the HTML webpage text: <start>{html_text}<end>,\
-            <br>Question: A. This is a credential-requiring page. B.\
-            This is not a credential-requiring page.<br>Answer: "
+        return f"Given the HTML webpage text, Question: A. This is a credential-requiring page. B.\
+                 This is not a credential-requiring page.<br> Answer: "
 
     @staticmethod
     def question_template_brand(logo_caption, logo_ocr):
-        return f"Given the following description on the brand's logo: '{logo_caption}', \
-            and the logo's OCR text: '{logo_ocr}'\
-            <br>Question: What is the brand's domain? Answer: "
+        return f"Given the description on the brand's logo, and the logo's OCR text \
+                 Question: What is the brand's domain? <br> Answer: "
 
     @staticmethod
     def question_template_brand_industry(logo_caption, logo_ocr, industry):
-        return f"Given the following description on the brand's logo: '{logo_caption}', \
-            the logo's OCR text: '{logo_ocr}', and the industry sector '{industry}'.\
-            <br>Question: What is the brand's domain? Answer: "
+        return f"Given the description on the brand's logo, the logo's OCR text, and the industry sector.\
+                Question: What is the brand's domain? <br> Answer: "
 
     @staticmethod
     def question_template_industry(html_text):
         return f"Your task is to predict the industry sector given webpage content. \
-            Only give the industry sector, do not output any explanation.\
-            <br>Given the following webpage text: '{html_text}'\
-            <br>Question: What is the webpage's industry sector? Answer: "
+                Only give the industry sector, do not output any explanation.\
+                Given the webpage text, Question: What is the webpage's industry sector? <br> Answer: "
 
 class AnnouncerEvent:
     PROMPT = "prompt"
