@@ -1,21 +1,15 @@
-import os
 import uuid
-import time
-import base64
 from threading import Thread
-from datetime import datetime
-
+from urllib.parse import unquote
 from flask import Flask, Response, request, session, jsonify, render_template
 from flask_cors import CORS
 from flask_session import Session
-from selenium import webdriver
-from seleniumwire.webdriver import ChromeOptions
-from server.announcer import Announcer
 from model_chain.test_llm import *
 from apscheduler.schedulers.background import BackgroundScheduler
 import shutil
 
 # os.environ['proxy_url'] = "http://127.0.0.1:7890"
+announcers = {}
 
 class Config:
     CURRENT_DIR = os.path.dirname(__file__)
@@ -49,11 +43,11 @@ scheduler = BackgroundScheduler()
 scheduler.add_job(func=clear_directories, trigger="interval", days=1)  # clear every day
 scheduler.start()
 
-PhishLLMLogger.set_debug_on()
-PhishLLMLogger.set_logfile(os.path.join(Config.LOGS_DIR, f"{datetime.now().strftime('%Y-%d-%m_%H%M%S')}.log"))
+# PhishLLMLogger.set_debug_on()
+# PhishLLMLogger.set_logfile(os.path.join(Config.LOGS_DIR, f"{datetime.now().strftime('%Y-%d-%m_%H%M%S')}.log"))
 
 # load hyperparameters
-with open('./param_dict.yaml') as file:
+with open(Config.PARAM_PATH) as file:
     param_dict = yaml.load(file, Loader=yaml.FullLoader)
 
 # PhishLLM
@@ -63,7 +57,7 @@ llm_cls = TestLLM(phishintention_cls, param_dict=param_dict,
                   proxies={"http": proxy_url,
                            "https": proxy_url,
                            }
-                  ) # todo
+                  )
 openai.api_key = os.getenv("OPENAI_API_KEY")
 openai.proxy = proxy_url
 
@@ -74,6 +68,7 @@ def interface():
     return render_template("index.html")
 
 # STEP 1: Crawl URL and take a screenshot, return screenshot in base64
+# frontend url -> backend crawling -> frontend display
 @app.route("/crawl", methods=["POST"])
 def crawl():
     url = str(request.json["url"])
@@ -101,26 +96,30 @@ def crawl():
         session['screenshot_path'] = screenshot_path
         with open(screenshot_path, "rb") as image_file:
             im_b64 = base64.b64encode(image_file.read()).decode()
-        return jsonify(success=True, screenshot=im_b64), 200
+        return jsonify(success=True, screenshot=im_b64, url=url, screenshot_path=screenshot_path, html_path=html_path), 200
     else:
         return jsonify(success=False), 400
 
+
 # STEP 2: Perform PhishLLM inference
+# frontend url,screenshot_path -> backend inference -> frontend announcer
 @app.route('/listen', methods=['GET'])
 def listen():
-    if not (
-        session.get('screenshot_path')
-        and session.get('html_path')
-        and session.get('url')
-    ):
+    id = request.args.get('id')  # 获取查询参数中的id
+    url = unquote(request.args.get('url'))
+    screenshot_path = unquote(request.args.get('screenshot_path'))
+    html_path = unquote(request.args.get('html_path'))
+    print("url,", url, "screenshot_path", screenshot_path)
+
+    if not (id and os.path.exists(screenshot_path)):
         return jsonify(success=False), 400
 
-    url = session['url']
-    screenshot_path = session['screenshot_path']
-    html_path = session['html_path']
+    # 为每个id创建一个新的announcer对象
+    if id not in announcers:
+        announcers[id] = Announcer()
+    announcer = announcers[id]
 
     def stream(url, screenshot_path, html_path):
-        announcer = Announcer()
         Thread(target=get_inference, args=(url, screenshot_path, html_path, announcer)).start()
         messages = announcer.message_queue
         while True:
@@ -129,7 +128,7 @@ def listen():
 
     return Response(stream(url, screenshot_path, html_path), mimetype='text/event-stream')
 
-
+# Optional: Change hyperparameters
 @app.route("/update_params", methods=["POST"])
 def update_params():
      # Getting form data from request
@@ -141,19 +140,21 @@ def update_params():
             for param, value in params.items():
                 if param in param_dict[section]:
                     try:
-                        if param != 'activate':
+                        if isinstance(value, float):
                             param_dict[section][param] = float(value)
-                        else:
+                        elif isinstance(value, bool):
                             param_dict[section][param] = bool(value)
+                        elif isinstance(value, int):
+                            param_dict[section][param] = int(value)
                         print(section, param, value)
                     except ValueError:
                         return jsonify(success=False, message=f"Invalid value for {param} in {section}"), 400
 
-#    print(param_dict)
     # Update internal state of TestLLM
     llm_cls.update_params(param_dict)  # Assumes such a method exists
 
     return jsonify(success=True), 200
+
 
 def get_xdriver():
     timeout_time = Config.TIMEOUT_TIME  # Moved to Config class
@@ -163,8 +164,17 @@ def get_xdriver():
     return driver
 
 def get_inference(url, screenshot_path, html_path, announcer):
+    start_time = time.time()
     driver = get_xdriver()
+    msg = f'Time taken for initializing webdriver: {time.time()-start_time}'
+    announcer.spit(msg, AnnouncerEvent.RESPONSE)
+    time.sleep(0.5)
+    start_time = time.time()
     logo_box, reference_logo = llm_cls.detect_logo(screenshot_path)
+    msg = f'Time taken for logo detection: {time.time()-start_time}'
+    announcer.spit(msg, AnnouncerEvent.RESPONSE)
+    time.sleep(0.5)
+
     llm_cls.test(
         url,
         reference_logo,
