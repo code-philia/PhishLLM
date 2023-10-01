@@ -198,26 +198,34 @@ class TestLLM():
                       image_width: int, image_height: int,
                       announcer: Optional[Announcer]
                       ) -> Tuple[str, str, str]:
-
+        '''
+            Preprocessing the webpage (OCR + Image Captioning)
+            :param shot_path:
+            :param html_path:
+            :param reference_logo:
+            :param logo_box:
+            :param image_width:
+            :param image_height:
+            :param announcer:
+            :return:
+        '''
         start_time = time.time()
-        webpage_text_list, text_coords, webpage_text = self.generate_webpage_ocr(shot_path, html_path)
+        webpage_text_list, text_coords_list, webpage_text = self.generate_webpage_ocr(shot_path, html_path)
         if reference_logo:
             # generation image caption for logo
             logo_caption = self.generate_logo_caption(reference_logo)
             logo_ocr = ''
-            if len(text_coords):
+            if len(text_coords_list):
                 # get the OCR text description surrounding the logo
                 expand_logo_box = expand_bbox(logo_box, image_width=image_width, image_height=image_height, expand_ratio=self.logo_expansion_ratio)
-                overlap_areas = pairwise_intersect_area([expand_logo_box], text_coords)
+                overlap_areas = pairwise_intersect_area([expand_logo_box], text_coords_list)
                 logo_ocr = np.array(webpage_text_list)[overlap_areas[0] > 0].tolist()
                 logo_ocr = ' '.join(logo_ocr)
         else:
             logo_caption = ''
             logo_ocr = ' '.join(webpage_text_list) # if not logo is detected, simply return the whole webpage ocr result as the logo ocr result
 
-        msg = f''
-
-        msg = f"Time taken for preprocessing: {time.time() - start_time}<br>Detected Logo caption: {logo_caption}<br>Logo OCR results: {logo_ocr}"
+        msg = f"Time taken for webpage preprocessing: {time.time() - start_time}<br>Detected Logo caption: {logo_caption}<br>Logo OCR results: {logo_ocr}"
         announcer.spit(msg, AnnouncerEvent.RESPONSE)
         time.sleep(0.5)
         return webpage_text, logo_caption, logo_ocr
@@ -269,7 +277,6 @@ class TestLLM():
             :return:
         '''
         company_domain, company_logo = None, None
-
 
         industry = ''
         if len(webpage_text) and self.get_industry:

@@ -18,11 +18,11 @@ const inferenceFail = document.getElementById("inference-fail");
 const stopButton = document.getElementById("stop-button");
 const resetButton = document.getElementById("reset-button");
 const updateButton = document.getElementById('update-param-button');
-let url = "";
 let eventNumber = 0;
 let eventQueue = [];
 const responseSound = new Audio('/static/facebookchatone.mp3');
 
+let url = "";
 let back_url=""
 let screenshot_path = ""
 let html_path = ""
@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Function to show values when scrollin
+// Function to show values when scrolling the hyperparameters slider
 document.addEventListener("DOMContentLoaded", function() {
   // Initialize range value display
   const sliders = document.querySelectorAll('.slider');
@@ -105,10 +105,19 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 });
 
+// Function to disable or enable all buttons and input[type="submit"] or input[type="button"]
+function toggleButtons(disabled) {
+  const buttons = document.querySelectorAll("button, input[type='submit'], input[type='button']");
+  buttons.forEach(button => button.disabled = disabled);
+}
 
 // Add click event listener to reset button
 resetButton.addEventListener("click", async function(e){
   e.preventDefault();
+
+  // Disable all buttons and show loading
+  toggleButtons(true);
+
   // Reset sliders and checkboxes to their default values
   document.getElementById("common-temperature").value = 0;
   document.getElementById("brand-valid-activate").checked = false;
@@ -130,7 +139,7 @@ resetButton.addEventListener("click", async function(e){
     rank: { depth_limit: 3 }
   };
 
-  // Now, send `defaultParams` to your server to reset the parameters
+    // Now, send `defaultParams` to your server to reset the parameters
   fetch('/update_params', {
     method: 'POST',
     headers: {
@@ -150,13 +159,20 @@ resetButton.addEventListener("click", async function(e){
   })
   .catch(error => {
     console.error('Error:', error);
+  })
+  .finally(() => {
+    // Enable all buttons and hide loading
+    toggleButtons(false);
   });
 });
 
 // click event for update button
 updateButton.addEventListener('click', async function(event) {
   event.preventDefault();
-  
+
+  // Disable all buttons and show loading
+  toggleButtons(true);
+
   // Create an object with default values
   const defaultParams = {
     brand_recog: { temperature: document.getElementById("common-temperature").value },
@@ -179,15 +195,19 @@ updateButton.addEventListener('click', async function(event) {
   .then(response => response.json())
   .then(data => {
     if (data.success) {
-      // Reset was successful
+      // Update was successful
       alert('Parameters updated successfully');
     } else {
-      // Reset failed
+      // Update failed
       alert('Failed to update parameters to default');
     }
   })
   .catch(error => {
     console.error('Error:', error);
+  })
+  .finally(() => {
+    // Enable all buttons and hide loading
+    toggleButtons(false);
   });
 });
 
@@ -197,7 +217,6 @@ urlForm.addEventListener("submit", async function (e) {
   url = formData.get("url");
   await getScreenshot();
 });
-
 
 const scrollIntoView = (element) => {
   element.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -215,8 +234,9 @@ const getScreenshot = async () => {
   urlSuccess.style.display = "none";
   urlFail.style.display = "none";
   urlLoading.style.display = "block";
-  urlSubmitButton.disabled = true;
   urlScreenshot.replaceChildren();
+  // Disable all buttons and show loading
+  toggleButtons(true);
   
   try {
     const response = await fetch(`/crawl`, {
@@ -244,9 +264,10 @@ const getScreenshot = async () => {
     urlFail.style.display = "block";
     scrollIntoView(urlFail);
   }
-
-  urlLoading.style.display = "none";
-  urlSubmitButton.disabled = false;
+  finally {
+    toggleButtons(false);
+    urlLoading.style.display = "none";
+  }
 }
 
 function generateUniqueId() {
@@ -254,6 +275,8 @@ function generateUniqueId() {
 }
 
 const getInference = () => {
+  // Disable all buttons and show loading
+  toggleButtons(true);
   const id = generateUniqueId(); // 生成唯一ID的函数
   const eventSource = new EventSource(`/listen?id=${id}&url=${encodeURIComponent(back_url)}&screenshot_path=${encodeURIComponent(screenshot_path)}&html_path=${encodeURIComponent(html_path)}`);
 
@@ -288,16 +311,19 @@ const getInference = () => {
   }
 
   const handlePromptEvent = async (event) => {
+     toggleButtons(true);
      responseSound.play();
      await showMessage(true, event.data);
   }
 
   const handleResponseEvent = async (event) => {
+    toggleButtons(true);
     responseSound.play();
     await showMessage(false, event.data);
   }
 
   const handleSuccessEvent = async (event) => {
+    toggleButtons(true);
     responseSound.play();
     await showMessage(false, event.data);
     inferenceSuccess.style.display = "block";
@@ -305,15 +331,20 @@ const getInference = () => {
     inferenceLoading2.style.display = "none";
     scrollIntoView(inferenceSuccess);
     eventSource.close();
+    // Re-enable buttons after message is shown
+    toggleButtons(false);
   }
 
   const handleFailEvent = async (event) => {
+    toggleButtons(true);
     responseSound.play();
     inferenceFail.style.display = "block";
     inferenceLoading.style.display = "none";
     inferenceLoading2.style.display = "none";
     scrollIntoView(inferenceFail);
     eventSource.close();
+    // Re-enable buttons after message is shown
+    toggleButtons(false);
   }
 
   const showMessage = async (isPrompt, msg) => {
@@ -327,58 +358,42 @@ const getInference = () => {
     inferenceLogs.appendChild(inferenceNode);
     scrollIntoView(inferenceResult);
 
+    var lines = msg.split("<br>");
     var msgNode = document.getElementById(`msg-${eventNumber}`);
-    msgNode.innerHTML = msg;  // Directly set the innerHTML to the message
-    scrollIntoView(inferenceResult);
+    for (const [i, line] of lines.entries()) {
+      if (!isPrompt) await typeWriter(msgNode, line);
+      else msgNode.innerHTML += line;
 
+      if (i < lines.length - 1) msgNode.innerHTML += "<br><br>\n";
+      scrollIntoView(inferenceResult);
+    }
+
+    // Re-enable buttons after message is shown
+    toggleButtons(false);
     await new Promise(r => setTimeout(r, 1000));
   }
 
-  // const showMessage = async (isPrompt, msg) => {
-  //   inferenceLoading.style.display = "none"; // hide the processing event
-  //
-  //   var inferenceNode = document.createElement('div');
-  //   var color = isPrompt ? PROMPT_COLOR : RESPONSE_COLOR;
-  //   var chat_caption = isPrompt ? 'Prompt' : 'Response'
-  //
-  //   inferenceNode.innerHTML = `<hgroup><kbd style='background-color: ${color};'>${chat_caption}</kbd><div id=msg-${eventNumber}></div></hgroup><hr />`;
-  //   inferenceLogs.appendChild(inferenceNode);
-  //   scrollIntoView(inferenceResult);
-  //
-  //   var lines = msg.split("<br>");
-  //   var msgNode = document.getElementById(`msg-${eventNumber}`);
-  //   for (const [i, line] of lines.entries()) {
-  //     if (!isPrompt) await typeWriter(msgNode, line);
-  //     else msgNode.innerHTML += line;
-  //
-  //     if (i < lines.length - 1) msgNode.innerHTML += "<br><br>\n";
-  //     scrollIntoView(inferenceResult);
-  //   }
-  //
-  //   await new Promise(r => setTimeout(r, 1000));
-  // }
-  //
-  // const typeWriter = async (element, str) => {
-  //   return new Promise((resolve) => {
-  //     var chars = str.split("");
-  //     var prevHeight = document.body.scrollHeight;
-  //
-  //     (function animate() {
-  //       if (chars.length > 0) {
-  //         element.innerHTML += chars.shift();
-  //         var running = setTimeout(animate, 1);
-  //       } else {
-  //         clearTimeout(running);
-  //         resolve();
-  //       }
-  //
-  //       if (prevHeight != document.body.scrollHeight) {
-  //         scrollIntoView(inferenceResult);
-  //         prevHeight = document.body.scrollHeight
-  //       }
-  //     })();
-  //   });
-  // };
+  const typeWriter = async (element, str) => {
+    return new Promise((resolve) => {
+      var chars = str.split("");
+      var prevHeight = document.body.scrollHeight;
+
+      (function animate() {
+        if (chars.length > 0) {
+          element.innerHTML += chars.shift();
+          var running = setTimeout(animate, 1);
+        } else {
+          clearTimeout(running);
+          resolve();
+        }
+
+        if (prevHeight != document.body.scrollHeight) {
+          scrollIntoView(inferenceResult);
+          prevHeight = document.body.scrollHeight
+        }
+      })();
+    });
+  };
 
   const eventHandlers = {
     "prompt": handlePromptEvent,
@@ -399,6 +414,7 @@ const getInference = () => {
     inferenceLoading2.style.display = "none";
     scrollIntoView(inferenceFail);
     eventSource.close();
+    toggleButtons(false); // Re-enable buttons when an error occurs
   };
 
 }
