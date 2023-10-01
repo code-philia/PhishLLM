@@ -215,12 +215,12 @@ input:checked + .slider-round:before {
 
       </fieldset>
         <input type="submit" id="update-param-button" value="Update">
-        <input type="button" id="reset-button" value="Reset">
+        <input type="button" id="reset-button" value="Reset" class="outline secondary">
     </form>    
     </div>   
 
   <main class="container">
-    <h1>PhishLLM Demo</h1>   
+    <h1>PhishLLM Demo (This demo is for English webpages)</h1>
 
     <section>
       <form id="url-form" role="group">
@@ -255,7 +255,8 @@ input:checked + .slider-round:before {
       <article id="inference-result" style="display:none;">
         <div id="inference-logs"></div>
 
-        <div id="inference-loading" aria-busy="true"><i>PhishLLM is Processing...</i></div>
+        <div id="inference-loading" aria-busy="true"><i>The webpage is going through pre-processing... This may take time because we are using CPU to run the Image captioning and OCR models.</i></div>
+        <div id="inference-loading2" aria-busy="true"><i>PhishLLM is processing...</i></div>
 
         <div id="inference-success">
           <hr />
@@ -269,6 +270,7 @@ input:checked + .slider-round:before {
           <hr />
           <h6 style="color:#ff3333;">Something went wrong. Please try again.</h6>
           <div class="grid">
+            <button onclick="getInference()">Retry</button>
             <button class="outline secondary" onclick="resetAll()">Go Back</button>
           </div>
         </div>

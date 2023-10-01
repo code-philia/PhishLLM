@@ -10,16 +10,87 @@ const urlSuccess = document.getElementById("url-success");
 const urlFail = document.getElementById("url-fail");
 
 const inferenceLoading = document.getElementById("inference-loading");
+const inferenceLoading2 = document.getElementById("inference-loading2");
 const inferenceResult = document.getElementById("inference-result");
 const inferenceLogs = document.getElementById("inference-logs");
 const inferenceSuccess = document.getElementById("inference-success");
 const inferenceFail = document.getElementById("inference-fail");
+const stopButton = document.getElementById("stop-button");
 const resetButton = document.getElementById("reset-button");
 const updateButton = document.getElementById('update-param-button');
 let url = "";
 let eventNumber = 0;
 let eventQueue = [];
 const responseSound = new Audio('/static/facebookchatone.mp3');
+
+let back_url=""
+let screenshot_path = ""
+let html_path = ""
+
+// resize the hyperparameter panel
+document.addEventListener('DOMContentLoaded', () => {
+  const wrapper = document.querySelector('.wrapper');
+  const handleRight = document.getElementById('resizeHandleRight');
+  const handleBottom = document.getElementById('resizeHandleBottom');
+  const handleCorner = document.getElementById('resizeHandleCorner');
+
+  let isResizingRight = false;
+  let isResizingBottom = false;
+  let isResizingCorner = false;
+
+  // Handle right resizer
+  handleRight.addEventListener('mousedown', (e) => {
+    isResizingRight = true;
+    document.addEventListener('mousemove', handleMouseMoveRight);
+    document.addEventListener('mouseup', () => {
+      isResizingRight = false;
+      document.removeEventListener('mousemove', handleMouseMoveRight);
+    });
+  });
+
+  // Handle bottom resizer
+  handleBottom.addEventListener('mousedown', (e) => {
+    isResizingBottom = true;
+    document.addEventListener('mousemove', handleMouseMoveBottom);
+    document.addEventListener('mouseup', () => {
+      isResizingBottom = false;
+      document.removeEventListener('mousemove', handleMouseMoveBottom);
+    });
+  });
+
+  // Handle corner resizer
+  handleCorner.addEventListener('mousedown', (e) => {
+    isResizingCorner = true;
+    document.addEventListener('mousemove', handleMouseMoveCorner);
+    document.addEventListener('mouseup', () => {
+      isResizingCorner = false;
+      document.removeEventListener('mousemove', handleMouseMoveCorner);
+    });
+  });
+
+  function handleMouseMoveRight(e) {
+    if (isResizingRight) {
+      const newWidth = e.clientX - wrapper.getBoundingClientRect().left;
+      wrapper.style.width = `${newWidth}px`;
+    }
+  }
+
+  function handleMouseMoveBottom(e) {
+    if (isResizingBottom) {
+      const newHeight = e.clientY - wrapper.getBoundingClientRect().top;
+      wrapper.style.height = `${newHeight}px`;
+    }
+  }
+
+  function handleMouseMoveCorner(e) {
+    if (isResizingCorner) {
+      const newWidth = e.clientX - wrapper.getBoundingClientRect().left;
+      const newHeight = e.clientY - wrapper.getBoundingClientRect().top;
+      wrapper.style.width = `${newWidth}px`;
+      wrapper.style.height = `${newHeight}px`;
+    }
+  }
+});
 
 // Function to show values when scrollin
 document.addEventListener("DOMContentLoaded", function() {
@@ -82,6 +153,7 @@ resetButton.addEventListener("click", async function(e){
   });
 });
 
+// click event for update button
 updateButton.addEventListener('click', async function(event) {
   event.preventDefault();
   
@@ -108,81 +180,15 @@ updateButton.addEventListener('click', async function(event) {
   .then(data => {
     if (data.success) {
       // Reset was successful
-      alert('Parameters reset to default successfully');
+      alert('Parameters updated successfully');
     } else {
       // Reset failed
-      alert('Failed to reset parameters to default');
+      alert('Failed to update parameters to default');
     }
   })
   .catch(error => {
     console.error('Error:', error);
   });
-});
-
-
-
-document.addEventListener('DOMContentLoaded', () => {
-  const wrapper = document.querySelector('.wrapper');
-  const handleRight = document.getElementById('resizeHandleRight');
-  const handleBottom = document.getElementById('resizeHandleBottom');
-  const handleCorner = document.getElementById('resizeHandleCorner');
-  
-  let isResizingRight = false;
-  let isResizingBottom = false;
-  let isResizingCorner = false;
-
-  // Handle right resizer
-  handleRight.addEventListener('mousedown', (e) => {
-    isResizingRight = true;
-    document.addEventListener('mousemove', handleMouseMoveRight);
-    document.addEventListener('mouseup', () => {
-      isResizingRight = false;
-      document.removeEventListener('mousemove', handleMouseMoveRight);
-    });
-  });
-
-  // Handle bottom resizer
-  handleBottom.addEventListener('mousedown', (e) => {
-    isResizingBottom = true;
-    document.addEventListener('mousemove', handleMouseMoveBottom);
-    document.addEventListener('mouseup', () => {
-      isResizingBottom = false;
-      document.removeEventListener('mousemove', handleMouseMoveBottom);
-    });
-  });
-
-  // Handle corner resizer
-  handleCorner.addEventListener('mousedown', (e) => {
-    isResizingCorner = true;
-    document.addEventListener('mousemove', handleMouseMoveCorner);
-    document.addEventListener('mouseup', () => {
-      isResizingCorner = false;
-      document.removeEventListener('mousemove', handleMouseMoveCorner);
-    });
-  });
-
-  function handleMouseMoveRight(e) {
-    if (isResizingRight) {
-      const newWidth = e.clientX - wrapper.getBoundingClientRect().left;
-      wrapper.style.width = `${newWidth}px`;
-    }
-  }
-
-  function handleMouseMoveBottom(e) {
-    if (isResizingBottom) {
-      const newHeight = e.clientY - wrapper.getBoundingClientRect().top;
-      wrapper.style.height = `${newHeight}px`;
-    }
-  }
-
-  function handleMouseMoveCorner(e) {
-    if (isResizingCorner) {
-      const newWidth = e.clientX - wrapper.getBoundingClientRect().left;
-      const newHeight = e.clientY - wrapper.getBoundingClientRect().top;
-      wrapper.style.width = `${newWidth}px`;
-      wrapper.style.height = `${newHeight}px`;
-    }
-  }
 });
 
 urlForm.addEventListener("submit", async function (e) {
@@ -191,6 +197,7 @@ urlForm.addEventListener("submit", async function (e) {
   url = formData.get("url");
   await getScreenshot();
 });
+
 
 const scrollIntoView = (element) => {
   element.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -223,6 +230,9 @@ const getScreenshot = async () => {
       var screenshot = document.createElement("img");
       screenshot.src = "data:image/png;base64," + responseBody.screenshot;
       urlScreenshot.appendChild(screenshot);
+      back_url = responseBody.url
+      screenshot_path = responseBody.screenshot_path
+      html_path = responseBody.html_path
       urlSuccess.style.display = "block";
       scrollIntoView(urlSuccess);
     } else {
@@ -239,12 +249,19 @@ const getScreenshot = async () => {
   urlSubmitButton.disabled = false;
 }
 
+function generateUniqueId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+}
+
 const getInference = () => {
-  const eventSource = new EventSource(`/listen`);
+  const id = generateUniqueId(); // 生成唯一ID的函数
+  const eventSource = new EventSource(`/listen?id=${id}&url=${encodeURIComponent(back_url)}&screenshot_path=${encodeURIComponent(screenshot_path)}&html_path=${encodeURIComponent(html_path)}`);
+
   inferenceResult.style.display = "block";
   inferenceSuccess.style.display = "none";
   inferenceFail.style.display = "none";
   inferenceLoading.style.display = "block";
+  inferenceLoading2.style.display = "block";
   inferenceLogs.replaceChildren();
   scrollIntoView(inferenceResult);
 
@@ -285,6 +302,7 @@ const getInference = () => {
     await showMessage(false, event.data);
     inferenceSuccess.style.display = "block";
     inferenceLoading.style.display = "none";
+    inferenceLoading2.style.display = "none";
     scrollIntoView(inferenceSuccess);
     eventSource.close();
   }
@@ -293,53 +311,74 @@ const getInference = () => {
     responseSound.play();
     inferenceFail.style.display = "block";
     inferenceLoading.style.display = "none";
+    inferenceLoading2.style.display = "none";
     scrollIntoView(inferenceFail);
     eventSource.close();
   }
 
   const showMessage = async (isPrompt, msg) => {
+    inferenceLoading.style.display = "none"; // hide the processing event
+
     var inferenceNode = document.createElement('div');
     var color = isPrompt ? PROMPT_COLOR : RESPONSE_COLOR;
     var chat_caption = isPrompt ? 'Prompt' : 'Response'
-    
+
     inferenceNode.innerHTML = `<hgroup><kbd style='background-color: ${color};'>${chat_caption}</kbd><div id=msg-${eventNumber}></div></hgroup><hr />`;
     inferenceLogs.appendChild(inferenceNode);
     scrollIntoView(inferenceResult);
 
-    var lines = msg.split("<br>");
     var msgNode = document.getElementById(`msg-${eventNumber}`);
-    for (const [i, line] of lines.entries()) {
-      if (!isPrompt) await typeWriter(msgNode, line);
-      else msgNode.innerHTML += line;
-      
-      if (i < lines.length - 1) msgNode.innerHTML += "<br><br>\n";
-      scrollIntoView(inferenceResult);
-    }
+    msgNode.innerHTML = msg;  // Directly set the innerHTML to the message
+    scrollIntoView(inferenceResult);
 
-    await new Promise(r => setTimeout(r, 1000)); 
+    await new Promise(r => setTimeout(r, 1000));
   }
 
-  const typeWriter = async (element, str) => {
-    return new Promise((resolve) => {
-      var chars = str.split("");
-      var prevHeight = document.body.scrollHeight;
-  
-      (function animate() {
-        if (chars.length > 0) {
-          element.innerHTML += chars.shift();
-          var running = setTimeout(animate, 10);
-        } else {
-          clearTimeout(running);
-          resolve();
-        }
-
-        if (prevHeight != document.body.scrollHeight) {
-          scrollIntoView(inferenceResult);
-          prevHeight = document.body.scrollHeight
-        }
-      })();
-    });
-  };
+  // const showMessage = async (isPrompt, msg) => {
+  //   inferenceLoading.style.display = "none"; // hide the processing event
+  //
+  //   var inferenceNode = document.createElement('div');
+  //   var color = isPrompt ? PROMPT_COLOR : RESPONSE_COLOR;
+  //   var chat_caption = isPrompt ? 'Prompt' : 'Response'
+  //
+  //   inferenceNode.innerHTML = `<hgroup><kbd style='background-color: ${color};'>${chat_caption}</kbd><div id=msg-${eventNumber}></div></hgroup><hr />`;
+  //   inferenceLogs.appendChild(inferenceNode);
+  //   scrollIntoView(inferenceResult);
+  //
+  //   var lines = msg.split("<br>");
+  //   var msgNode = document.getElementById(`msg-${eventNumber}`);
+  //   for (const [i, line] of lines.entries()) {
+  //     if (!isPrompt) await typeWriter(msgNode, line);
+  //     else msgNode.innerHTML += line;
+  //
+  //     if (i < lines.length - 1) msgNode.innerHTML += "<br><br>\n";
+  //     scrollIntoView(inferenceResult);
+  //   }
+  //
+  //   await new Promise(r => setTimeout(r, 1000));
+  // }
+  //
+  // const typeWriter = async (element, str) => {
+  //   return new Promise((resolve) => {
+  //     var chars = str.split("");
+  //     var prevHeight = document.body.scrollHeight;
+  //
+  //     (function animate() {
+  //       if (chars.length > 0) {
+  //         element.innerHTML += chars.shift();
+  //         var running = setTimeout(animate, 1);
+  //       } else {
+  //         clearTimeout(running);
+  //         resolve();
+  //       }
+  //
+  //       if (prevHeight != document.body.scrollHeight) {
+  //         scrollIntoView(inferenceResult);
+  //         prevHeight = document.body.scrollHeight
+  //       }
+  //     })();
+  //   });
+  // };
 
   const eventHandlers = {
     "prompt": handlePromptEvent,
@@ -357,6 +396,7 @@ const getInference = () => {
     console.error("EventSource failed:", err);
     inferenceFail.style.display = "block";
     inferenceLoading.style.display = "none";
+    inferenceLoading2.style.display = "none";
     scrollIntoView(inferenceFail);
     eventSource.close();
   };

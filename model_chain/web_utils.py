@@ -156,7 +156,6 @@ class WebUtil():
             return True  # dirty
         return False
 
-
 class CustomWebDriver(webdriver.Chrome):
     _MAX_RETRIES = 3
     _last_url = 'https://google.com'
@@ -164,6 +163,7 @@ class CustomWebDriver(webdriver.Chrome):
 
     def __init__(self, proxy_server=None, *args, **kwargs):
         chrome_options = ChromeOptions()
+        chrome_options.binary_location = "/usr/bin/google-chrome"
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument('--disable-gpu')
@@ -177,7 +177,9 @@ class CustomWebDriver(webdriver.Chrome):
         chrome_caps['acceptSslCerts'] = True
         chrome_caps['acceptInsecureCerts'] = True
 
-        super().__init__(ChromeDriverManager().install(),
+        super().__init__(
+                         #executable_path="./model_chain/chromedriver",
+			 ChromeDriverManager().install(),
                          chrome_options=chrome_options,
                          desired_capabilities=chrome_caps)
 
@@ -627,20 +629,23 @@ def is_valid_domain(domain: str) -> bool:
     return it_is_a_domain
 
 def is_alive_domain(domain: str, proxies: Optional[Dict]=None) -> bool:
+   
     try:
         response = requests.head('https://' + domain, timeout=10, proxies=proxies)  # Reduced timeout and used HEAD
-        PhishLLMLogger.spit(f'Status code {response.status_code}', caller_prefix=PhishLLMLogger._caller_prefix,
-                            debug=True)
+        #PhishLLMLogger.spit(f'Status code {response.status_code}', caller_prefix=PhishLLMLogger._caller_prefix,
+        #                        debug=True)
         if response.status_code < 400:
-            PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+            #PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
             return True
         elif response.history and any([r.status_code < 400 for r in response.history]):
-            PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix,
-                                debug=True)
+            #PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix,
+            #                    debug=True
             return True
     except Exception as err:
-        print(f'Error {err} when checking the aliveness of domain {domain}')
-    PhishLLMLogger.spit(f'Domain {domain} is invalid or dead', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+        return False
+            #print(f'Error {err} when checking the aliveness of domain {domain}')
+            #ct_limit += 1
+    #PhishLLMLogger.spit(f'Domain {domain} is invalid or dead', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
     return False
 
 '''Retrieve logo from a webpage'''
@@ -683,6 +688,7 @@ def query2image(query: str, SEARCH_ENGINE_API: str, SEARCH_ENGINE_ID: str, num: 
     if len(query) == 0:
         return []
 
+    num = int(num)
     URL = f"https://www.googleapis.com/customsearch/v1?key={SEARCH_ENGINE_API}&cx={SEARCH_ENGINE_ID}&q={query}&searchType=image&num={num}"
     while True:
         try:
@@ -745,7 +751,6 @@ def page_transition(driver: CustomWebDriver, dom: str, save_html_path: str, save
         :param save_shot_path:
         :return:
     '''
-    orig_url = driver.current_url()
     try:
         element = driver.find_elements_by_xpath(dom)
         if element:
@@ -755,24 +760,24 @@ def page_transition(driver: CustomWebDriver, dom: str, save_html_path: str, save
                 pass
             driver.move_to_element(element[0])
             etext = driver.get_text(element[0])
-            if (not etext) or len(etext) == 0:
+            if (etext is None) or len(etext) == 0:
                 etext = driver.get_attribute(element[0], "value")
             driver.click(element[0])
-            time.sleep(7)  # fixme: must allow some loading time here, dynapd is slow
+            time.sleep(5)  # fixme: must allow some loading time here
         current_url = driver.current_url()
     except Exception as e:
-        PhishLLMLogger.spit('Exception {} when clicking the login button'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
-        return None, orig_url, None, None
+        print('Exception {} when clicking the login button'.format(e))
+        return None, None, None, None
 
     try:
         driver.save_screenshot(save_shot_path)
-        PhishLLMLogger.spit('CRP transition is successful! New screenshot has been saved', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+        #PhishLLMLogger.spit('CRP transition is successful! New screenshot has been saved', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
         with open(save_html_path, "w", encoding='utf-8') as f:
             f.write(driver.page_source)
         return etext, current_url, save_html_path, save_shot_path
     except Exception as e:
-        PhishLLMLogger.spit('Exception {} when saving the new screenshot'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
-        return None, orig_url, None, None
+        #PhishLLMLogger.spit('Exception {} when saving the new screenshot'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
+        return None, None, None, None
 
 
 def get_screenshot_elements(phishintention_cls: PhishIntentionWrapper, driver: CustomWebDriver) -> List[int]:
@@ -791,10 +796,10 @@ def has_page_content_changed(phishintention_cls: PhishIntentionWrapper, driver: 
     screenshot_ele_change_ts = np.sum(bincount_prev_elements) // 2 # half the different UI elements distribution has changed
 
     if np.sum(np.abs(bincount_curr_elements[:set_of_elements] - bincount_prev_elements[:set_of_elements])) > screenshot_ele_change_ts:
-        PhishLLMLogger.spit(f"Webpage content has changed", caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+        #PhishLLMLogger.spit(f"Webpage content has changed", caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
         return True
     else:
-        PhishLLMLogger.spit(f"Webpage content didn't change", caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+        #PhishLLMLogger.spit(f"Webpage content didn't change", caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
         return False
 
 
