@@ -23,7 +23,7 @@ let eventQueue = [];
 const responseSound = new Audio('/static/facebookchatone.mp3');
 
 let url = "";
-let back_url=""
+let back_url = ""
 let screenshot_path = ""
 let html_path = ""
 
@@ -93,17 +93,88 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Function to show values when scrolling the hyperparameters slider
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function () {
   // Initialize range value display
   const sliders = document.querySelectorAll('.slider');
   sliders.forEach((slider) => {
     const valueElement = document.getElementById(`value-${slider.id}`);
     valueElement.innerText = slider.value;
-    slider.addEventListener('input', function() {
+    slider.addEventListener('input', function () {
       valueElement.innerText = this.value;
     });
   });
 });
+//   ======== ======== ======== ======== ======== ======== ========  yvonne start ================ ======== ========                 //
+// when window load it will load this function
+window.onload = function () {
+  // try to get session storage get params
+
+  let params = sessionStorage.getItem("params");
+  console.log("params", params)
+  if (!params) {
+    // reset all 
+    // Reset sliders and checkboxes to their default values
+    document.getElementById("common-temperature").value = 0;
+    document.getElementById("brand-valid-activate").checked = false;
+    document.getElementById("brand-valid-k").value = 5;
+    document.getElementById("siamese-thre").value = 0.7;
+    document.getElementById("rank-depth-limit").value = 3;
+
+    // Update label values to match the default values
+    document.getElementById("value-common-temperature").innerText = "0";
+    document.getElementById("value-brand-valid-k").innerText = "5";
+    document.getElementById("value-siamese-thre").innerText = "0.7";
+    document.getElementById("value-rank-depth-limit").innerText = "3";
+
+  } else {
+    // if sessionStorage has params load them as JSON      
+    params = JSON.parse(params);
+    document.getElementById("common-temperature").value = params['common-temperature'];
+    document.getElementById("brand-valid-activate").checked = params['brand-valid-activate'];
+    document.getElementById("brand-valid-k").value = params['brand-valid-k'];
+    document.getElementById("siamese-thre").value = params['siamese-thre'];
+    document.getElementById("rank-depth-limit").value = params['rank-depth-limit'];
+
+    document.getElementById("value-common-temperature").innerText = params['common-temperature'];
+
+    document.getElementById("value-brand-valid-k").innerText = params['brand-valid-k'];
+    document.getElementById("value-siamese-thre").innerText = params['siamese-thre'];
+    document.getElementById("value-rank-depth-limit").innerText = params['rank-depth-limit'];
+
+
+  }
+
+}
+// add events listen the input change
+document.getElementById("common-temperature").addEventListener("input", function () {
+  saveToStorage("common-temperature", this.value);
+});
+
+document.getElementById("brand-valid-activate").addEventListener("change", function () {
+  saveToStorage("brand-valid-activate", this.checked);
+});
+
+document.getElementById("brand-valid-k").addEventListener("input", function () {
+  saveToStorage("brand-valid-k", this.value);
+});
+
+document.getElementById("siamese-thre").addEventListener("input", function () {
+  saveToStorage("siamese-thre", this.value);
+});
+
+document.getElementById("rank-depth-limit").addEventListener("input", function () {
+  saveToStorage("rank-depth-limit", this.value);
+});
+
+// save data to session storage
+function saveToStorage(key, value) {
+  let params = JSON.parse(sessionStorage.getItem("params")) || {};
+  params[key] = value;
+  window.sessionStorage.setItem("params", JSON.stringify(params));
+}
+
+
+//   ======== ======== ======== ======== ======== ======== ========  yvonne end ================ ======== ======== //
 
 // Function to disable or enable all buttons and input[type="submit"] or input[type="button"]
 function toggleButtons(disabled) {
@@ -112,7 +183,7 @@ function toggleButtons(disabled) {
 }
 
 // Add click event listener to reset button
-resetButton.addEventListener("click", async function(e){
+resetButton.addEventListener("click", async function (e) {
   e.preventDefault();
 
   // Disable all buttons and show loading
@@ -139,7 +210,7 @@ resetButton.addEventListener("click", async function(e){
     rank: { depth_limit: 3 }
   };
 
-    // Now, send `defaultParams` to your server to reset the parameters
+  // Now, send `defaultParams` to your server to reset the parameters
   fetch('/update_params', {
     method: 'POST',
     headers: {
@@ -147,27 +218,27 @@ resetButton.addEventListener("click", async function(e){
     },
     body: JSON.stringify(defaultParams)
   })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
-      // Reset was successful
-      alert('Parameters reset to default successfully');
-    } else {
-      // Reset failed
-      alert('Failed to reset parameters to default');
-    }
-  })
-  .catch(error => {
-    console.error('Error:', error);
-  })
-  .finally(() => {
-    // Enable all buttons and hide loading
-    toggleButtons(false);
-  });
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Reset was successful
+        alert('Parameters reset to default successfully');
+      } else {
+        // Reset failed
+        alert('Failed to reset parameters to default');
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    })
+    .finally(() => {
+      // Enable all buttons and hide loading
+      toggleButtons(false);
+    });
 });
 
 // click event for update button
-updateButton.addEventListener('click', async function(event) {
+updateButton.addEventListener('click', async function (event) {
   event.preventDefault();
 
   // Disable all buttons and show loading
@@ -176,9 +247,11 @@ updateButton.addEventListener('click', async function(event) {
   // Create an object with default values
   const defaultParams = {
     brand_recog: { temperature: document.getElementById("common-temperature").value },
-    brand_valid: { activate: document.getElementById("brand-valid-activate").checked,
-                  k: document.getElementById("brand-valid-k").value,
-                  siamese_thre: document.getElementById("siamese-thre").value },
+    brand_valid: {
+      activate: document.getElementById("brand-valid-activate").checked,
+      k: document.getElementById("brand-valid-k").value,
+      siamese_thre: document.getElementById("siamese-thre").value
+    },
     crp_pred: { temperature: document.getElementById("common-temperature").value },
     rank: { depth_limit: document.getElementById("rank-depth-limit").value }
   };
@@ -192,23 +265,23 @@ updateButton.addEventListener('click', async function(event) {
     },
     body: JSON.stringify(defaultParams)
   })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
-      // Update was successful
-      alert('Parameters updated successfully');
-    } else {
-      // Update failed
-      alert('Failed to update parameters to default');
-    }
-  })
-  .catch(error => {
-    console.error('Error:', error);
-  })
-  .finally(() => {
-    // Enable all buttons and hide loading
-    toggleButtons(false);
-  });
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Update was successful
+        alert('Parameters updated successfully');
+      } else {
+        // Update failed
+        alert('Failed to update parameters to default');
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    })
+    .finally(() => {
+      // Enable all buttons and hide loading
+      toggleButtons(false);
+    });
 });
 
 urlForm.addEventListener("submit", async function (e) {
@@ -237,7 +310,7 @@ const getScreenshot = async () => {
   urlScreenshot.replaceChildren();
   // Disable all buttons and show loading
   toggleButtons(true);
-  
+
   try {
     const response = await fetch(`/crawl`, {
       method: "POST",
@@ -259,7 +332,7 @@ const getScreenshot = async () => {
       urlFail.style.display = "block";
       scrollIntoView(urlFail);
     }
-  } catch(error) {
+  } catch (error) {
     console.log(error);
     urlFail.style.display = "block";
     scrollIntoView(urlFail);
@@ -278,7 +351,19 @@ const getInference = () => {
   // Disable all buttons and show loading
   toggleButtons(true);
   const id = generateUniqueId(); // 生成唯一ID的函数
-  const eventSource = new EventSource(`/listen?id=${id}&url=${encodeURIComponent(back_url)}&screenshot_path=${encodeURIComponent(screenshot_path)}&html_path=${encodeURIComponent(html_path)}`);
+
+  const defaultParams = {
+    brand_recog: { temperature: document.getElementById("common-temperature").value },
+    brand_valid: {
+      activate: document.getElementById("brand-valid-activate").checked,
+      k: document.getElementById("brand-valid-k").value,
+      siamese_thre: document.getElementById("siamese-thre").value
+    },
+    crp_pred: { temperature: document.getElementById("common-temperature").value },
+    rank: { depth_limit: document.getElementById("rank-depth-limit").value }
+  };
+
+  const eventSource = new EventSource(`/listen?id=${id}&params=${JSON.stringify(defaultParams)}&url=${encodeURIComponent(back_url)}&screenshot_path=${encodeURIComponent(screenshot_path)}&html_path=${encodeURIComponent(html_path)}`);
 
   inferenceResult.style.display = "block";
   inferenceSuccess.style.display = "none";
@@ -294,7 +379,7 @@ const getInference = () => {
     while (eventQueue.length) {
       try {
         await runEvent();
-      } catch(err) {
+      } catch (err) {
         console.log(err);
       }
     }
@@ -311,9 +396,9 @@ const getInference = () => {
   }
 
   const handlePromptEvent = async (event) => {
-     toggleButtons(true);
-     responseSound.play();
-     await showMessage(true, event.data);
+    toggleButtons(true);
+    responseSound.play();
+    await showMessage(true, event.data);
   }
 
   const handleResponseEvent = async (event) => {

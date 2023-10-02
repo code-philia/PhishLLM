@@ -25,7 +25,7 @@
 
 /* Make label text more formal */
 label {
-  font-size: 20px;
+  font-size: 18px;
 }
     
 .slider {
@@ -63,7 +63,7 @@ body {
   min-width: 200px;
   max-width: 60%;
   min-height: 400px;
-  max-height: 80vh;
+  max-height: 100vh;
 }
 
 /* Styles for the main content */
@@ -175,7 +175,7 @@ input:checked + .slider-round:before {
       <div class="resize-handle-bottom" id="resizeHandleBottom"></div>
       <div class="resize-handle-corner" id="resizeHandleCorner"></div>
     <form id="param-form">
-      <h5>Adjust the Hyperparameters</h5>
+      <h6>Adjust the Hyperparameters</h6>
        <fieldset>
 
         <div class="slider-container">
@@ -183,6 +183,7 @@ input:checked + .slider-round:before {
           <span class="label-value" id="value-common-temperature">0</span>           
           <input type="range" id="common-temperature" name="common_temperature" step="0.1" min="0" max="1" value="0" class="slider">
         </div>
+        <hr/>
 
        <div class="toggle-container">
          <label for="brand-valid-activate">Activate brand validation:</label>
@@ -194,18 +195,21 @@ input:checked + .slider-round:before {
             </span>
          </label>
         </div>
+        <hr/>
 
         <div class="slider-container">
           <label for="brand-valid-k">Number of logo images used for brand validation:</label>
           <span class="label-value" id="value-brand-valid-k">5</span>
           <input type="range" id="brand-valid-k" name="brand_valid[k]" step="1" min="5" max="10" value="5" class="slider">
         </div>
+        <hr/>
 
         <div class="slider-container">
           <label for="siamese-thre">Logo matching threshold used for brand validation:</label>
           <span class="label-value" id="value-siamese-thre">0.7</span>
           <input type="range" id="siamese-thre" name="brand_valid[siamese_thre]" step="0.01" min="0.6" max="1" value="0.7" class="slider">
         </div>
+        <hr/>
 
         <div class="slider-container">
           <label for="rank-depth-limit">CRP transition exploration depth limit:</label>
@@ -213,9 +217,10 @@ input:checked + .slider-round:before {
           <input type="range" id="rank-depth-limit" name="rank[depth_limit]" step="1" min="1" max="3" value="3" class="slider">
         </div>
 
+
       </fieldset>
-        <input type="submit" id="update-param-button" value="Update">
-        <input type="button" id="reset-button" value="Reset" class="outline secondary">
+        <!-- <input type="submit" id="update-param-button" value="Update"> -->
+        <input type="button" id="reset-button" value="Reset">
     </form>    
     </div>   
 
