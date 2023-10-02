@@ -43,9 +43,6 @@ scheduler = BackgroundScheduler()
 scheduler.add_job(func=clear_directories, trigger="interval", days=1)  # clear every day
 scheduler.start()
 
-# PhishLLMLogger.set_debug_on()
-# PhishLLMLogger.set_logfile(os.path.join(Config.LOGS_DIR, f"{datetime.now().strftime('%Y-%d-%m_%H%M%S')}.log"))
-
 # load hyperparameters
 with open(Config.PARAM_PATH) as file:
     param_dict = yaml.load(file, Loader=yaml.FullLoader)
@@ -60,7 +57,6 @@ llm_cls = TestLLM(phishintention_cls, param_dict=param_dict,
                   )
 openai.api_key = os.getenv("OPENAI_API_KEY")
 openai.proxy = proxy_url
-
 
 @app.route("/")
 def interface():
@@ -151,36 +147,6 @@ def uodate_LLM_params(form_data):
 
     # Update internal state of TestLLM
     llm_cls.update_params(param_dict)  # Assumes such a method exists
-
-
-
-
-# Optional: Change hyperparameters
-@app.route("/update_params", methods=["POST"])
-def update_params():
-     # Getting form data from request
-    form_data = request.get_json()
-
-    # Partially updating param_dict based on form data
-    for section, params in form_data.items():
-        if section in param_dict:
-            for param, value in params.items():
-                if param in param_dict[section]:
-                    try:
-                        if isinstance(value, float):
-                            param_dict[section][param] = float(value)
-                        elif isinstance(value, bool):
-                            param_dict[section][param] = bool(value)
-                        elif isinstance(value, int):
-                            param_dict[section][param] = int(value)
-                        print(section, param, value)
-                    except ValueError:
-                        return jsonify(success=False, message=f"Invalid value for {param} in {section}"), 400
-
-    # Update internal state of TestLLM
-    llm_cls.update_params(param_dict)  # Assumes such a method exists
-
-    return jsonify(success=True), 200
 
 
 def get_xdriver():

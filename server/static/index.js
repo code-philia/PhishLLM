@@ -15,9 +15,7 @@ const inferenceResult = document.getElementById("inference-result");
 const inferenceLogs = document.getElementById("inference-logs");
 const inferenceSuccess = document.getElementById("inference-success");
 const inferenceFail = document.getElementById("inference-fail");
-const stopButton = document.getElementById("stop-button");
 const resetButton = document.getElementById("reset-button");
-const updateButton = document.getElementById('update-param-button');
 let eventNumber = 0;
 let eventQueue = [];
 const responseSound = new Audio('/static/facebookchatone.mp3');
@@ -104,83 +102,77 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 });
-//   ======== ======== ======== ======== ======== ======== ========  yvonne start ================ ======== ========                 //
-// when window load it will load this function
-window.onload = function () {
-  // try to get session storage get params
 
-  let params = sessionStorage.getItem("params");
-  console.log("params", params)
-  if (!params) {
-    // reset all 
-    // Reset sliders and checkboxes to their default values
-    document.getElementById("common-temperature").value = 0;
-    document.getElementById("brand-valid-activate").checked = false;
-    document.getElementById("brand-valid-k").value = 5;
-    document.getElementById("siamese-thre").value = 0.7;
-    document.getElementById("rank-depth-limit").value = 3;
-
-    // Update label values to match the default values
-    document.getElementById("value-common-temperature").innerText = "0";
-    document.getElementById("value-brand-valid-k").innerText = "5";
-    document.getElementById("value-siamese-thre").innerText = "0.7";
-    document.getElementById("value-rank-depth-limit").innerText = "3";
-
-  } else {
-    // if sessionStorage has params load them as JSON      
-    params = JSON.parse(params);
-    document.getElementById("common-temperature").value = params['common-temperature'];
-    document.getElementById("brand-valid-activate").checked = params['brand-valid-activate'];
-    document.getElementById("brand-valid-k").value = params['brand-valid-k'];
-    document.getElementById("siamese-thre").value = params['siamese-thre'];
-    document.getElementById("rank-depth-limit").value = params['rank-depth-limit'];
-
-    document.getElementById("value-common-temperature").innerText = params['common-temperature'];
-
-    document.getElementById("value-brand-valid-k").innerText = params['brand-valid-k'];
-    document.getElementById("value-siamese-thre").innerText = params['siamese-thre'];
-    document.getElementById("value-rank-depth-limit").innerText = params['rank-depth-limit'];
-
-
-  }
-
-}
-// add events listen the input change
-document.getElementById("common-temperature").addEventListener("input", function () {
-  saveToStorage("common-temperature", this.value);
-});
-
-document.getElementById("brand-valid-activate").addEventListener("change", function () {
-  saveToStorage("brand-valid-activate", this.checked);
-});
-
-document.getElementById("brand-valid-k").addEventListener("input", function () {
-  saveToStorage("brand-valid-k", this.value);
-});
-
-document.getElementById("siamese-thre").addEventListener("input", function () {
-  saveToStorage("siamese-thre", this.value);
-});
-
-document.getElementById("rank-depth-limit").addEventListener("input", function () {
-  saveToStorage("rank-depth-limit", this.value);
-});
-
-// save data to session storage
-function saveToStorage(key, value) {
-  let params = JSON.parse(sessionStorage.getItem("params")) || {};
-  params[key] = value;
-  window.sessionStorage.setItem("params", JSON.stringify(params));
-}
-
-
-//   ======== ======== ======== ======== ======== ======== ========  yvonne end ================ ======== ======== //
+// // save data to session storage
+// function saveToStorage(key, value) {
+//   let params = JSON.parse(sessionStorage.getItem("params")) || {};
+//   params[key] = value;
+//   window.sessionStorage.setItem("params", JSON.stringify(params));
+// }
 
 // Function to disable or enable all buttons and input[type="submit"] or input[type="button"]
 function toggleButtons(disabled) {
   const buttons = document.querySelectorAll("button, input[type='submit'], input[type='button']");
   buttons.forEach(button => button.disabled = disabled);
 }
+
+// // when window load it will load this function to load all the hyperparameters
+// window.onload = function () {
+//   // try to get session storage get params
+//   let params = sessionStorage.getItem("params");
+//   console.log("params", params)
+//   if (!params) {
+//     // reset all
+//     // Reset sliders and checkboxes to their default values
+//     document.getElementById("common-temperature").value = 0;
+//     document.getElementById("brand-valid-activate").checked = false;
+//     document.getElementById("brand-valid-k").value = 5;
+//     document.getElementById("siamese-thre").value = 0.7;
+//     document.getElementById("rank-depth-limit").value = 3;
+//
+//     // Update label values to match the default values
+//     document.getElementById("value-common-temperature").innerText = "0";
+//     document.getElementById("value-brand-valid-k").innerText = "5";
+//     document.getElementById("value-siamese-thre").innerText = "0.7";
+//     document.getElementById("value-rank-depth-limit").innerText = "3";
+//
+//   } else {
+//     // if sessionStorage has params load them as JSON
+//     params = JSON.parse(params);
+//     document.getElementById("common-temperature").value = params['common-temperature'];
+//     document.getElementById("brand-valid-activate").checked = params['brand-valid-activate'];
+//     document.getElementById("brand-valid-k").value = params['brand-valid-k'];
+//     document.getElementById("siamese-thre").value = params['siamese-thre'];
+//     document.getElementById("rank-depth-limit").value = params['rank-depth-limit'];
+//
+//     document.getElementById("value-common-temperature").innerText = params['common-temperature'];
+//     document.getElementById("value-brand-valid-k").innerText = params['brand-valid-k'];
+//     document.getElementById("value-siamese-thre").innerText = params['siamese-thre'];
+//     document.getElementById("value-rank-depth-limit").innerText = params['rank-depth-limit'];
+//   }
+//
+// }
+// add events listen the input change
+// document.getElementById("common-temperature").addEventListener("input", function () {
+//   saveToStorage("common-temperature", this.value);
+// });
+//
+// document.getElementById("brand-valid-activate").addEventListener("change", function () {
+//   saveToStorage("brand-valid-activate", this.checked);
+// });
+//
+// document.getElementById("brand-valid-k").addEventListener("input", function () {
+//   saveToStorage("brand-valid-k", this.value);
+// });
+//
+// document.getElementById("siamese-thre").addEventListener("input", function () {
+//   saveToStorage("siamese-thre", this.value);
+// });
+//
+// document.getElementById("rank-depth-limit").addEventListener("input", function () {
+//   saveToStorage("rank-depth-limit", this.value);
+// });
+
 
 // Add click event listener to reset button
 resetButton.addEventListener("click", async function (e) {
@@ -194,96 +186,19 @@ resetButton.addEventListener("click", async function (e) {
   document.getElementById("brand-valid-activate").checked = false;
   document.getElementById("brand-valid-k").value = 5;
   document.getElementById("siamese-thre").value = 0.7;
-  document.getElementById("rank-depth-limit").value = 3;
+  document.getElementById("rank-depth-limit").value = 1;
 
   // Update label values to match the default values
   document.getElementById("value-common-temperature").innerText = "0";
   document.getElementById("value-brand-valid-k").innerText = "5";
   document.getElementById("value-siamese-thre").innerText = "0.7";
-  document.getElementById("value-rank-depth-limit").innerText = "3";
+  document.getElementById("value-rank-depth-limit").innerText = "1";
 
-  // Create an object with default values
-  const defaultParams = {
-    brand_recog: { temperature: 0 },
-    brand_valid: { activate: false, k: 5, siamese_thre: 0.7 },
-    crp_pred: { temperature: 0 },
-    rank: { depth_limit: 3 }
-  };
+  toggleButtons(false);
 
-  // Now, send `defaultParams` to your server to reset the parameters
-  fetch('/update_params', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(defaultParams)
-  })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        // Reset was successful
-        alert('Parameters reset to default successfully');
-      } else {
-        // Reset failed
-        alert('Failed to reset parameters to default');
-      }
-    })
-    .catch(error => {
-      console.error('Error:', error);
-    })
-    .finally(() => {
-      // Enable all buttons and hide loading
-      toggleButtons(false);
-    });
 });
 
-// click event for update button
-updateButton.addEventListener('click', async function (event) {
-  event.preventDefault();
-
-  // Disable all buttons and show loading
-  toggleButtons(true);
-
-  // Create an object with default values
-  const defaultParams = {
-    brand_recog: { temperature: document.getElementById("common-temperature").value },
-    brand_valid: {
-      activate: document.getElementById("brand-valid-activate").checked,
-      k: document.getElementById("brand-valid-k").value,
-      siamese_thre: document.getElementById("siamese-thre").value
-    },
-    crp_pred: { temperature: document.getElementById("common-temperature").value },
-    rank: { depth_limit: document.getElementById("rank-depth-limit").value }
-  };
-
-  console.log(defaultParams);
-  // Now, send `defaultParams` to your server to reset the parameters
-  fetch('/update_params', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(defaultParams)
-  })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        // Update was successful
-        alert('Parameters updated successfully');
-      } else {
-        // Update failed
-        alert('Failed to update parameters to default');
-      }
-    })
-    .catch(error => {
-      console.error('Error:', error);
-    })
-    .finally(() => {
-      // Enable all buttons and hide loading
-      toggleButtons(false);
-    });
-});
-
+// Crawl the screenshot for a given URL
 urlForm.addEventListener("submit", async function (e) {
   e.preventDefault();
   var formData = new FormData(e.target);
