@@ -105,10 +105,14 @@ def crawl():
 # frontend url,screenshot_path -> backend inference -> frontend announcer
 @app.route('/listen', methods=['GET'])
 def listen():
-    id = request.args.get('id')  # 获取查询参数中的id
+    id = request.args.get('id')  # get request id
+    params = json.loads(request.args.get('params'))  # get params
+    # update LLM
+    uodate_LLM_params(params)
     url = unquote(request.args.get('url'))
     screenshot_path = unquote(request.args.get('screenshot_path'))
     html_path = unquote(request.args.get('html_path'))
+
     print("url,", url, "screenshot_path", screenshot_path)
 
     if not (id and os.path.exists(screenshot_path)):
@@ -127,6 +131,29 @@ def listen():
             yield msg
 
     return Response(stream(url, screenshot_path, html_path), mimetype='text/event-stream')
+
+def uodate_LLM_params(form_data):
+    # Partially updating param_dict based on form data
+    for section, params in form_data.items():
+        if section in param_dict:
+            for param, value in params.items():
+                if param in param_dict[section]:
+                    try:
+                        if isinstance(value, float):
+                            param_dict[section][param] = float(value)
+                        elif isinstance(value, bool):
+                            param_dict[section][param] = bool(value)
+                        elif isinstance(value, int):
+                            param_dict[section][param] = int(value)
+                        print(section, param, value)
+                    except ValueError:
+                        return 
+
+    # Update internal state of TestLLM
+    llm_cls.update_params(param_dict)  # Assumes such a method exists
+
+
+
 
 # Optional: Change hyperparameters
 @app.route("/update_params", methods=["POST"])
