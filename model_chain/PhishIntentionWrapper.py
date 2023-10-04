@@ -80,27 +80,6 @@ def run_classifier(image: Image, model):
         conf = F.softmax(pred_orig, dim=-1).detach().cpu()
     return pred, conf, pred_features
 
-# Helper function to click an element and switch to a new window if it opens
-def click_and_switch_window(driver, element, prev_windows):
-    success_clicked = driver.click(element)
-    if success_clicked:
-        time.sleep(0.5)
-        current_window = switch_to_new_window(driver, prev_windows, driver.current_url())
-        return True, current_window
-    return False, None
-
-# Helper function to switch to a new window
-def switch_to_new_window(driver, prev_windows, current_url):
-    current_window = driver.window_handles[0]
-    for i in driver.window_handles:
-        driver.switch_to_window(i)
-        this_url = driver.current_url()
-        if this_url == current_url:
-            current_window = i # current window should be this
-        elif i not in prev_windows:
-            new_window = i
-            driver.switch_to_window(new_window)
-    return current_window
 
 class PhishIntentionWrapper:
     _caller_prefix = "PhishIntentionWrapper"
@@ -257,12 +236,11 @@ class PhishIntentionWrapper:
 
 
     # Helper function to run the CRP classifier and update the reach_crp flag
-    def perform_crp_classification(self, driver, current_window):
+    def perform_crp_classification(self, driver):
         new_screenshot_encoding = driver.get_screenshot_encoding()
         ret_password, ret_username = driver.get_all_visible_username_password_inputs()
         num_username, num_password = len(ret_username), len(ret_password)
         cre_pred = self.run_crp_classifier(num_username, num_password, new_screenshot_encoding)
-        driver.switch_to_window(current_window)
         return cre_pred == 0
 
     def perform_crp_classification_static(self, screenshot_path, html_path, pred_boxes, pred_classes):
@@ -300,11 +278,11 @@ class PhishIntentionWrapper:
             if len(keyword_finder) > 0:
                 ct += 1
                 elements = driver.get_clickable_elements_contains(line)
-                prev_windows = driver.window_handles
                 if len(elements):
-                    success_clicked, current_window = click_and_switch_window(driver, elements[0], prev_windows)
+                    success_clicked = driver.click(elements[0])
+                    time.sleep(0.5)
                     if success_clicked:
-                        reach_crp = self.perform_crp_classification(driver, current_window)
+                        reach_crp = self.perform_crp_classification(driver)
                         if reach_crp:
                             break
                 if ct >= PhishIntentionWrapper._RETRIES:
@@ -330,18 +308,17 @@ class PhishIntentionWrapper:
         for bbox in login_buttons[:min(self._RETRIES, len(login_buttons))]:  # only for top3 boxes
             x1, y1, x2, y2 = bbox
             element = driver.find_element_by_location((x1 + x2) // 2, (y1 + y2) // 2)
-            prev_windows = driver.window_handles
 
             try:
-                success_clicked, current_window = click_and_switch_window(driver, element, prev_windows)
+                success_clicked = driver.click(element)
+                time.sleep(0.5)
             except selenium.common.exceptions.StaleElementReferenceException:
                 continue
 
             if success_clicked:
-                reach_crp = self.perform_crp_classification(driver, current_window)
+                reach_crp = self.perform_crp_classification(driver)
                 if reach_crp:
                     break
-                driver.switch_to_window(current_window)
 
         return self.post_process_crp_locator(driver, reach_crp, orig_url, current_url, obfuscate)
 
@@ -549,3 +526,4 @@ class PhishIntentionWrapper:
             'pred_boxes': pred_boxes,
             'pred_classes': pred_classes
         }
+

@@ -169,7 +169,14 @@ class CustomWebDriver(webdriver.Chrome):
         chrome_options.add_argument('--disable-gpu')
         chrome_options.add_argument("--window-size=1920,1080")
         chrome_options.add_argument("--headless")
+        prefs = {
+            "download.default_directory": './trash',
+            "download.prompt_for_download": False,  # To disable the download prompt and download automatically
+            "download_restrictions": 3  # Attempt to restrict all downloads
+        }
+        chrome_options.add_experimental_option("prefs", prefs)
 
+        self._proxy_server = proxy_server
         if proxy_server:
             chrome_options.add_argument(f"--proxy-server={proxy_server}")
 
@@ -177,9 +184,7 @@ class CustomWebDriver(webdriver.Chrome):
         chrome_caps['acceptSslCerts'] = True
         chrome_caps['acceptInsecureCerts'] = True
 
-        super().__init__(
-                         #executable_path="./model_chain/chromedriver",
-			 ChromeDriverManager().install(),
+        super().__init__(ChromeDriverManager().install(),
                          chrome_options=chrome_options,
                          desired_capabilities=chrome_caps)
 
@@ -207,7 +212,7 @@ class CustomWebDriver(webdriver.Chrome):
 
     def reboot(self):
         self.quit()
-        new_instance = CustomWebDriver.boot()
+        new_instance = CustomWebDriver.boot(proxy_server=self._proxy_server)
         self.__dict__.update(new_instance.__dict__)
 
     '''Exception handling'''
@@ -545,7 +550,7 @@ class CustomWebDriver(webdriver.Chrome):
         free_text_xpath = self._get_elements_xpath_contains(patterns, is_free_text=True)
 
         element_list = []
-        for path in button_xpaths + link_xpaths + [input_xpath] + [free_text_xpath]:
+        for path in button_xpaths + link_xpaths + input_xpath + free_text_xpath:
             elements = self.find_elements_by_xpath(path)
             if elements:
                 element_list.extend(elements)
