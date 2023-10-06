@@ -12,7 +12,7 @@
 
 </p>
 
-## Introductions
+## Introduction
 Existing reference-based phishing detection:
 
 - :x: Relies on a pre-defined reference list
