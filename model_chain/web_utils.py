@@ -118,7 +118,7 @@ class WebUtil():
             sorted_link_by_likelihood = links[sorted_index]
             driver.click(sorted_link_by_likelihood[0])
             time.sleep(2)
-            print('After clicking URL={}'.format(driver.current_url()), debug=True)
+            print('After clicking URL={}'.format(driver.current_url()))
             ct += 1
             if ct >= 10:
                 hang = True
@@ -341,6 +341,12 @@ class CustomWebDriver(webdriver.Chrome):
             return body
         except:
             return ''
+
+    def page_source(self):
+        return self._invoke(self._page_source)
+
+    def _page_source(self):
+        return super(CustomWebDriver, self).page_source
 
     def obfuscate_page(self):
         self._invoke(self.execute_script, """
@@ -637,20 +643,19 @@ def is_alive_domain(domain: str, proxies: Optional[Dict]=None) -> bool:
    
     try:
         response = requests.head('https://' + domain, timeout=10, proxies=proxies)  # Reduced timeout and used HEAD
-        #PhishLLMLogger.spit(f'Status code {response.status_code}', caller_prefix=PhishLLMLogger._caller_prefix,
-        #                        debug=True)
+        PhishLLMLogger.spit(f'Domain {domain}, status code {response.status_code}', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
         if response.status_code < 400:
-            #PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+            PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
             return True
         elif response.history and any([r.status_code < 400 for r in response.history]):
-            #PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix,
-            #                    debug=True
+            PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
             return True
+
     except Exception as err:
+        PhishLLMLogger.spit(f'Error {err} when checking the aliveness of domain {domain}', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
         return False
-            #print(f'Error {err} when checking the aliveness of domain {domain}')
-            #ct_limit += 1
-    #PhishLLMLogger.spit(f'Domain {domain} is invalid or dead', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+
+    PhishLLMLogger.spit(f'Domain {domain} is invalid or dead', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
     return False
 
 '''Retrieve logo from a webpage'''
@@ -776,12 +781,12 @@ def page_transition(driver: CustomWebDriver, dom: str, save_html_path: str, save
 
     try:
         driver.save_screenshot(save_shot_path)
-        #PhishLLMLogger.spit('CRP transition is successful! New screenshot has been saved', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+        PhishLLMLogger.spit('CRP transition is successful! New screenshot has been saved', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
         with open(save_html_path, "w", encoding='utf-8') as f:
             f.write(driver.page_source)
         return etext, current_url, save_html_path, save_shot_path
     except Exception as e:
-        #PhishLLMLogger.spit('Exception {} when saving the new screenshot'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
+        PhishLLMLogger.spit('Exception {} when saving the new screenshot'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
         return None, None, None, None
 
 
@@ -801,10 +806,10 @@ def has_page_content_changed(phishintention_cls: PhishIntentionWrapper, driver: 
     screenshot_ele_change_ts = np.sum(bincount_prev_elements) // 2 # half the different UI elements distribution has changed
 
     if np.sum(np.abs(bincount_curr_elements[:set_of_elements] - bincount_prev_elements[:set_of_elements])) > screenshot_ele_change_ts:
-        #PhishLLMLogger.spit(f"Webpage content has changed", caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+        PhishLLMLogger.spit(f"Webpage content has changed", caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
         return True
     else:
-        #PhishLLMLogger.spit(f"Webpage content didn't change", caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+        PhishLLMLogger.spit(f"Webpage content didn't change", caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
         return False
 
 
