@@ -6,24 +6,24 @@
 
 [//]: # (  • <a href="">Website</a> •)
 
-  • <a href="https://drive.google.com/drive/folders/1x6N6QEt_34B-pMStbBANUrjim-2ixG6T?usp=sharing">Datasets</a>  •
+[//]: # (  • <a href="https://drive.google.com/drive/folders/1x6N6QEt_34B-pMStbBANUrjim-2ixG6T?usp=sharing">Datasets</a>  •)
 
-  • <a href="#citation">Citation</a> •
+[//]: # (  • <a href="#citation">Citation</a> •)
 
 </p>
 
 ## Introductions
 Existing reference-based phishing detection:
 
-:x: Relies on a pre-defined reference list
-:x: Necessitates a massive amount of high-quality, diverse annotated data
-:x: Does not fully utilize the textual information present on the webpage
+- :x: Relies on a pre-defined reference list
+- :x: Necessitates a massive amount of high-quality, diverse annotated data
+- :x: Does not fully utilize the textual information present on the webpage
 
 In our PhishLLM, we build a reference-based phishing detection framework:
 
-✅ Without a pre-defined reference list
-✅ Requires lightweight training
-✅ Fully explainable, as it mirrors the human cognitive process during web interaction and provides natural language explanations at every step
+- ✅ Without a pre-defined reference list
+- ✅ Requires lightweight training
+- ✅ Fully explainable, as it mirrors the human cognitive process during web interaction and provides natural language explanations at every step
 
 ## Framework
 <img src="./figures/phishllm.png">
