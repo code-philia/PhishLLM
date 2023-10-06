@@ -1,50 +1,52 @@
 # PhishLLM
 
-[//]: # (<p align="center">)
+<p align="center">
 
 [//]: # (  • <a href="">Paper</a> •)
 
-[//]: # (  <a href="">Website</a> •)
+[//]: # (  • <a href="">Website</a> •)
 
-[//]: # (  <a href="https://drive.google.com/drive/folders/1x6N6QEt_34B-pMStbBANUrjim-2ixG6T?usp=sharing">Datasets</a>  •)
+  • <a href="https://drive.google.com/drive/folders/1x6N6QEt_34B-pMStbBANUrjim-2ixG6T?usp=sharing">Datasets</a>  •
 
-[//]: # (  <a href="#citation">Citation</a> •)
+  • <a href="#citation">Citation</a> •
 
-[//]: # (</p>)
+</p>
 
 ## Introductions
-Existing reference-based phishing detection
-- :x: Rely on a pre-defined reference list
-- :x: Necessitate a massive amount of high-quality, diverse annotated data
-- :x: Do not fully utilize the textual information present on the webpage
+Existing reference-based phishing detection:
 
-In our PhishLLM, we build a reference-based phishing detection framework
-- ✅ Without a pre-defined reference list
-- ✅ Requires light-weight training
-- ✅ Fully explainable, since it mirrors human cognitive process during web interaction, provides natural laguagne explanations at every step 
+:x: Relies on a pre-defined reference list
+:x: Necessitates a massive amount of high-quality, diverse annotated data
+:x: Does not fully utilize the textual information present on the webpage
+
+In our PhishLLM, we build a reference-based phishing detection framework:
+
+✅ Without a pre-defined reference list
+✅ Requires lightweight training
+✅ Fully explainable, as it mirrors the human cognitive process during web interaction and provides natural language explanations at every step
 
 ## Framework
 <img src="./figures/phishllm.png">
 
-- Step 1: Brand Recognition Model to predict the targeted brand
-  - Input: Logo Caption, Logo OCR results, Industry sector (optional)
-  - Intermediate output: LLM's predicted brand
-  - Output: Validated predicted brand, validated through Google Images
-- Step 2: Credential-requiring-page Classification Model 
-  - Input: Webpage OCR results
-  - Output: LLM chooses from A. credential-taking page B. non-credential-taking page
-- Step 3.1 Ranking Model (Activate if LLM chooses B from last step): 
-  - Input: Webpage clickable UI elements (the webpage must be alive)
-  - Intermediate output: The most likely UI being a login button
-  - Output: The page after clicking the UI
+- Step 1: Brand recognition model
+  - Input: logo caption, Logo OCR Results, industry sector (optional)
+  - Intermediate Output: LLM's predicted brand
+  - Output: Validated predicted brand, confirmed through Google Images
+- Step 2: Credential-Requiring-Page classification model
+  - Input: webpage OCR results
+  - Output: LLM chooses from A. Credential-Taking Page or B. Non-Credential-Taking Page
+- Step 3.1: CRP transition model (activate if LLM chooses 'B' from the last step)
+  - Input: webpage clickable UI elements (the webpage must be live)
+  - Intermediate Output: most likely UI element being a login button
+  - Output: The page after clicking the UI 
 - Step 3.2: Termination
-  - Phishing alarm will be raised if 
-    - LLM predicts a targeted brand that is not consistent with the webpage's domain 
-    - **AND** the LLM chooses A from step 2
-  - Benign decision will be reached if 
-    - LLM cannot predict a targeted brand
-    - **OR** the targeted brand aligns with the webpage domain
-    - **OR** the LLM consistently chooses B even after running step 3.1 for multiple times.
+  - A phishing alarm will be raised if:
+  LLM predicts a targeted brand inconsistent with the webpage's domain
+  **AND** LLM chooses 'A' from Step 2
+  - A benign decision will be reached if:
+  LLM cannot predict a targeted brand
+  **OR** the targeted brand aligns with the webpage domain
+  **OR** LLM consistently chooses 'B' even after running Step 3.1 multiple times.
 
 ## Project structure
 ```
@@ -58,27 +60,27 @@ In our PhishLLM, we build a reference-based phishing detection framework
 ```
 
 ## Setup
-- Step 1: Clone this repository, and install requirements
+- Step 1: Clone the Repository and Install Requirements
 ```bash
     cd PhishLLM/
     chmod +x ./setup.sh
     ./setup.sh
 ```
-- Step 2: Register openai API key: See https://platform.openai.com/. Save the API key to './datasets/openai_key2.txt'
-- Step 3: Create a [google cloud service account](https://console.cloud.google.com/), set the billing details
-  - Create a project, enable "Custom Search API"
-  - For "Custom Search API", get the API Key and Search Engine ID following this [guide](https://developers.google.com/custom-search/v1/overview).
-  - Create a blank txt file in the directory "./datasets/google_api_key.txt", copy and paste your API Key and Search Engine ID into the txt file like the following:
+- Step 2: Register OpenAI API Key. See [OpenAI Official Docs](https://platform.openai.com/). Save the API key to './datasets/openai_key2.txt'.
+- Step 3: Create a Google Cloud Service Account
+  - Go to [Google Cloud Console]((https://console.cloud.google.com/)) and set up billing details.
+  - Create a project and enable the "Custom Search API".
+  - Obtain the API Key and Search Engine ID for "Custom Search API" following this [guide](https://developers.google.com/custom-search/v1/overview).
+  - Create a blank text file in the directory "./datasets/google_api_key.txt" and paste your API Key and Search Engine ID as follows:
      ```text 
       [YOUR_API_KEY]
       [YOUR_SEARCH_ENGINE_ID]
      ```
-- Step 4 (Optional): All hyperparameter configurations are stored in param_dict.yaml, e.g. the parameters for GPT, the threshold for OCR etc. 
-Please edit the file if you want to play with different combinations of parameters.
-- Step 5: Run!
+- Step 4 (Optional): Edit Hyperparameters. All hyperparameter configurations are stored in param_dict.yaml. Edit this file to experiment with different parameter combinations.
+- Step 5: Run the Code
 ```bash
     conda activate myenv
-    python -m field_study.test --folder [folder to test, e.g. ./datasets/field_study/2023-08-21/] --date [e.g. 2023-08-21]
+    python -m field_study.test --folder [folder to test, e.g., ./datasets/field_study/2023-08-21/] --date [e.g., 2023-08-21]
 ```
 
 <details>
@@ -143,11 +145,10 @@ Please edit the file if you want to play with different combinations of paramete
 
 
 ## Updates
-- [👏2023-09-07] Pack up the phishing websites reported from field study: [link](https://drive.google.com/file/d/1WsUmqq29-f8PoBj0YNgWcv4XryOXfFfv/view?usp=sharing).
-- [🛠️2023-08-28] Add functions to judge whether the webpage state has been updated or not (the best way is to check webpage screenshot, not the URL)
-- [🛠️2023-08-28] Update the CRP transition logic, if the webpage state hasn't been updated, we shall try to click lower ranked buttons, instead of keeping clicking the Top-1 button
-- [🤔2023-08-27] We find supplying the industry sector to the brand recognition model can further improve the brand recognition capabilities, without affecting the robustness.
-- [🤔2023-08-24] A relaxed result validation is to check whether predicted domain is alive, added this as an option.
-- [🛠️2023-08-20] Modify the brand recognition model.
-- [🛠️2023-08-07] To prevent PhishLLM to report brands that are offering cloud services (e.g. domain hosting, web hosting etc.), we keep a list of those domains [./datasets/hosting_blacklists.txt](./datasets/hosting_blacklists.txt), this list will be keep growing.
-
+- [👏2023-09-07] Packaged phishing websites reported from field study: link.
+- [🛠️2023-08-28] Added functions to determine whether the webpage state has been updated (best method is to check the webpage screenshot, not the URL).
+- [🛠️2023-08-28] Updated CRP transition logic: if the webpage state hasn't changed, the system will attempt to click lower-ranked buttons instead of repeatedly clicking the top-ranked button.
+- [🤔2023-08-27] Found that providing the industry sector to the brand recognition model further improves brand recognition without affecting robustness.
+- [🤔2023-08-24] Added an option for relaxed result validation by checking if the predicted domain is alive.
+- [🛠️2023-08-20] Modified the brand recognition model.
+- [🛠️2023-08-07] To prevent PhishLLM from reporting brands offering cloud services (e.g., domain hosting, web hosting, etc.), we maintain a list of such domains in ./datasets/hosting_blacklists.txt. This list will continue to grow.
