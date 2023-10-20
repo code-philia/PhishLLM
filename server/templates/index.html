@@ -163,6 +163,12 @@ input:checked + .slider-round:before {
   transform: translateX(75px); /* Adjusted to fit text */
 }
 
+/* Style for the instruction text */
+.instruction-text {
+    text-align: center; /* Center the text */
+    padding: 10px; /* Add some padding for spacing */
+}
+
   </style>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@next/css/pico.min.css" />
@@ -226,8 +232,12 @@ input:checked + .slider-round:before {
     <h1>PhishLLM Demo (This demo is for English webpages)</h1>
 
     <section>
+        <br>
+        <div class="instruction-text">You can select a URL from the dropdown list to test. These URLs are sampled from the OpenPhish feed.</div>
+        <br>
       <form id="url-form" role="group">
-        <input id="url-search-bar" type="url" name="url" placeholder="Input the URL here" required autocomplete="off"/>
+        <input id="url-search-bar" type="url" name="url" list="url-suggestions" placeholder="Input the URL here" required autocomplete="off"/>
+        <datalist id="url-suggestions"></datalist>
         <input id="url-search-button" type="submit" value="Submit" />
       </form>
 
@@ -284,7 +294,7 @@ input:checked + .slider-round:before {
 
 </body>
 
-
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="{{url_for('static', filename='index.js')}}"></script>
 
 

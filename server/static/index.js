@@ -103,75 +103,11 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 });
 
-// // save data to session storage
-// function saveToStorage(key, value) {
-//   let params = JSON.parse(sessionStorage.getItem("params")) || {};
-//   params[key] = value;
-//   window.sessionStorage.setItem("params", JSON.stringify(params));
-// }
-
 // Function to disable or enable all buttons and input[type="submit"] or input[type="button"]
 function toggleButtons(disabled) {
   const buttons = document.querySelectorAll("button, input[type='submit'], input[type='button']");
   buttons.forEach(button => button.disabled = disabled);
 }
-
-// // when window load it will load this function to load all the hyperparameters
-// window.onload = function () {
-//   // try to get session storage get params
-//   let params = sessionStorage.getItem("params");
-//   console.log("params", params)
-//   if (!params) {
-//     // reset all
-//     // Reset sliders and checkboxes to their default values
-//     document.getElementById("common-temperature").value = 0;
-//     document.getElementById("brand-valid-activate").checked = false;
-//     document.getElementById("brand-valid-k").value = 5;
-//     document.getElementById("siamese-thre").value = 0.7;
-//     document.getElementById("rank-depth-limit").value = 3;
-//
-//     // Update label values to match the default values
-//     document.getElementById("value-common-temperature").innerText = "0";
-//     document.getElementById("value-brand-valid-k").innerText = "5";
-//     document.getElementById("value-siamese-thre").innerText = "0.7";
-//     document.getElementById("value-rank-depth-limit").innerText = "3";
-//
-//   } else {
-//     // if sessionStorage has params load them as JSON
-//     params = JSON.parse(params);
-//     document.getElementById("common-temperature").value = params['common-temperature'];
-//     document.getElementById("brand-valid-activate").checked = params['brand-valid-activate'];
-//     document.getElementById("brand-valid-k").value = params['brand-valid-k'];
-//     document.getElementById("siamese-thre").value = params['siamese-thre'];
-//     document.getElementById("rank-depth-limit").value = params['rank-depth-limit'];
-//
-//     document.getElementById("value-common-temperature").innerText = params['common-temperature'];
-//     document.getElementById("value-brand-valid-k").innerText = params['brand-valid-k'];
-//     document.getElementById("value-siamese-thre").innerText = params['siamese-thre'];
-//     document.getElementById("value-rank-depth-limit").innerText = params['rank-depth-limit'];
-//   }
-//
-// }
-// add events listen the input change
-// document.getElementById("common-temperature").addEventListener("input", function () {
-//   saveToStorage("common-temperature", this.value);
-// });
-//
-// document.getElementById("brand-valid-activate").addEventListener("change", function () {
-//   saveToStorage("brand-valid-activate", this.checked);
-// });
-//
-// document.getElementById("brand-valid-k").addEventListener("input", function () {
-//   saveToStorage("brand-valid-k", this.value);
-// });
-//
-// document.getElementById("siamese-thre").addEventListener("input", function () {
-//   saveToStorage("siamese-thre", this.value);
-// });
-//
-// document.getElementById("rank-depth-limit").addEventListener("input", function () {
-//   saveToStorage("rank-depth-limit", this.value);
-// });
 
 
 // Add click event listener to reset button
@@ -418,4 +354,44 @@ const getInference = () => {
   };
 
 }
+
+$(document).ready(function() {
+    // Function to fetch sampled URLs from the server
+    function fetchSampledUrls() {
+        $.post('/sample_urls', function(data) {
+            const urlSuggestions = $('#url-suggestions');
+            urlSuggestions.empty();
+
+            // Populate the datalist with the sampled URLs
+            data['sampled_urls'].forEach(function(url) {
+                urlSuggestions.append('<option value="' + url + '">');
+            });
+        });
+    }
+
+    // Call the fetchSampledUrls function to populate the datalist initially
+    fetchSampledUrls();
+
+    // Autocomplete functionality for the input field
+    $('#url-search-bar').on('input', function() {
+        const inputText = $(this).val();
+        const urlSuggestions = $('#url-suggestions');
+
+        // Filter and display suggestions based on user input
+        urlSuggestions.empty();
+        fetchSampledUrls(); // Refresh the list of suggestions
+
+        data['sampled_urls'].forEach(function(url) {
+            if (url.startsWith(inputText)) {
+                urlSuggestions.append('<option value="' + url + '">');
+            }
+        });
+    });
+
+    // Event handler for input box click
+    $('#url-search-bar').on('click', function() {
+        // Refresh the list of suggestions when the input box is clicked
+        fetchSampledUrls();
+    });
+});
 

@@ -7,7 +7,8 @@ from flask_session import Session
 from model_chain.test_llm import *
 from apscheduler.schedulers.background import BackgroundScheduler
 import shutil
-
+import random
+import concurrent.futures
 # os.environ['proxy_url'] = "http://127.0.0.1:7890"
 announcers = {}
 
@@ -178,6 +179,48 @@ def get_inference(url, screenshot_path, html_path, announcer):
         announcer=announcer
     )
     driver.quit()
+
+# Function to fetch sampled URLs from the server
+def fetch_sampled_urls(url="https://openphish.com/feed.txt"):
+    try:
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()  # Raise an exception for HTTP errors
+        data = response.text.split('\n')  # Split by newlines to get a list
+        return data
+    except requests.RequestException as e:
+        raise Exception("Failed to fetch URLs from the feed.") from e
+
+# Function to check the aliveness of URLs
+def keep_alive_urls(urls):
+    # Do a downsample first
+    if len(urls) > 50:
+        urls = random.sample(urls, 50)
+
+    alive_urls = []
+
+    def check_url_alive(url):
+        try:
+            response = requests.head(url, timeout=1)
+            if response.status_code == 200:
+                return url
+        except requests.exceptions.RequestException:
+            pass
+        return None
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        results = list(executor.map(check_url_alive, urls))
+
+    # Remove None values (failed requests) and limit to 20 alive URLs
+    alive_urls = [url for url in results if url is not None]
+
+    return alive_urls
+
+@app.route('/sample_urls', methods=['POST'])
+def sample_urls():
+    # Sample URLs
+    sampled_urls = fetch_sampled_urls()
+    alive_urls = keep_alive_urls(sampled_urls)
+    return jsonify({'sampled_urls': alive_urls})
 
 if __name__ == "__main__":
 
