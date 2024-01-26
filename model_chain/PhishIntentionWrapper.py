@@ -83,7 +83,7 @@ def run_classifier(image: Image, model):
 
 class PhishIntentionWrapper:
     _caller_prefix = "PhishIntentionWrapper"
-    SIAMESE_THRE_RELAX = 0.85
+    SIAMESE_THRE_RELAX = 0.83
     _DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
     _RETRIES = 3
 
@@ -100,14 +100,45 @@ class PhishIntentionWrapper:
         self.CRP_CLASSIFIER.to(self._DEVICE)
         self.OCR_MODEL.to(self._DEVICE)
 
-    def reset_model(self):
-        self._load_config(reload_targetlist=True)
-        self._to_device()
-        print(f'Length of reference list = {len(self.LOGO_FEATS)}')
+    def reset_model(self, config_path=None, reload_target=True):
+        if not config_path:
+            self._load_config(reload_targetlist=reload_target)
+            self._to_device()
+            print(f'Length of reference list = {len(self.LOGO_FEATS)}')
+        else:
+            self.AWL_MODEL, self.CRP_CLASSIFIER, self.CRP_LOCATOR_MODEL, self.SIAMESE_MODEL, self.OCR_MODEL, \
+            self.SIAMESE_THRE, self.LOGO_FEATS, self.LOGO_FILES, self.DOMAIN_MAP_PATH = load_config(cfg_path=config_path,
+                                                                                                    device=self._DEVICE,
+                                                                                                    reload_targetlist=reload_target)
+            print(f'Length of reference list = {len(self.LOGO_FEATS)}')
 
     def _load_domain_map(self, domain_map_path):
         with open(domain_map_path, 'rb') as handle:
             return pickle.load(handle)
+
+    def return_logo_feat(self, logo: Image):
+        return pred_siamese_OCR(img=logo, model=self.SIAMESE_MODEL, ocr_model=self.OCR_MODEL)
+
+    def has_logo(self, screenshot_path: str):
+
+        try:
+            with open(screenshot_path, "rb") as image_file:
+                screenshot_encoding = base64.b64encode(image_file.read())
+        except:
+            return False, False
+
+        cropped_logos = self.predict_logos(screenshot_encoding=screenshot_encoding)
+        if cropped_logos is None or len(cropped_logos) == 0:
+            return False, False
+
+        cropped = cropped_logos[0]
+        img_feat = self.return_logo_feat(cropped)
+        sim_list = self.LOGO_FEATS @ img_feat.T  # take dot product for every pair of embeddings (Cosine Similarity)
+
+        if np.sum(sim_list >= self.SIAMESE_THRE_RELAX) == 0: # not exceed siamese relaxed threshold, not in targetlist
+            return True, False
+        else:
+            return True, True
 
     '''Draw utils'''
     def layout_vis(self, screenshot_path, pred_boxes, pred_classes):
@@ -354,7 +385,7 @@ class PhishIntentionWrapper:
             return orig_url, screenshot_path, False, process_time
 
         start_time = time.time()
-        successful, orig_url, current_url = self.perform_crp_transition(driver, orig_url, obfuscate)
+        successful, orig_url, current_url = self.perform_crp_transition(driver, orig_url)
         process_time += time.time() - start_time
 
         if not successful:
@@ -395,7 +426,7 @@ class PhishIntentionWrapper:
 
             if pred_boxes is None or len(pred_boxes) == 0:
                 print('No element is detected, report as benign')
-                return self._build_return_dict_phishintention(0, None, plotvis, dynamic, timings)
+                return 0, None, plotvis, dynamic, timings, pred_boxes, pred_classes
 
             logo_pred_boxes, logo_pred_classes = find_element_type(pred_boxes=pred_boxes,
                                                                    pred_classes=pred_classes,
@@ -403,7 +434,7 @@ class PhishIntentionWrapper:
 
             if logo_pred_boxes is None or len(logo_pred_boxes) == 0:
                 print('No logo is detected')
-                return self._build_return_dict_phishintention(0, None, plotvis, dynamic, timings)
+                return 0, None, plotvis, dynamic, timings, pred_boxes, pred_classes
 
             x1, y1, x2, y2 = logo_pred_boxes.numpy()[0]
             reference_logo = screenshot_img.crop((x1, y1, x2, y2))
@@ -417,7 +448,7 @@ class PhishIntentionWrapper:
                                                                               extracted_domain=extracted_domain)
             if pred_target is None:
                 print('Did not match to any brand, report as benign')
-                return self._build_return_dict_phishintention(0, None, plotvis, dynamic, timings)
+                return 0, None, plotvis, dynamic, timings, pred_boxes, pred_classes
 
             # first time entering the loop
             if not waive_crp_classifier:
@@ -426,7 +457,7 @@ class PhishIntentionWrapper:
             else:  # second time entering the loop, the page before and after transition are matched to different target
                 if pred_target_initial != pred_target:
                     print('After CRP transition, the logo\'s brand has changed, report as benign')
-                    return self._build_return_dict_phishintention(0, None, plotvis, dynamic, timings)
+                    return 0, None, plotvis, dynamic, timings, pred_boxes, pred_classes
 
             ######################## Step3: CRP checker (if a target is reported) #################################
             print('A target is reported by siamese, enter CRP classifier')
@@ -454,7 +485,7 @@ class PhishIntentionWrapper:
                 # If dynamic analysis did not reach a CRP, or jump to a third-party domain
                 if (successful == False) or (tldextract.extract(url).domain != tldextract.extract(url_orig).domain):
                     print('Dynamic analysis cannot find any link redirected to a CRP page, report as benign')
-                    return self._build_return_dict_phishintention(0, None, plotvis, dynamic, timings)
+                    return 0, None, plotvis, dynamic, timings, pred_boxes, pred_classes
                 else:  # dynamic analysis successfully found a CRP
                     dynamic = True
                     print('Dynamic analysis found a CRP, go back to layout detector')
@@ -471,37 +502,27 @@ class PhishIntentionWrapper:
                         (100, 100),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
 
-        return self._build_return_dict_phishintention(phish_category, pred_target, plotvis, dynamic, timings, pred_boxes, pred_classes)
+        return phish_category, pred_target, plotvis, dynamic, timings, pred_boxes, pred_classes
 
-    def _build_return_dict_phishintention(self, phish_category, pred_target, plotvis, dynamic, timings, pred_boxes=None,
-                                          pred_classes=None):
-        time_str = "|".join([f"{v:.2f}" for k, v in timings.items()])
-        return {
-            'phish_category': phish_category,
-            'pred_target': pred_target,
-            'plotvis': plotvis,
-            'dynamic': dynamic,
-            'time_str': time_str,
-            'pred_boxes': pred_boxes,
-            'pred_classes': pred_classes
-        }
 
     '''Phishpedia'''
     def test_orig_phishpedia(self, url, screenshot_path):
         timings = {}
         extracted_domain = tldextract.extract(url).domain + '.' + tldextract.extract(url).suffix
         screenshot_img = path2pil(screenshot_path)
+        screenshot_encoding = path2encoding(screenshot_path)
+
 
         with time_block("Element Detection", timings):
-            pred_boxes, pred_classes = self.predict_all_uis(screenshot_path)
+            pred_boxes, pred_classes = self.predict_all_uis(screenshot_encoding)
         plotvis = self.layout_vis(screenshot_path, pred_boxes, pred_classes)
 
         if (pred_boxes is None) or (len(pred_boxes) == 0):
-            return self._build_return_dict_phishpedia(0, None, plotvis, timings)
+            return 0, None, plotvis, timings, pred_boxes, pred_classes
 
         logo_pred_boxes, _ = find_element_type(pred_boxes, pred_classes, bbox_type='logo')
         if (logo_pred_boxes is None) or (len(logo_pred_boxes) == 0):
-            return self._build_return_dict_phishpedia(0, None, plotvis, timings)
+            return 0, None, plotvis, timings, pred_boxes, pred_classes
 
         x1, y1, x2, y2 = logo_pred_boxes.numpy()[0]
         reference_logo = screenshot_img.crop((x1, y1, x2, y2))
@@ -510,20 +531,9 @@ class PhishIntentionWrapper:
             pred_target, siamese_conf = self.perform_brand_identification(reference_logo, extracted_domain)
 
         if not pred_target:
-            return self._build_return_dict_phishpedia(0, None, plotvis, timings)
+            return 0, None, plotvis, timings, pred_boxes, pred_classes
         else:
             cv2.putText(plotvis, f"Target: {pred_target} with confidence {siamese_conf:.4f}", (100, 100),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
-            return self._build_return_dict_phishpedia(1, pred_target, plotvis, timings, pred_boxes, pred_classes)
-
-    def _build_return_dict_phishpedia(self, phish_category, pred_target, plotvis, timings, pred_boxes=None, pred_classes=None):
-        time_str = "|".join([f"{v:.2f}" for k, v in timings.items()])
-        return {
-            'phish_category': phish_category,
-            'pred_target': pred_target,
-            'plotvis': plotvis,
-            'time_str': time_str,
-            'pred_boxes': pred_boxes,
-            'pred_classes': pred_classes
-        }
+            return 1, pred_target, plotvis, timings, pred_boxes, pred_classes
 

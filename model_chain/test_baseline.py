@@ -12,7 +12,7 @@ class TestBaseline():
 
     def test_phishpedia(self, URL, screenshot_path):
         start_time = time.time()
-        phish_category, phish_target, plotvis, siamese_conf, time_breakdown, pred_boxes, pred_classes = \
+        phish_category, phish_target, plotvis, time_breakdown, pred_boxes, pred_classes = \
             self.phishintention_cls.test_orig_phishpedia(URL, screenshot_path)
         phishpedia_runtime = time.time() - start_time
 
@@ -20,7 +20,7 @@ class TestBaseline():
 
     def test_phishintention(self, URL, screenshot_path, ph_driver, obfuscate=False):
         start_time = time.time()
-        phish_category, phish_target, plotvis, siamese_conf, dynamic, time_breakdown, pred_boxes, pred_classes = \
+        phish_category, phish_target, plotvis, dynamic, time_breakdown, pred_boxes, pred_classes = \
             self.phishintention_cls.test_orig_phishintention(URL, screenshot_path, ph_driver, obfuscate=obfuscate)
         phishintention_runtime = time.time() - start_time
         return phish_category, phish_target, str(phishintention_runtime), plotvis

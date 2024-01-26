@@ -21,6 +21,7 @@ from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from model_chain.PhishIntentionWrapper import PhishIntentionWrapper
 import json
 from unidecode import unidecode
+import urllib.parse
 
 def lower(text):
 	alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝ'
@@ -684,6 +685,39 @@ def url2logo(url, phishintention_cls):
 
     return reference_logo
 
+'''Google search'''
+def query2url(query: str, SEARCH_ENGINE_API: str, SEARCH_ENGINE_ID: str, num: int=10, proxies: Optional[Dict]=None) -> Optional[str]:
+    if len(query) == 0:
+        return None
+
+    encoded_query = urllib.parse.quote(query)
+    URL = f"https://www.googleapis.com/customsearch/v1?key={SEARCH_ENGINE_API}&cx={SEARCH_ENGINE_ID}&q={encoded_query}&num=1"
+    retries = 0
+    max_retries = 3
+    while retries < max_retries:
+        try:
+            data = requests.get(URL, proxies=proxies).json()
+            if 'error' in data:
+                if data['error']['code'] == 429:
+                    raise RuntimeError("Google search exceeds quota limit")
+                else:
+                    raise RuntimeError(f"Error in Google search: {data['error']}")
+
+            search_items = data.get("items")
+            if search_items is None:
+                return None
+
+            for i, search_item in enumerate(search_items):
+                link = search_item.get("link")
+                return link
+
+        except requests.exceptions.RequestException as e:
+            retries += 1
+            time.sleep(1)
+
+    raise RuntimeError("Max retries reached, unable to complete Google search")
+
+
 
 '''Search for logo in Google Image'''
 def query2image(query: str, SEARCH_ENGINE_API: str, SEARCH_ENGINE_ID: str, num: int=10, proxies: Optional[Dict]=None) -> List[str]:
@@ -783,7 +817,7 @@ def page_transition(driver: CustomWebDriver, dom: str, save_html_path: str, save
         driver.save_screenshot(save_shot_path)
         PhishLLMLogger.spit('CRP transition is successful! New screenshot has been saved', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
         with open(save_html_path, "w", encoding='utf-8') as f:
-            f.write(driver.page_source)
+            f.write(driver.page_source())
         return etext, current_url, save_html_path, save_shot_path
     except Exception as e:
         PhishLLMLogger.spit('Exception {} when saving the new screenshot'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
