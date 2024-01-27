@@ -63,7 +63,7 @@ def prepare_webpage(img_path, phishintention_cls):
     return caption, extra_description, ' '.join(ocr_text), reference_logo
 
 if __name__ == "__main__":
-    llama2_model = initialize_llama2()
+    # llama2_model = initialize_llama2()
 
     proxies = {
         "http": "http://127.0.0.1:7890",
@@ -76,80 +76,83 @@ if __name__ == "__main__":
     result_file = './datasets/alexa_brand_llama2.txt'
     phishintention_cls = PhishIntentionWrapper()
 
-    for it in tqdm(range(len(dataset))):
-        img_path = dataset.shot_paths[it]
-        url = dataset.urls[it]
-        label = dataset.labels[it]
-
-        if os.path.exists(result_file) and url in open(result_file).read():
-            continue
-
-        logo_caption, logo_ocr, html_text, reference_logo = prepare_webpage(img_path, phishintention_cls)
-        print('Logo caption: ', logo_caption)
-        print('Logo OCR: ', logo_ocr)
-        domain = tldextract.extract(url).domain + '.' + tldextract.extract(url).suffix
-
-        if len(logo_caption) or len(logo_ocr):
-            question = question_template_caption(logo_caption, logo_ocr)
-
-            with open('./brand_recognition/prompt.json', 'rb') as f:
-                prompt = json.load(f)
-            new_prompt = prompt
-            new_prompt.append(question)
-
-            # example token count from the OpenAI API
-            start_time = time.time()
-            results = llama2_model.chat_completion(
-                [new_prompt],  # type: ignore
-                max_gen_len=None,
-                temperature=0,
-                top_p=0.9,
-            )
-            total_time = time.time() - start_time
-
-            answer = results[0]['generation']['content'].strip().lower()
-            print(answer)
-            if len(answer) > 0 and is_valid_domain(answer):
-
-                validation_success = False
-                start_time = time.time()
-                API_KEY, SEARCH_ENGINE_ID = [x.strip() for x in open('./datasets/google_api_key.txt').readlines()]
-                returned_urls = query2image(query=answer + ' logo',
-                                            SEARCH_ENGINE_ID=SEARCH_ENGINE_ID, SEARCH_ENGINE_API=API_KEY,
-                                            num=5, proxies=proxies
-                                            )
-                logos = get_images(returned_urls, proxies=proxies)
-                d_logo = url2logo(f'https://{answer}', phishintention_cls)
-                if d_logo:
-                    logos.append(d_logo)
-                print('Crop the logo time:', time.time() - start_time)
-
-                if reference_logo and len(logos) > 0:
-                    reference_logo_feat = pred_siamese_OCR(img=reference_logo,
-                                                           model=phishintention_cls.SIAMESE_MODEL,
-                                                           ocr_model=phishintention_cls.OCR_MODEL)
-                    start_time = time.time()
-                    sim_list = []
-                    with ThreadPoolExecutor() as executor:
-                        futures = [executor.submit(pred_siamese_OCR, logo,
-                                                   phishintention_cls.SIAMESE_MODEL,
-                                                   phishintention_cls.OCR_MODEL) for logo in logos]
-                        for future in futures:
-                            logo_feat = future.result()
-                            matched_sim = reference_logo_feat @ logo_feat
-                            sim_list.append(matched_sim)
-                    if any([x > 0.7 for x in sim_list]):
-                        validation_success = True
-
-                if not validation_success:
-                    answer = 'failure in logo matching'
-            else:
-                answer = 'no prediction'
-        else:
-            answer = 'no prediction'
-
-        with open(result_file, 'a+') as f:
-            f.write(url + '\t' + domain + '\t' + answer + '\t' + str(total_time) + '\n')
+    # for it in tqdm(range(len(dataset))):
+    #     img_path = dataset.shot_paths[it]
+    #     url = dataset.urls[it]
+    #     label = dataset.labels[it]
+    #
+    #     if os.path.exists(result_file) and url in open(result_file).read():
+    #         continue
+    #
+    #     logo_caption, logo_ocr, html_text, reference_logo = prepare_webpage(img_path, phishintention_cls)
+    #     print('Logo caption: ', logo_caption)
+    #     print('Logo OCR: ', logo_ocr)
+    #     domain = tldextract.extract(url).domain + '.' + tldextract.extract(url).suffix
+    #
+    #     if len(logo_caption) or len(logo_ocr):
+    #         question = question_template_caption(logo_caption, logo_ocr)
+    #
+    #         with open('./brand_recognition/prompt.json', 'rb') as f:
+    #             prompt = json.load(f)
+    #         new_prompt = prompt
+    #         new_prompt.append(question)
+    #
+    #         # example token count from the OpenAI API
+    #         start_time = time.time()
+    #         results = llama2_model.chat_completion(
+    #             [new_prompt],  # type: ignore
+    #             max_gen_len=None,
+    #             temperature=0,
+    #             top_p=0.9,
+    #         )
+    #         total_time = time.time() - start_time
+    #
+    #         answer = results[0]['generation']['content'].strip().lower()
+    #         print(answer)
+    #         if len(answer) > 0 and is_valid_domain(answer):
+    #
+    #             validation_success = False
+    #             start_time = time.time()
+    #             API_KEY, SEARCH_ENGINE_ID = [x.strip() for x in open('./datasets/google_api_key.txt').readlines()]
+    #             returned_urls = query2image(query=answer + ' logo',
+    #                                         SEARCH_ENGINE_ID=SEARCH_ENGINE_ID, SEARCH_ENGINE_API=API_KEY,
+    #                                         num=5, proxies=proxies
+    #                                         )
+    #             logos = get_images(returned_urls, proxies=proxies)
+    #             d_logo = url2logo(f'https://{answer}', phishintention_cls)
+    #             if d_logo:
+    #                 logos.append(d_logo)
+    #             print('Crop the logo time:', time.time() - start_time)
+    #
+    #             if reference_logo and len(logos) > 0:
+    #                 reference_logo_feat = pred_siamese_OCR(img=reference_logo,
+    #                                                        model=phishintention_cls.SIAMESE_MODEL,
+    #                                                        ocr_model=phishintention_cls.OCR_MODEL)
+    #                 start_time = time.time()
+    #                 sim_list = []
+    #                 with ThreadPoolExecutor() as executor:
+    #                     futures = [executor.submit(pred_siamese_OCR, logo,
+    #                                                phishintention_cls.SIAMESE_MODEL,
+    #                                                phishintention_cls.OCR_MODEL) for logo in logos]
+    #                     for future in futures:
+    #                         logo_feat = future.result()
+    #                         matched_sim = reference_logo_feat @ logo_feat
+    #                         sim_list.append(matched_sim)
+    #                 if any([x > 0.7 for x in sim_list]):
+    #                     validation_success = True
+    #
+    #             if not validation_success:
+    #                 answer = 'failure in logo matching'
+    #         else:
+    #             answer = 'no prediction'
+    #     else:
+    #         answer = 'no prediction'
+    #
+    #     with open(result_file, 'a+') as f:
+    #         f.write(url + '\t' + domain + '\t' + answer + '\t' + str(total_time) + '\n')
 
     test(result_file)
-    # LLAMA2 Completeness (% brand recognized) = 0.5107853982300885 Median runtime 0.19560885429382324, Mean runtime 0.29112398195846945
+    # LLAMA2
+    # Completeness (% brand recognized) = 0.5107853982300885
+    # Median runtime 0.19560885429382324, Mean runtime 0.29112398195846945,
+    # Min runtime 0.09827709197998047, Max runtime 5.8026814460754395, Std runtime 0.4799895262239689

@@ -90,7 +90,10 @@ def test(parsed_data):
     print(f"Test Classification Accuracy: {correct / total}, "
           f"Precision: {pred_pos_and_true_pos / (pred_pos + 1e-8)} "
           f"Recall: {pred_pos_and_true_pos / (true_pos + 1e-8)} "
-          f"Median Runtime: {np.median(runtime)}, Mean Runtime: {np.mean(runtime)}")
+          f"Median Runtime: {np.median(runtime)}, Mean Runtime: {np.mean(runtime)} "
+          f"Min runtime {min(runtime)}, Max runtime {max(runtime)}, "
+          f"Std runtime {np.std(runtime)}"
+          )
 
 
 if __name__ == '__main__':
@@ -136,5 +139,5 @@ if __name__ == '__main__':
 
     parsed_groups = parse_data(result_file)
     test(parsed_groups)
-    # LLAMA2 Test Classification Accuracy: 0.803026880505986, Precision: 0.5989263803635052 Recall: 0.6911504424717598 Median Runtime: 2.229814052581787, Mean Runtime: 2.765490301150298
+    # LLAMA2 Test Classification Accuracy: 0.803026880505986, Precision: 0.5989263803635052 Recall: 0.6911504424717598 Median Runtime: 2.229814052581787, Mean Runtime: 2.765490301150298 Min runtime 0.7339944839477539, Max runtime 28.440632104873657, Std runtime 1.8549931390627965
     # LLAMA2 has restricted token limit of 2048
