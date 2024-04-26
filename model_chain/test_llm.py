@@ -39,8 +39,8 @@ class TestLLM():
         self.clip_model.load_state_dict(state_dict)
 
         ## Image Captioning model
-        self.caption_model, self.caption_preprocess, _ = load_model_and_preprocess(name=param_dict['logo_caption']['model_name'],
-                                                                                   model_type=param_dict['logo_caption']['model_type'],
+        self.caption_model, self.caption_preprocess, _ = load_model_and_preprocess(name="blip_caption",
+                                                                                   model_type="base_coco",
                                                                                    is_eval=True,
                                                                                    device=self.device)
 
@@ -297,11 +297,17 @@ class TestLLM():
         if len(logo_caption) > 0 or len(logo_ocr) > 0:
             # ask gpt to predict brand
             if self.get_industry:
-                question = question_template_brand_industry(logo_caption, logo_ocr, industry)
+                if len(logo_ocr):
+                    question = question_template_brand_industry(logo_caption, logo_ocr, industry)
+                else:
+                    question = question_template_brand_industry(logo_caption, webpage_text, industry)
                 if self.frontend_api:
                     announcer.spit(AnnouncerPrompt.question_template_brand_industry(logo_caption, logo_ocr, industry), AnnouncerEvent.PROMPT)
             else:
-                question = question_template_brand(logo_caption, logo_ocr)
+                if len(logo_ocr):
+                    question = question_template_brand(logo_caption, logo_ocr)
+                else:
+                    question = question_template_brand(logo_caption, webpage_text)
                 if self.frontend_api:
                     announcer.spit(AnnouncerPrompt.question_template_brand(logo_caption, logo_ocr), AnnouncerEvent.PROMPT)
                     time.sleep(0.5)
@@ -337,6 +343,7 @@ class TestLLM():
             if len(answer) > 0 and is_valid_domain(answer):
                 company_logo = reference_logo
                 company_domain = answer
+
         else:
             msg = 'No logo description'
             PhishLLMLogger.spit(msg, debug=True, caller_prefix=PhishLLMLogger._caller_prefix)
@@ -535,10 +542,53 @@ class TestLLM():
                 time.sleep(0.5)
             return [], [], driver
 
-
-    def test(self, url: str, reference_logo: Optional[Image.Image],
+    def estimate_cost(self, url: str, reference_logo: Optional[Image.Image],
              logo_box: Optional[List[float]],
              shot_path: str, html_path: str, driver: CustomWebDriver, limit: int=0,
+             brand_recog_time: float=0, crp_prediction_time: float=0, crp_transition_time: float=0,
+             ranking_model_refresh_page: bool=True,
+             skip_brand_recognition: bool=False,
+             company_domain: Optional[str]=None, company_logo: Optional[Image.Image]=None,
+             announcer: Optional[Announcer]=None
+             ):
+
+        ## compute num tokens
+        def num_tokens_from_string(string: str, encoding_name: str) -> int:
+            import tiktoken
+            encoding = tiktoken.encoding_for_model(encoding_name)
+            num_tokens = len(encoding.encode(string))
+            return num_tokens
+
+        plotvis = Image.open(shot_path)
+
+        if reference_logo is None:
+            msg = '[\U00002705] Benign, since it doesnt have any logo'
+            if self.frontend_api:
+                announcer.spit(msg, AnnouncerEvent.SUCCESS)
+            PhishLLMLogger.spit(msg)
+            return 'benign', 'None', brand_recog_time, crp_prediction_time, crp_transition_time, plotvis
+
+        image_width, image_height = plotvis.size
+        webpage_text, logo_caption, logo_ocr = self.preprocessing(shot_path=shot_path, html_path=html_path,
+                                                                  reference_logo=reference_logo, logo_box=logo_box,
+                                                                  image_width=image_width, image_height=image_height,
+                                                                  announcer=announcer)
+        question = question_template_brand(logo_caption, logo_ocr)
+        with open(self.brand_prompt, 'rb') as f:
+            prompt = json.load(f)
+        new_prompt = prompt
+        new_prompt.append(question)
+
+        brand_prompt_num_tokens = num_tokens_from_string(new_prompt, "gpt-3.5-turbo")
+        print()
+
+    def test(self, url: str,
+             reference_logo: Optional[Image.Image],
+             logo_box: Optional[List[float]],
+             shot_path: str,
+             html_path: str,
+             driver: Union[CustomWebDriver, float]=None,
+             limit: int=0,
              brand_recog_time: float=0, crp_prediction_time: float=0, crp_transition_time: float=0,
              ranking_model_refresh_page: bool=True,
              skip_brand_recognition: bool=False,
