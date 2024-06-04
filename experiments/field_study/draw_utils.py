@@ -14,6 +14,8 @@ from typing import List
 import cv2
 from Levenshtein import distance as levenshtein_distance
 from itertools import cycle
+os.environ['HTTP_PROXY'] = 'http://127.0.0.1:7890'
+os.environ['HTTPS_PROXY'] = 'http://127.0.0.1:7890'
 
 def draw_annotated_image_nobox(image: Image.Image, txt: str):
     # Convert the image to RGBA for transparent overlay
@@ -216,9 +218,9 @@ class BrandAnalysis:
 
         plt.figure(figsize=(20, 10))  # Wider figure
         plt.bar(brands_sorted, counts_sorted, color='lightgray', edgecolor='black')
-        plt.xlabel('Brands', fontsize=20)
-        plt.ylabel('Number of Times Targeted', fontsize=20)
-        plt.xticks(rotation=45, fontsize=20)
+        plt.xlabel('Brands', fontsize=25)
+        plt.ylabel('Number of Times Targeted', fontsize=25)
+        plt.xticks(rotation=45, fontsize=25)
         plt.yticks(np.arange(0, max(counts_sorted) + 1, 1), fontsize=15)
         plt.gca().spines['top'].set_visible(False)
         plt.gca().spines['right'].set_visible(False)
@@ -270,6 +272,10 @@ class IPAnalysis:
         import geopandas as gpd
         from shapely.geometry import Point
         import cartopy.crs as ccrs  # Import the required module for the Robinson projection
+        from collections import Counter
+        import matplotlib.pyplot as plt
+
+        # Load the world map
         world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
 
         # Filter out Antarctica
@@ -290,27 +296,33 @@ class IPAnalysis:
 
         world['counts'] = world['name'].map(country_counts).fillna(0)
 
-        fig, ax = plt.subplots(1, 1, figsize=(20, 10), subplot_kw={'projection': ccrs.Robinson()})  # Set the projection to Robinson
+        # Create the plot
+        fig, ax = plt.subplots(1, 1, figsize=(30, 10), subplot_kw={'projection': ccrs.Robinson()})
 
         # Color countries based on counts
         world = world.to_crs(ccrs.Robinson().proj4_init)
-        world.plot(column='counts', cmap='OrRd', edgecolor='#bbbbbb', legend=False, ax=ax)
+        world.plot(column='counts', cmap='OrRd', edgecolor='#bbbbbb', ax=ax)
 
         # Plot the provided coordinates
         x_coords = [coord[1] for coord in coordinates]
         y_coords = [coord[0] for coord in coordinates]
-        ax.scatter(x_coords, y_coords, color='red', s=15, edgecolor='white', linewidth=0.5,
-                   zorder=5, transform=ccrs.PlateCarree())  # Use PlateCarree for the scatter points
+        ax.scatter(x_coords, y_coords, color='black', s=50, edgecolor='black', linewidth=0.5,
+                   zorder=5, transform=ccrs.PlateCarree(), label='Phishing IP Locations')
 
         # Enhancements
-        ax.set_xlabel("Longitude", fontsize=14)
-        ax.set_ylabel("Latitude", fontsize=14)
-        ax.grid(True, which='both', linestyle='--', linewidth=0.5, color='#d9d9d9')  # Subtle grid
+        ax.gridlines(draw_labels=True, linewidth=0.5, color='gray', linestyle='--')
 
+        # Add legend for the scatter points
+        scatter_legend = ax.legend(loc='lower left', fontsize=20, frameon=True, framealpha=1, edgecolor='black')
+        scatter_legend.get_frame().set_facecolor('white')
+
+        # Tight layout
         plt.tight_layout()
-        # plt.title('Geolocation Distribution of Phishing IPs')
-        plt.savefig('./field_study/plots/geo.png')
+
+        # Save the plot
+        plt.savefig('./field_study/plots/geo.png', dpi=300, bbox_inches='tight')
         plt.close()
+
 
 class CampaignAnalysis:
     @staticmethod
@@ -382,10 +394,10 @@ class CampaignAnalysis:
 
     def visualize_campaign(self, clusters):
         # Initialize Figure
-        plt.figure(figsize=(20, 10))
+        plt.figure(figsize=(15, 8))
 
         # Define Color Palette
-        colors = cycle(sns.color_palette("husl", 7))
+        colors = cycle(sns.color_palette("husl", 9))
 
         # Extract Unique Dates and Sort Clusters
         all_dates = set()
@@ -396,11 +408,12 @@ class CampaignAnalysis:
 
         # Sort clusters by their earliest date
         sorted_clusters = sorted(clusters,
-                                 key=lambda cluster: min(datetime.strptime(date, '%Y-%m-%d') for _, date, _ in cluster))
+                                 key=lambda cluster: min(datetime.strptime(date, '%Y-%m-%d')
+                                                         for _, date, _ in cluster))
 
         # Offset variable
         offset = 0
-        offset_increment = 0.02  # You can adjust this value
+        offset_increment = 0.02  # Adjusted for clarity
         campaign_period = []
 
         # Plot Time Series for Each Cluster
@@ -408,10 +421,9 @@ class CampaignAnalysis:
             _, dates, targets = zip(*cluster)
 
             # Filter Clusters
-            if len(cluster) < 4 or targets[0] == 'outlook.com' or targets[0] == 'microsoft.com':
+            if len(cluster) < 4 or targets[0] in ['outlook.com', 'microsoft.com']:
                 continue
 
-            print(cluster)
             # Convert Cluster to Time Series
             dates, counts = self.cluster_to_timeseries(cluster, all_dates)
 
@@ -435,17 +447,20 @@ class CampaignAnalysis:
                 trimmed_counts = offset_counts[first_increase_index:last_increase_index + 1]
                 color = next(colors)
                 trimmed_indices = [all_dates.index(date) for date in trimmed_dates]
-                plt.plot(trimmed_indices, trimmed_counts, marker='o', color=color, label=f'Target = {targets[0]}', linewidth=2, markersize=8)
+                plt.plot(trimmed_indices, trimmed_counts, marker='o', color=color,
+                         label=f'Target = {targets[0]}',
+                         linewidth=3, markersize=10)
                 campaign_period.append(last_increase_index - first_increase_index + 1)
 
         print('Average campaign period: ', np.mean(campaign_period))
+
         # Configure Plot Aesthetics
-        plt.xticks(range(len(all_dates)), all_dates, rotation=45, fontsize=15)
-        plt.yticks(np.arange(0, 6, 1), fontsize=15)
+        plt.xticks(range(len(all_dates)), all_dates, rotation=45, ha='right', fontsize=14)
+        plt.yticks(np.arange(0, max(offset_counts) + 1, 1), fontsize=14)
         plt.ylim(bottom=0)
-        plt.xlabel('Date', fontsize=20)
-        plt.ylabel('Cumulative number of screenshots', fontsize=20)
-        plt.legend(fontsize=20)
+        plt.xlabel('Date', fontsize=18, color='black')
+        plt.ylabel('Cumulative number of screenshots', fontsize=18, color='black')
+        plt.legend(fontsize=20, loc='upper left', frameon=False)
 
         # Add Minimalist Grid Lines
         plt.grid(axis='x', linestyle='--', linewidth=0.5, color='gray')
@@ -453,55 +468,70 @@ class CampaignAnalysis:
 
         # Finalize and Save Plot
         plt.tight_layout()
-        plt.savefig('./field_study/plots/campaign.png')
+        plt.savefig('./field_study/plots/campaign.png', dpi=300)  # Increase DPI for better quality
         plt.close()
 
 if __name__ == '__main__':
     base = "./datasets/phishing_TP_examples"
-    '''geolocation'''
+    # '''geolocation'''
     gs_sheet = gwrapper_monitor()
     rows = gs_sheet.get_records()
-    geo_loc_list = list(map(lambda x: tuple(map(float, x['geo_loc'].split(','))), filter(lambda x: x['geo_loc'] != 0, rows)))
-    IPAnalysis.geoplot(geo_loc_list)
-
-    '''phishing counts over time'''
-    start_date = date(2023, 8, 7)
-    today = datetime.today().date()
-    # end_date = today + timedelta(days=1)
-    end_date = today
-    dates = []
-    llm_counts = []
-    pedia_counts = []
-    intention_counts = []
-
-    for single_date in daterange(start_date, end_date):
-        date_ = single_date.strftime("%Y-%m-%d")
-        llm_pos = get_pos_site('./field_study/results/{}_phishllm.txt'.format(date_))
-        pedia_pos = get_pos_site('./field_study/results/{}_phishpedia.txt'.format(date_))
-        intention_pos = get_pos_site('./field_study/results/{}_phishintention.txt'.format(date_))
-        dates.append(date_)
-        llm_counts.append(len(llm_pos))
-        pedia_counts.append(len(pedia_pos))
-        intention_counts.append(len(intention_pos))
-
-    '''# of phishing over time'''
-    GeneralAnalysis.visualize_count(dates, llm_counts, pedia_counts, intention_counts)
-
-    '''tld distribution domain age distribution'''
-    domains = list(map(lambda x: x['foldername'], rows))
-    domain_ages = list(map(lambda x: x['domain_age'], rows))
-    DomainAnalysis.tld_distribution(domains)
-    alexa_urls = [x.strip().split(',')[1] for x in open('./datasets/top-1m.csv').readlines()]
-    DomainAnalysis.tld_distribution(alexa_urls)
-    DomainAnalysis.domain_age_distribution(domain_ages)
+    # geo_loc_list = list(map(lambda x: tuple(map(float, x['geo_loc'].split(','))), filter(lambda x: x['geo_loc'] != 0, rows)))
+    # IPAnalysis.geoplot(geo_loc_list)
+    #
+    # '''phishing counts over time'''
+    # start_date = date(2023, 8, 7)
+    # today = datetime.today().date()
+    # # end_date = today + timedelta(days=1)
+    # end_date = today
+    # dates = []
+    # llm_counts = []
+    # pedia_counts = []
+    # intention_counts = []
+    #
+    # for single_date in daterange(start_date, end_date):
+    #     date_ = single_date.strftime("%Y-%m-%d")
+    #     llm_pos = get_pos_site('./field_study/results/{}_phishllm.txt'.format(date_))
+    #     pedia_pos = get_pos_site('./field_study/results/{}_phishpedia.txt'.format(date_))
+    #     intention_pos = get_pos_site('./field_study/results/{}_phishintention.txt'.format(date_))
+    #     dates.append(date_)
+    #     llm_counts.append(len(llm_pos))
+    #     pedia_counts.append(len(pedia_pos))
+    #     intention_counts.append(len(intention_pos))
+    #
+    # '''# of phishing over time'''
+    # GeneralAnalysis.visualize_count(dates, llm_counts, pedia_counts, intention_counts)
+    #
+    # '''tld distribution domain age distribution'''
+    # domains = list(map(lambda x: x['foldername'], rows))
+    # domain_ages = list(map(lambda x: x['domain_age'], rows))
+    # DomainAnalysis.tld_distribution(domains)
+    # alexa_urls = [x.strip().split(',')[1] for x in open('./datasets/top-1m.csv').readlines()]
+    # DomainAnalysis.tld_distribution(alexa_urls)
+    # DomainAnalysis.domain_age_distribution(domain_ages)
 
     '''brand'''
+    # df = pd.DataFrame(rows)
+    # group_counts = df.groupby('brand').size()
+    # sorted_groups = group_counts.sort_values(ascending=False)
+    # print(sorted_groups)
+    # top_group = sorted_groups.index[0]
+
+    # Print the top group
+    # print(f"Top group: {top_group}")
+    # print(df[df['brand'] == top_group])
+
+    # Sort groups by the frequency of the most common item in 'data'
+    # sorted_groups = frequency.sort_values(ascending=False)
+
     brands = list(map(lambda x: x['brand'], rows))
-    BrandAnalysis.visualize_brands(brands)
+    # brand_counts = Counter(brands)
+    # print(len(rows))
+    # BrandAnalysis.visualize_brands(brands)
 
     '''sector'''
-    sectors = list(map(lambda x: x['sector'], rows))
-    BrandAnalysis.visualize_sectors(sectors)
+    # sectors = list(map(lambda x: x['sector'], rows))
+    # BrandAnalysis.visualize_sectors(sectors)
 
     '''phishing campaign'''
     shot_path_list = list(map(lambda x: os.path.join(base, x['date'], x['foldername'], 'shot.png'), rows))
@@ -509,23 +539,5 @@ if __name__ == '__main__':
     clusters_path = campaign.cluster_shot_representations(shot_path_list, brands)
     campaign.visualize_campaign(clusters_path)
 
-    print('Num of phishing using the Western Digital MyCloud service = ', np.sum(['remotewd.com' in x for x in domains]))
+    # print('Num of phishing using the Western Digital MyCloud service = ', np.sum(['remotewd.com' in x for x in domains]))
 
-# [('./datasets/phishing_TP_examples/2023-08-12/luka.sui.ducoccho1.click/shot.png', '2023-08-12', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-15/webfb.anhlongvedithoi.click/shot.png', '2023-08-15', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-09/www.lf.wuangu1.click/shot.png', '2023-08-09', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-13/zuk.pergugu.click/shot.png', '2023-08-13', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-21/ca.quynhquynh1.click/shot.png', '2023-08-21', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-08/login-france.xuanbac.click/shot.png', '2023-08-08', 'facebook.com'), ('./datasets/phishing_TP_examples/2023-08-08/login-usa.xuanbac.click/shot.png', '2023-08-08', 'facebook.com')]
-
-#[('./datasets/phishing_TP_examples/2023-08-12/device-28d57a5d-3dcf-4627-b8aa-91ce9b079e2a.remotewd.com/shot.png', '2023-08-12', 'sonicwall.com'),
-# ('./datasets/phishing_TP_examples/2023-08-09/device-1d0a7d34-ad6b-44fb-980a-ca0c2d6af315.remotewd.com/shot.png', '2023-08-09', 'sonicwall.com'),
-# ('./datasets/phishing_TP_examples/2023-08-21/device-87026422-3800-4f5b-81ab-83428f9fbc7f.remotewd.com/shot.png', '2023-08-21', 'sonicwall.com'),
-# ('./datasets/phishing_TP_examples/2023-08-15/device-457d2002-8d84-452f-a228-4e218e3cf58a.remotewd.com/shot.png', '2023-08-15', 'sonicwall.com')]
-# frame embedded into the webpage, trigger timeout after certain seconds setTimeout('timedOut()', 1 * 60000 - 1000);
-
-#[('./datasets/phishing_TP_examples/2023-08-21/cmajouledemo.stacksplatform.com/shot.png', '2023-08-21', 'ebsco.com'),
-# ('./datasets/phishing_TP_examples/2023-08-14/camvdemo.stacksplatform.com/shot.png', '2023-08-14', 'ebsco.com'),
-# ('./datasets/phishing_TP_examples/2023-08-17/admwilddemo.stacksplatform.com/shot.png', '2023-08-17', 'ebsco.com'),
-# ('./datasets/phishing_TP_examples/2023-08-14/tpmeddemodemo.stacksplatform.com/shot.png', '2023-08-14', 'ebsco.com')]
-# register button does not work, has a email sharing button that can distribute the URLs to other audience, Powered By EBSCO Stacks is linked to the real absco.com page
-
-# [('./datasets/phishing_TP_examples/2023-08-27/device-0c3dd2f9-816a-4394-82d4-5d4a3b168755.remotewd.com/shot.png', '2023-08-27', 'avm.de'),
-# ('./datasets/phishing_TP_examples/2023-08-24/device-495d5ae5-2238-4cc5-8d49-9fe6a8945844.remotewd.com/shot.png', '2023-08-24', 'avm.de'),
-# ('./datasets/phishing_TP_examples/2023-08-31/device-1d78904f-4498-4d9b-92a2-f0516f474f75.remotewd.com/shot.png', '2023-08-31', 'avm.de'),
-# ('./datasets/phishing_TP_examples/2023-08-23/device-1db7da60-9577-4f77-9aed-f17f4acf10fb.remotewd.com/shot.png', '2023-08-23', 'avm.de')]
