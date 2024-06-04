@@ -418,7 +418,6 @@ class PhishIntentionWrapper:
             screenshot_img = path2pil(screenshot_path)
             screenshot_encoding = path2encoding(screenshot_path)
 
-            print("Entering layout detection")
             with time_block('ele_detector_time', timings):
                 pred_boxes, pred_classes = self.predict_all_uis(screenshot_encoding)
             if not waive_crp_classifier:  # first time entering the loop, update the plot
@@ -440,7 +439,6 @@ class PhishIntentionWrapper:
             reference_logo = screenshot_img.crop((x1, y1, x2, y2))
 
             ######################## Step2: Siamese (logo matcher) ########################################
-            print("Entering Siamese")
             extracted_domain = tldextract.extract(url).domain + '.' + tldextract.extract(url).suffix
 
             with time_block('siamese_time', timings):
@@ -471,7 +469,6 @@ class PhishIntentionWrapper:
 
             if not cre_pred:
                 ######################## Step4: Dynamic analysis #################################
-                print('Enter dynamic CRP finder')
                 waive_crp_classifier = True  # only run dynamic analysis ONCE
                 with time_block('dynamic_time', timings):
                     try:
@@ -513,7 +510,7 @@ class PhishIntentionWrapper:
         screenshot_encoding = path2encoding(screenshot_path)
 
 
-        with time_block("Element Detection", timings):
+        with time_block("ele_detector_time", timings):
             pred_boxes, pred_classes = self.predict_all_uis(screenshot_encoding)
         plotvis = self.layout_vis(screenshot_path, pred_boxes, pred_classes)
 
@@ -527,7 +524,7 @@ class PhishIntentionWrapper:
         x1, y1, x2, y2 = logo_pred_boxes.numpy()[0]
         reference_logo = screenshot_img.crop((x1, y1, x2, y2))
 
-        with time_block("Siamese", timings):
+        with time_block("siamese_time", timings):
             pred_target, siamese_conf = self.perform_brand_identification(reference_logo, extracted_domain)
 
         if not pred_target:

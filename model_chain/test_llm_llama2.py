@@ -242,10 +242,10 @@ class TestLlama2(TestLLM):
             return 'benign', 'None', 0, 0, 0, None
 
         image_width, image_height = plotvis.size
-        webpage_text, logo_caption, logo_ocr  = self.preprocessing(shot_path=shot_path, html_path=html_path,
-                                                                   reference_logo=reference_logo, logo_box=logo_box,
-                                                                   image_width=image_width, image_height=image_height,
-                                                                   announcer=announcer)
+        (webpage_text, logo_caption, logo_ocr), (ocr_processing_time, image_caption_processing_time)  = self.preprocessing(shot_path=shot_path, html_path=html_path,
+                                                                                                                           reference_logo=reference_logo, logo_box=logo_box,
+                                                                                                                           image_width=image_width, image_height=image_height,
+                                                                                                                           announcer=announcer)
 
         ## Brand recognition model
         if not skip_brand_recognition:

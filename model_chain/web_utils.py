@@ -170,6 +170,10 @@ class CustomWebDriver(webdriver.Chrome):
         chrome_options.add_argument('--disable-gpu')
         chrome_options.add_argument("--window-size=1920,1080")
         chrome_options.add_argument("--headless")
+        chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+        chrome_options.add_argument(
+            "user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+
         prefs = {
             "download.default_directory": './trash',
             "download.prompt_for_download": False,  # To disable the download prompt and download automatically
@@ -185,7 +189,7 @@ class CustomWebDriver(webdriver.Chrome):
         chrome_caps['acceptSslCerts'] = True
         chrome_caps['acceptInsecureCerts'] = True
 
-        super().__init__(ChromeDriverManager().install(),
+        super().__init__("./datasets/chromedriver",
                          chrome_options=chrome_options,
                          desired_capabilities=chrome_caps)
 
@@ -299,7 +303,8 @@ class CustomWebDriver(webdriver.Chrome):
                 InvalidElementStateException,
                 ElementNotSelectableException,
                 ElementNotVisibleException,
-                MoveTargetOutOfBoundsException) as ex:
+                MoveTargetOutOfBoundsException,
+                JavascriptException) as ex:
             ret_val = False
         except (StaleElementReferenceException, NoSuchElementException) as ex:
             # Check _REFS for given WebElement.
@@ -622,13 +627,15 @@ class CustomWebDriver(webdriver.Chrome):
 
 
 '''Validate the domain'''
-def is_valid_domain(domain: str) -> bool:
+def is_valid_domain(domain: Union[str, None]) -> bool:
     '''
         Check if the provided string is a valid domain
         :param domain:
         :return:
     '''
     # Regular expression to check if the string is a valid domain without spaces
+    if domain is None:
+        return False
     pattern = re.compile(
         r'^(?!-)'  # Cannot start with a hyphen
         r'(?!.*--)'  # Cannot have two consecutive hyphens
@@ -643,9 +650,9 @@ def is_valid_domain(domain: str) -> bool:
 def is_alive_domain(domain: str, proxies: Optional[Dict]=None) -> bool:
    
     try:
-        response = requests.head('https://' + domain, timeout=10, proxies=proxies)  # Reduced timeout and used HEAD
+        response = requests.head('https://www.' + domain, timeout=10, proxies=proxies)  # Reduced timeout and used HEAD
         PhishLLMLogger.spit(f'Domain {domain}, status code {response.status_code}', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
-        if response.status_code < 400:
+        if response.status_code < 400 or response.status_code in [405, 429] or response.status_code >= 500:
             PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
             return True
         elif response.history and any([r.status_code < 400 for r in response.history]):
@@ -685,38 +692,39 @@ def url2logo(url, phishintention_cls):
 
     return reference_logo
 
-'''Google search'''
-def query2url(query: str, SEARCH_ENGINE_API: str, SEARCH_ENGINE_ID: str, num: int=10, proxies: Optional[Dict]=None) -> Optional[str]:
+'''Search for domain in Google Search'''
+def query2url(query: str, SEARCH_ENGINE_API: str, SEARCH_ENGINE_ID: str, num: int=10, proxies: Optional[Dict]=None) -> List[str]:
+    '''
+        Retrieve the images from Google image search
+        :param query:
+        :param SEARCH_ENGINE_API:
+        :param SEARCH_ENGINE_ID:
+        :param num:
+        :return:
+    '''
     if len(query) == 0:
-        return None
+        return []
 
-    encoded_query = urllib.parse.quote(query)
-    URL = f"https://www.googleapis.com/customsearch/v1?key={SEARCH_ENGINE_API}&cx={SEARCH_ENGINE_ID}&q={encoded_query}&num=1"
-    retries = 0
-    max_retries = 3
-    while retries < max_retries:
+    num = int(num)
+    URL = f"https://www.googleapis.com/customsearch/v1?key={SEARCH_ENGINE_API}&cx={SEARCH_ENGINE_ID}&q={query}&num={num}&filter=1"
+    while True:
         try:
             data = requests.get(URL, proxies=proxies).json()
-            if 'error' in data:
-                if data['error']['code'] == 429:
-                    raise RuntimeError("Google search exceeds quota limit")
-                else:
-                    raise RuntimeError(f"Error in Google search: {data['error']}")
-
-            search_items = data.get("items")
-            if search_items is None:
-                return None
-
-            for i, search_item in enumerate(search_items):
-                link = search_item.get("link")
-                return link
-
-        except requests.exceptions.RequestException as e:
-            retries += 1
+            break
+        except requests.exceptions.SSLError as e:
+            print(e)
             time.sleep(1)
 
-    raise RuntimeError("Max retries reached, unable to complete Google search")
+    if data.get('error', {}).get('code') == 429:
+        raise RuntimeError("Google search exceeds quota limit")
 
+    search_items = data.get("items")
+    if search_items is None:
+        return []
+
+    returned_urls = [item.get("link") for item in search_items]
+
+    return returned_urls
 
 
 '''Search for logo in Google Image'''
@@ -733,7 +741,7 @@ def query2image(query: str, SEARCH_ENGINE_API: str, SEARCH_ENGINE_ID: str, num: 
         return []
 
     num = int(num)
-    URL = f"https://www.googleapis.com/customsearch/v1?key={SEARCH_ENGINE_API}&cx={SEARCH_ENGINE_ID}&q={query}&searchType=image&num={num}"
+    URL = f"https://www.googleapis.com/customsearch/v1?key={SEARCH_ENGINE_API}&cx={SEARCH_ENGINE_ID}&q={query}&searchType=image&num={num}&filter=1"
     while True:
         try:
             data = requests.get(URL, proxies=proxies).json()
@@ -797,21 +805,46 @@ def page_transition(driver: CustomWebDriver, dom: str, save_html_path: str, save
     '''
     try:
         element = driver.find_elements_by_xpath(dom)
+        etext = None
         if element:
             try:
                 driver.execute_script("arguments[0].style.border='3px solid red'", element[0]) # hightlight the element to click
+                etext = driver.get_text(element[0])
+                if (etext is None) or len(etext) == 0:
+                    etext = driver.get_attribute(element[0], "value")
             except:
                 pass
             driver.move_to_element(element[0])
-            etext = driver.get_text(element[0])
-            if (etext is None) or len(etext) == 0:
-                etext = driver.get_attribute(element[0], "value")
             driver.click(element[0])
-            time.sleep(5)  # fixme: must allow some loading time here
+            time.sleep(12)  # fixme: must allow some loading time here
         current_url = driver.current_url()
     except Exception as e:
         print('Exception {} when clicking the login button'.format(e))
         return None, None, None, None
+
+    try:
+        css_script = """
+            var style = document.createElement('style');
+            document.head.appendChild(style);
+            style.appendChild(document.createTextNode(`
+              ::-webkit-input-placeholder { /* Chrome/Opera/Safari */
+                color: black !important;
+              }
+              ::-moz-placeholder { /* Firefox 19+ */
+                opacity: 1; /* Firefox has a lower opacity on placeholder by default */
+                color: black !important;
+              }
+              :-ms-input-placeholder { /* IE 10+ */
+                color: black !important;
+              }
+              ::placeholder { /* Universal Placeholder style */
+                color: black !important;
+              }
+            `));
+        """
+        driver.execute_script(css_script)
+    except Exception as e:
+        print(e)
 
     try:
         driver.save_screenshot(save_shot_path)
@@ -847,5 +880,47 @@ def has_page_content_changed(phishintention_cls: PhishIntentionWrapper, driver: 
         return False
 
 
+def screenshot_element(clickable_element, clickable_dom, driver, clip_preprocess):
+    candidate_ui = None
+    candidate_ui_img = None
+    candidate_ui_text = None
+
+    try:
+        driver.scroll_to_top()
+        x1, y1, x2, y2 = driver.get_location(clickable_element)
+
+        if x2 - x1 <= 0 or y2 - y1 <= 0:  # invisible
+            return candidate_ui, candidate_ui_img, candidate_ui_text
+
+        try:
+            ele_screenshot_img = Image.open(io.BytesIO(clickable_element.screenshot_as_png))
+            candidate_ui_img = clip_preprocess(ele_screenshot_img)
+            candidate_ui = clickable_dom
+            etext = driver.get_text(clickable_element)  # append the text
+            if not etext:
+                etext = driver.get_attribute(clickable_element, "value")
+            candidate_ui_text = etext
+        except Exception as e:
+            try:
+                full_screenshot = driver.get_screenshot_as_png()
+                image = Image.open(io.BytesIO(full_screenshot))
+                location = clickable_element.location
+                size = clickable_element.size
+                left, right = location['x'], location['x'] + size['width']
+                top, bottom = location['y'], location['y'] + size['height']
+                ele_screenshot_img = image.crop((left, top, right, bottom))
+                candidate_ui_img = clip_preprocess(ele_screenshot_img)
+                candidate_ui = clickable_dom
+                etext = driver.get_text(clickable_element)  # append the text
+                if not etext:
+                    etext = driver.get_attribute(clickable_element, "value")
+                candidate_ui_text = etext
+            except Exception as e:
+                print(f"Error processing element {clickable_dom}: {e}")
+
+    except Exception as e:
+        print(f"Error accessing element {clickable_dom}: {e}")
+
+    return candidate_ui, candidate_ui_img, candidate_ui_text
 
 

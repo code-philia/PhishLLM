@@ -362,15 +362,15 @@ class BrandKnowledgeConstruction():
         company_logos = []
         company_titles = []
         comment = ''
+        branch_time = 0
 
         # search for domain.tld directly in Google
         start_time = time.time()
-        urls_from_gsearch, titles_from_gsearch, urls_pub_dates = self.query2url(
-            query=q_domain + '.' + q_tld,
-            forbidden_domains=OnlineForbiddenWord.WEBHOSTING_DOMAINS,
-            forbidden_subdomains=OnlineForbiddenWord.WEBHOSTING_DOMAINS,
-            num=2)
-        print('Domain2brand initial search take:', time.time() - start_time)
+        urls_from_gsearch, titles_from_gsearch, urls_pub_dates = self.query2url(query=q_domain + '.' + q_tld,
+                                                                                forbidden_domains=OnlineForbiddenWord.WEBHOSTING_DOMAINS,
+                                                                                forbidden_subdomains=OnlineForbiddenWord.WEBHOSTING_DOMAINS,
+                                                                                num=2)
+        branch_time += time.time() - start_time
 
         # only the main domain, not subdomain, not subpath
         urls_from_gsearch = self.reduce_to_main_domain(urls_from_gsearch)
@@ -381,10 +381,28 @@ class BrandKnowledgeConstruction():
 
         # get the logos from knowledge sites
         start_time = time.time()
+
+        def fetch_logo_and_status(URL):
+            return self.url2logo(driver=driver, URL=URL, url4logo=False)
+
         logos_from_gsearch = []
-        for URL in urls_from_gsearch:
-            logo, status = self.url2logo(driver=driver, URL=URL, url4logo=False)
-            logos_from_gsearch.append(logo)
+        logos_status = []
+
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            # Submit tasks to the executor
+            future_to_url = {executor.submit(fetch_logo_and_status, URL): URL for URL in urls_from_gsearch}
+
+            for future in as_completed(future_to_url):
+                URL = future_to_url[future]
+                try:
+                    logo, status = future.result()  # Get the result from the future
+                    logos_from_gsearch.append(logo)
+                    logos_status.append(status)
+                except Exception as exc:
+                    print(f'URL {URL} generated an exception: {exc}')
+                    logos_from_gsearch.append(None)
+                    logos_status.append('Failed')
+
         print('Domain2brand crop the logo time:', time.time() - start_time)
 
         if len(urls_from_gsearch) == 0:
@@ -396,10 +414,10 @@ class BrandKnowledgeConstruction():
         if len(urls_from_gsearch):
 
             # domain matching or logo matching
-            start_time = time.time()
             domains_from_gsearch = [tldextract.extract(x).domain for x in urls_from_gsearch]
             tlds_from_gsearch = [tldextract.extract(x).suffix for x in urls_from_gsearch]
 
+            start_time = time.time()
             domain_matched_indices, logo_matched_indices = self.knowledge_cleansing(
                 reference_logo=reference_logo,
                 logo_list=logos_from_gsearch,
@@ -407,6 +425,8 @@ class BrandKnowledgeConstruction():
                 domain_list=domains_from_gsearch,
                 reference_tld=q_tld,
                 tld_list=tlds_from_gsearch)
+            branch_time += time.time() - start_time
+
 
             domain_or_logo_matched_indices = list(set(domain_matched_indices + logo_matched_indices))
             urls_from_gsearch = [urls_from_gsearch[a] for a in domain_or_logo_matched_indices]
@@ -420,35 +440,12 @@ class BrandKnowledgeConstruction():
 
             company_urls = urls_from_gsearch
             company_logos = logos_from_gsearch
-            # # (1) Filter by Google safe browsing + (2) Filter by website published date
-            # start_time = time.time()
-            # results_from_gsb = self.gsb_filter(urls_from_gsearch)
-            #
-            # for j in range(len(urls_from_gsearch)):
-            #     if results_from_gsb[urls_from_gsearch[j]]["malicious"] is False:
-            #         # alive for more than 3 months
-            #         if urls_pub_dates[j] is not None and urls_pub_dates[j] != '' and (
-            #                 datetime.datetime.today() - urls_pub_dates[j]).days >= 90:
-            #             company_urls.append(urls_from_gsearch[j])
-            #             company_logos.append(logos_from_gsearch[j])
-            #             company_titles.append(titles_from_gsearch[j])
-            #
-            #         elif urls_pub_dates[j] is None or urls_pub_dates[j] == '':  # cannot get publication date
-            #             company_urls.append(urls_from_gsearch[j])
-            #             company_logos.append(logos_from_gsearch[j])
-            #             company_titles.append(titles_from_gsearch[j])
-            # print('Domain2brand filter by gsb and publication date:', time.time() - start_time)
-            #
-            # if len(urls_from_gsearch) > 0 and len(company_urls) == 0:
-            #     comment = 'doesnt_pass_gsb_or_date'
-            # if len(company_urls) > 0 and np.sum([x is not None for x in logos_from_gsearch]) == 0:
-            #     comment = 'cannot_crop_logo'
 
         if len(company_urls):
             company_domains = [tldextract.extract(x).domain+'.'+tldextract.extract(x).suffix for x in company_urls]
         else:
             company_domains = []
-        return company_domains, company_logos, comment
+        return company_domains, company_logos, comment, branch_time
 
     def logo2brand_ocr(self, driver, filePath, reference_logo, q_domain, q_tld):
         '''
@@ -467,18 +464,20 @@ class BrandKnowledgeConstruction():
         company_domains = []
         company_logos = []
         comment = ''
+        branch_time = 0
 
         # Google OCR
         start_time = time.time()
         brand_name = self.detect_text(filePath)
+        branch_time += time.time() - start_time
         if len(brand_name):
             brand_name = query_cleaning(brand_name[0])
             if len(brand_name) <= 1:
                 comment = 'text_too_short_from_OCR'
-                return company_domains, company_logos, brand_name, comment
+                return company_domains, company_logos, brand_name, comment, branch_time
         else:
             comment = 'no_result_from_OCR'
-            return company_domains, company_logos, brand_name, comment
+            return company_domains, company_logos, brand_name, comment, branch_time
         print('Google OCR time:', time.time() - start_time)
         print('Brand name:', brand_name)
 
@@ -488,7 +487,7 @@ class BrandKnowledgeConstruction():
                                                               forbidden_domains=OnlineForbiddenWord.IGNORE_DOMAINS + OnlineForbiddenWord.WEBHOSTING_DOMAINS,
                                                               forbidden_subdomains=OnlineForbiddenWord.WEBHOSTING_DOMAINS,
                                                               num=1)
-        print('Google search time:', time.time() - start_time)
+        branch_time += time.time() - start_time
 
         # only the main domain, not subdomain, not subpath
         urls_from_gsearch = self.reduce_to_main_domain(urls_from_gsearch)
@@ -497,9 +496,6 @@ class BrandKnowledgeConstruction():
         urls_pub_dates = [urls_pub_dates[ind] for ind in unique_indicies]
 
         # get the logos from knowledge sites
-        start_time = time.time()
-        logos_from_gsearch = []
-        logos_status = []
 
         def fetch_logo_and_status(URL):
             return self.url2logo(driver=driver, URL=URL, url4logo=False)
@@ -509,6 +505,7 @@ class BrandKnowledgeConstruction():
         logos_status = []
 
         # Use ThreadPoolExecutor to execute calls to url2logo in parallel
+        start_time = time.time()
         with ThreadPoolExecutor(max_workers=10) as executor:
             # Create a dictionary of future submissions
             future_to_url = {executor.submit(fetch_logo_and_status, URL): URL for URL in urls_from_gsearch}
@@ -534,16 +531,17 @@ class BrandKnowledgeConstruction():
 
         if len(urls_from_gsearch):
             # Domain matching OR Logo matching
-            start_time = time.time()
             logo_domains = [tldextract.extract(x).domain for x in urls_from_gsearch]
             logo_tlds = [tldextract.extract(x).suffix for x in urls_from_gsearch]
 
+            start_time = time.time()
             domain_matched_indices, logo_matched_indices = self.knowledge_cleansing(reference_logo=reference_logo,
                                                                                     logo_list=logos_from_gsearch,
                                                                                     reference_domain=q_domain,
                                                                                     domain_list=logo_domains,
                                                                                     reference_tld=q_tld,
                                                                                     tld_list=logo_tlds)
+            branch_time += time.time() - start_time
 
             domain_or_logo_matched_indices = list(set(domain_matched_indices + logo_matched_indices))
             if len(domain_or_logo_matched_indices) == 0:
@@ -552,36 +550,18 @@ class BrandKnowledgeConstruction():
                     if logo is not None:
                         brand_name_knowledge_site = self.detect_text(logo)
                         if len(brand_name_knowledge_site) > 0 and \
-                                brand_name_knowledge_site[0].lower().replace(' ', '') == brand_name.lower().replace(' ',
-                                                                                                                    ''):
+                                brand_name_knowledge_site[0].lower().replace(' ', '') == brand_name.lower().replace(' ', ''):
                             domain_or_logo_matched_indices.append(it)
 
             logos_from_gsearch = [logos_from_gsearch[a] for a in domain_or_logo_matched_indices]
             urls_from_gsearch = [urls_from_gsearch[a] for a in domain_or_logo_matched_indices]
             urls_pub_dates = [urls_pub_dates[a] for a in domain_or_logo_matched_indices]
-            print('Logo2brand after domain match and logo matching take:', time.time() - start_time)
             if len(urls_from_gsearch) == 0:
                 comment = 'doesnt_pass_validation'
 
             company_urls = urls_from_gsearch
             company_logos = logos_from_gsearch
-            # (1) Filter by Google safe browsing + (2) Filter by website published date
-            # start_time = time.time()
-            # results_from_gsb = self.gsb_filter(urls_from_gsearch)
-            # for j in range(len(urls_from_gsearch)):
-            #     if results_from_gsb[urls_from_gsearch[j]]["malicious"] is False:
-            #         # alive for more than 3 months
-            #         if urls_pub_dates[j] is not None and urls_pub_dates[j] != '' and (
-            #                 datetime.datetime.today() - urls_pub_dates[j]).days >= 90:
-            #             company_urls.append(urls_from_gsearch[j])
-            #             company_logos.append(logos_from_gsearch[j])
-            #
-            #         elif urls_pub_dates[j] is None or urls_pub_dates[j] == '':  # cannot get publication date
-            #             company_urls.append(urls_from_gsearch[j])
-            #             company_logos.append(logos_from_gsearch[j])
-            # print('Logo2brand filter by gsb and publication date:', time.time() - start_time)
-            # if len(urls_from_gsearch) > 0 and len(company_urls) == 0:  # pass validation but not gsb or publicate date
-            #     comment = 'doesnt_pass_gsb_or_date'
+
             if len(company_urls) > 0 and np.sum([x is not None for x in
                                                  logos_from_gsearch]) == 0:  # pass all validation but that logo cannot be cropped
                 comment = 'cannot_crop_logo'
@@ -590,7 +570,7 @@ class BrandKnowledgeConstruction():
             company_domains = [tldextract.extract(x).domain+'.'+tldextract.extract(x).suffix for x in company_urls]
         else:
             company_domains = []
-        return company_domains, company_logos, brand_name, comment
+        return company_domains, company_logos, brand_name, comment, branch_time
 
     def logo2brand_logodet(self, driver, filePath, reference_logo, q_domain, q_tld):
         '''
@@ -773,15 +753,11 @@ class BrandKnowledgeConstruction():
         if type == 'logo2brand':
             if reference_logo is None:  # no way to run logo2brand
                 return None, None, None, None, None, 'failure_nologo'
-            start_time = time.time()
-            company_domains, company_logos, brand_name, comment = self.logo2brand_ocr(driver, filePath, reference_logo,
+            company_domains, company_logos, brand_name, comment, branch_time = self.logo2brand_ocr(driver, filePath, reference_logo,
                                                                                       query_domain, query_tld)
-            branch_time = time.time() - start_time
         elif type == 'domain2brand':
-            start_time = time.time()
-            company_domains, company_logos, comment = \
+            company_domains, company_logos, comment, branch_time = \
                 self.domain2brand(driver, query_domain, query_tld, reference_logo)
-            branch_time = time.time() - start_time
 
         else:
             raise NotImplementedError

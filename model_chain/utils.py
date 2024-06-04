@@ -1,29 +1,72 @@
 import numpy as np
+from typing import Union
+from PIL import Image
+import io
+import base64
 
 '''LLM prompt'''
+def image2base64(image: Union[str, Image.Image]):
+	if isinstance(image, str):
+		image = Image.open(image)
+	img_byte_arr = io.BytesIO()
+	image.save(img_byte_arr, format='PNG')  # Ensure the format matches your image format, e.g., JPEG, PNG, etc.
+	img_bytes = img_byte_arr.getvalue()
+	base64_encoded = base64.b64encode(img_bytes).decode('utf-8')  # Convert bytes to base64 string and decode to UTF-8
+	return base64_encoded
+
 def question_template_prediction(html_text):
-    return \
+	return \
         {
             "role": "user",
             "content": f"Given the HTML webpage text: <start>{html_text}<end>, \n Question: A. This is a credential-requiring page. B. This is not a credential-requiring page. \n Answer: "
         }
 
+def vlm_question_template_prediction(screenshot_img: Image.Image):
+	return \
+		{"role": "user",
+		 "content": [
+			 {"type": "text",
+			  "text": "Given the HTML webpage screenshot, Question: A. This is a credential-requiring page. B. This is not a credential-requiring page. \n Answer:"},
+			 {
+				 "type": "image_url",
+				 "image_url": {
+					 "url": f"data:image/jpeg;base64,{image2base64(screenshot_img)}"
+				 },
+			 },
+		 ]
+		 }
+
 def question_template_brand(logo_caption, logo_ocr):
-    return \
+	return \
         {
             "role": "user",
             "content": f"Given the following description on the brand's logo: '{logo_caption}', and the logo's OCR text: '{logo_ocr}', Question: What is the brand's domain? Answer: "
         }
 
+def vlm_question_template_brand(logo_img: Image.Image):
+	return \
+		{"role": "user",
+		 "content": [
+			 {"type": "text",
+			  "text": "Given the brand's logo, Question: What is the brand's domain? Answer: "},
+			 {
+				 "type": "image_url",
+				 "image_url": {
+					 "url": f"data:image/jpeg;base64,{image2base64(logo_img)}"
+				 },
+			 },
+		 ]
+		 }
+
 def question_template_brand_industry(logo_caption, logo_ocr, industry):
-    return \
+	return \
         {
             "role": "user",
             "content": f"Given the following description on the brand's logo: '{logo_caption}', the logo's OCR text: '{logo_ocr}', and the industry sector '{industry}', Question: What is the brand's domain? Answer: "
         }
 
 def question_template_industry(html_text):
-    return \
+	return \
         [
             {
                 "role": "system",
@@ -37,43 +80,43 @@ def question_template_industry(html_text):
 
 '''Bbox utilities'''
 def pairwise_intersect_area(bboxes1, bboxes2):
-    # Convert bboxes lists to 3D arrays
-    bboxes1 = np.array(bboxes1)[:, np.newaxis, :]
-    bboxes2 = np.array(bboxes2)
+	# Convert bboxes lists to 3D arrays
+	bboxes1 = np.array(bboxes1)[:, np.newaxis, :]
+	bboxes2 = np.array(bboxes2)
 
-    # Compute overlap for x and y axes separately
-    overlap_x = np.maximum(0, np.minimum(bboxes1[:, :, 2], bboxes2[:, 2]) - np.maximum(bboxes1[:, :, 0], bboxes2[:, 0]))
-    overlap_y = np.maximum(0, np.minimum(bboxes1[:, :, 3], bboxes2[:, 3]) - np.maximum(bboxes1[:, :, 1], bboxes2[:, 1]))
+	# Compute overlap for x and y axes separately
+	overlap_x = np.maximum(0, np.minimum(bboxes1[:, :, 2], bboxes2[:, 2]) - np.maximum(bboxes1[:, :, 0], bboxes2[:, 0]))
+	overlap_y = np.maximum(0, np.minimum(bboxes1[:, :, 3], bboxes2[:, 3]) - np.maximum(bboxes1[:, :, 1], bboxes2[:, 1]))
 
-    # Compute overlapping areas for each pair
-    overlap_areas = overlap_x * overlap_y
-    return overlap_areas
+	# Compute overlapping areas for each pair
+	overlap_areas = overlap_x * overlap_y
+	return overlap_areas
 
 def expand_bbox(bbox, image_width, image_height, expand_ratio):
-    # Extract the coordinates
-    x1, y1, x2, y2 = bbox
+	# Extract the coordinates
+	x1, y1, x2, y2 = bbox
 
-    # Calculate the center
-    center_x = (x1 + x2) / 2
-    center_y = (y1 + y2) / 2
+	# Calculate the center
+	center_x = (x1 + x2) / 2
+	center_y = (y1 + y2) / 2
 
-    # Calculate new width and height
-    new_width = (x2 - x1) * expand_ratio
-    new_height = (y2 - y1) * expand_ratio
+	# Calculate new width and height
+	new_width = (x2 - x1) * expand_ratio
+	new_height = (y2 - y1) * expand_ratio
 
-    # Determine new coordinates
-    new_x1 = center_x - new_width / 2
-    new_y1 = center_y - new_height / 2
-    new_x2 = center_x + new_width / 2
-    new_y2 = center_y + new_height / 2
+	# Determine new coordinates
+	new_x1 = center_x - new_width / 2
+	new_y1 = center_y - new_height / 2
+	new_x2 = center_x + new_width / 2
+	new_y2 = center_y + new_height / 2
 
-    # Ensure coordinates are legitimate
-    new_x1 = max(0, new_x1)
-    new_y1 = max(0, new_y1)
-    new_x2 = min(image_width, new_x2)
-    new_y2 = min(image_height, new_y2)
+	# Ensure coordinates are legitimate
+	new_x1 = max(0, new_x1)
+	new_y1 = max(0, new_y1)
+	new_x2 = min(image_width, new_x2)
+	new_y2 = min(image_height, new_y2)
 
-    return [new_x1, new_y1, new_x2, new_y2]
+	return [new_x1, new_y1, new_x2, new_y2]
 
 class Regexes():
 	# e-mail
@@ -152,7 +195,36 @@ class Regexes():
 	BUTTON = "suivant|make([^0-9a-zA-Z]|\s)*payment|^OK$|go([^0-9a-zA-Z]|\s)*(in)?to|sign([^0-9a-zA-Z]|\s)*in(?! with| via| using)|log([^0-9a-zA-Z]|\s)*in(?! with| via| using)|log([^0-9a-zA-Z]|\s)*on(?! with| via| using)|verify(?! with| via| using)|verification|submit(?! with| via| using)|ent(er|rar|rer|rance|ra)(?! with| via| using)|acces(o|sar|s)(?! with| via| using)|continu(er|ar)?(?! with| via| using)|connect(er)?(?! with| via| using)|next|confirm|sign([^0-9a-zA-Z]|\s)*on(?! with| via| using)|complete|valid(er|ate)(?! with| via| using)|securipass|登入|登录|登錄|登録|签到|iniciar([^0-9a-zA-Z]|\s)*sesión|identifier|ログインする|サインアップ|ログイン|로그인|시작하기|войти|вход|accedered|gabung|masuk|girişi|Giriş|เข้าสู่ระบบ|Přihlásit|mein([^0-9a-zA-Z]|\s)*konto|anmelden|ingresa|accedi|мой([^0-9a-zA-Z]|\s)*профиль|حسابي|administrer|cadastre-se|είσοδος|accessibilité|accéder|zaloguj|đăng([^0-9a-zA-Z]|\s)*nhập|weitermachen|bestätigen|zověřit|ověřit|weiter"
 	BUTTON_FORBIDDEN = "single sign-on|guest|here we go|seek|looking for|explore|save|clear|wipe off|(^[0-9]+$)|(^x$)|close|search|(sign|log|verify|submit|ent(er|rar|rer|rance|ra)|acces(o|sar|s)|continu(er|ar)?)?.*(github|microsoft|facebook|google|twitter|linkedin|instagram|line)|keep([^0-9a-zA-Z]|\s)*me([^0-9a-zA-Z]|\s)*(signed|logged)([^0-9a-zA-Z]|\s)*(in|on)|having([^0-9a-zA-Z]|\s)*trouble|remember|subscribe|send([^0-9a-zA-Z]|\s)*me([^0-9a-zA-Z]|\s)*(message|(e)?mail|newsletter|update)|follow([^0-9a-zA-Z]|\s)*us|新規会員|%s" % SIGNUP
 	# CREDENTIAL_TAKING_KEYWORDS = "log(g)?([^0-9a-zA-Z]|\s)*in(n)?|log([^0-9a-zA-Z]|\s)*on|sign([^0-9a-zA-Z]|\s)*in|sign([^0-9a-zA-Z]|\s)*on|submit|(my|personal)([^0-9a-zA-Z]|\s)*(account|area)|come([^0-9a-zA-Z]|\s)*in|check([^0-9a-zA-Z]|\s)*in|customer([^0-9a-zA-Z]|\s)*centre|登入|登录|登錄|登録|iniciar([^0-9a-zA-Z]|\s)*sesión|identifier|(ログインする)|(サインアップ)|(ログイン)|(로그인)|(시작하기)|(войти)|(вход)|(accedered)|(gabung)|(masuk)|(girişi)|(Giriş)|(وارد)|(عضویت)|(acceso)|(acessar)|(entrar )|(เข้าสู่ระบบ)|(Přihlásit)|(mein konto)|(anmelden)|(me connecter)|(ingresa)|(accedi)|(мой профиль)|(حسابي)|(administrer)|(next)|(entre )|(cadastre-se)|(είσοδος)|(entrance)|(start now)|(accessibilité)|(accéder)|(zaloguj)|(đăng nhập)|weitermachen|bestätigen|zověřit|ověřit"
-	CREDENTIAL_TAKING_KEYWORDS = r"(?:log(?:g)?(?:[^0-9a-zA-Z]|\s)*in(?:n)?)|(?:log(?:[^0-9a-zA-Z]|\s)*on)|(?:sign(?:[^0-9a-zA-Z]|\s)*in)|(?:sign(?:[^0-9a-zA-Z]|\s)*on)|submit|(?:my|personal)(?:[^0-9a-zA-Z]|\s)*(?:account|area)|(?:come(?:[^0-9a-zA-Z]|\s)*in)|(?:check(?:[^0-9a-zA-Z]|\s)*in)|(?:customer(?:[^0-9a-zA-Z]|\s)*centre)|登入|登录|登錄|登録|(?:iniciar(?:[^0-9a-zA-Z]|\s)*sesión)|identifier|(?:ログインする)|(?:サインアップ)|(?:ログイン)|(?:로그인)|(?:시작하기)|(?:войти)|(?:вход)|(?:accedered)|(?:gabung)|(?:masuk)|(?:girişi)|(?:Giriş)|(?:وارد)|(?:عضویت)|(?:acceso)|(?:acessar)|(?:entrar )|(?:เข้าสู่ระบบ)|(?:Přihlásit)|(?:mein konto)|(?:anmelden)|(?:me connecter)|(?:ingresa)|(?:accedi)|(?:мой профиль)|(?:حسابي)|(?:administrer)|(?:next)|(?:entre )|(?:cadastre-se)|(?:είσοδος)|(?:entrance)|(?:start now)|(?:accessibilité)|(?:accéder)|(?:zaloguj)|(?:đăng nhập)|weitermachen|bestätigen|zověřit|ověřit"
+	CREDENTIAL_TAKING_KEYWORDS = r"""
+			(?:
+			  log(?:g)?in|             # Matches 'login', 'loggin'
+			  log(?:g)?on|             # Matches 'logon', 'loggon'
+			  sign(?:-|\s)?(?:in|on)|  # Matches 'sign in', 'sign on', 'signin', 'signon', 'sign-in', 'sign-on'
+			  submit|apply|continue|update|
+			  (?:my|personal)(?:\W+)(?:account|area)|
+			  come(?:\W+)in|           # Matches 'come in' with any non-word delimiters
+			  customer(?:\W+)centre|   # Matches 'customer centre' with any non-word delimiters
+			  identifier|
+			  (?:get(?:\W+)started)    # Matches 'get started' with any non-word delimiters
+			)
+			|                           # Alternatives in different languages
+			登入|登录|登錄|登録|
+			iniciar(?:\W+)sesión|
+			(?:ログインする)|(?:サインアップ)|(?:ログイン)|
+			(?:로그인)|(?:시작하기)|
+			(?:войти)|(?:вход)|
+			(?:acceder(?:\W+)ed)|(?:gabung)|(?:masuk)|
+			(?:giriş(?:i)?)|(?:وارد)|(?:عضویت)|
+			(?:acceso)|(?:acessar)|(?:entrar)|
+			(?:เข้าสู่ระบบ)|(?:Přihlásit)|
+			(?:mein konto)|(?:anmelden)|(?:me connecter)|
+			(?:ingresa)|(?:accedi)|(?:мой профиль)|
+			(?:حسابي)|(?:administrer)|(?:next)|
+			(?:entre)|(?:cadastre-se)|(?:είσοδος)|
+			(?:entrance)|(?:start now)|(?:accessibilité)|
+			(?:accéder)|(?:zaloguj)|(?:đăng nhập)|
+			weitermachen|bestätigen|zověřit|ověřit
+	""".strip()
 	PROFILE = "account|profile|dashboard|settings"
 
 	CAPTCHA = "(re)?captcha"

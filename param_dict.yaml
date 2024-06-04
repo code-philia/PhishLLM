@@ -4,18 +4,18 @@ ocr:
   local_best_window: 2
   supported_langs:
     - 'en'
-#    - 'ch'
-#    - 'ru'
-#    - 'japan'
-#    - 'fa'
-#    - 'korean'
-#    - 'fr'
-#    - 'german'
+    - 'ch'
+    - 'ru'
+    - 'japan'
+    - 'fa'
+    - 'korean'
+    - 'fr'
+    - 'german'
 
 logo_caption:
   model_name: "blip_caption"
   model_type: "base_coco"
-  expand_ratio: 2
+  expand_ratio: 1.5
 
 LLM_model: "gpt-3.5-turbo-16k"
 
@@ -30,22 +30,22 @@ brand_recog:
     max_tokens: 5
 
 brand_valid:
-  activate: True
-  k: 5
+  activate: False
+  k: 10
   siamese_thre: 0.7
 
 crp_pred:
   temperature: 0
-  max_tokens: 100
+  max_tokens: 200
   sleep_time: 0.5
   prompt_path: "./selection_model/prompt.json"
 
 rank:
   model_name: "ViT-B/32"
   checkpoint_path: "./checkpoints/epoch4_model.pt"
-  max_uis_process: 300
+  max_uis_process: 50
   batch_size: 64
-  depth_limit: 0
+  depth_limit: 1
   driver_sleep_time: 3
   script_timeout: 5
   page_load_timeout: 5

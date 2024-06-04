@@ -1,3 +1,5 @@
+import time
+
 import openai
 from phishintention.src.OCR_aided_siamese import pred_siamese_OCR
 from model_chain.web_utils import *
@@ -9,6 +11,7 @@ import yaml
 from tldextract import tldextract
 import pickle
 from mmocr.apis import MMOCRInferencer
+from model_chain.dynaphish.utils import query_cleaning
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read().strip()
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "./datasets/google_cloud.json"
 os.environ['HTTP_PROXY'] = 'http://127.0.0.1:7890'
@@ -196,6 +199,52 @@ class DynaPhish():
 
         return new_brand_domains, new_brand_name, new_brand_logos, \
                knowledge_discovery_runtime, comment
+
+    def estimate_cost(self, URL, driver, shot_path, base_model='phishintention'):
+
+        domain2brand_cost = 0
+        logo2brand_cost = 0
+
+        if base_model == 'phishintention':
+            # PhishIntention
+            ph_driver = CustomWebDriver.boot(chrome=True)
+            time.sleep(self.standard_sleeping_time)
+            ph_driver.set_page_load_timeout(self.timeout)
+            ph_driver.set_script_timeout(self.timeout)
+            phish_category, phish_target, plotvis, dynamic, time_breakdown, pred_boxes, pred_classes = \
+                self.Phishintention.test_orig_phishintention(URL, shot_path, ph_driver)
+            ph_driver.quit()
+        else:
+            # Phishpedia
+            phish_category, phish_target, plotvis, time_breakdown, pred_boxes, pred_classes = \
+                self.Phishintention.test_orig_phishpedia(URL, shot_path)
+
+        ele_detector_time = time_breakdown.get('ele_detector_time', 0)
+        siamese_time = time_breakdown.get('siamese_time', 0)
+        crp_time = time_breakdown.get('crp_time', 0)
+        dynamic_time = time_breakdown.get('dynamic_time', 0)
+
+        query_domain, query_tld = tldextract.extract(URL).domain, tldextract.extract(URL).suffix
+
+        #### Popularity validation
+        _, new_brand_domains, new_brand_name, new_brand_logos, domain2brand_time, _ = \
+            self.KnowledgeExpansion.runit_simplified(driver=driver,
+                                                     shot_path=shot_path,
+                                                     query_domain=query_domain,
+                                                     query_tld=query_tld,
+                                                     type='domain2brand')
+        domain2brand_cost += 5/1000
+
+        #### Representation validation
+        _, new_brand_domains, new_brand_name, new_brand_logos, logo2brand_time, _ = \
+            self.KnowledgeExpansion.runit_simplified(driver=driver,
+                                                     shot_path=shot_path,
+                                                     query_domain=query_domain,
+                                                     query_tld=query_tld,
+                                                     type='logo2brand')
+        logo2brand_cost += (6.5)/1000
+
+        return (domain2brand_cost, logo2brand_cost), (domain2brand_time, logo2brand_time), (ele_detector_time, siamese_time, crp_time, dynamic_time)
 
     def test_dynaphish(self, URL, screenshot_path, kb_driver,
                        base_model, knowledge_expansion_branch,
