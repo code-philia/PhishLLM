@@ -1,13 +1,16 @@
+import os
+
 from model_chain.test_llm import *
 import argparse
 from tqdm import tqdm
 import yaml
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--folder", default="./datasets/field_study/2024-01-26/")
-    parser.add_argument("--date", default="2024-01-26", help="%Y-%m-%d")
+    parser.add_argument("--folder", default="./datasets/field_study/2023-09-02/")
+    parser.add_argument("--date", default="2024-01-29", help="%Y-%m-%d")
     parser.add_argument("--validate", action='store_true', help="Whether or not to activate the results validation for brand recognition model")
     parser.add_argument("--config", default='./param_dict.yaml', help="Config .yaml path")
     args = parser.parse_args()
@@ -31,10 +34,11 @@ if __name__ == '__main__':
     openai.proxy = proxy_url # set openai proxy
 
     # boot driver
-    sleep_time = 3; timeout_time = 5
-    driver = CustomWebDriver.boot(proxy_server=proxy_url)  # Using the proxy_url variable
-    driver.set_script_timeout(timeout_time)
-    driver.set_page_load_timeout(timeout_time)
+    driver = None
+    # sleep_time = 3; timeout_time = 5
+    # driver = CustomWebDriver.boot(proxy_server=proxy_url)  # Using the proxy_url variable
+    # driver.set_script_timeout(timeout_time)
+    # driver.set_page_load_timeout(timeout_time)
 
     os.makedirs('./field_study/results/', exist_ok=True)
 
@@ -50,11 +54,11 @@ if __name__ == '__main__':
             f.write("crp_transition_time" + "\n")
 
     for ct, folder in tqdm(enumerate(os.listdir(args.folder))):
-        if folder in [x.split('\t')[0] for x in open(result_txt, encoding='ISO-8859-1').readlines()]:
-            continue
-
-        # if folder != 'login.umbrella.com':
+        # if folder in [x.split('\t')[0] for x in open(result_txt, encoding='ISO-8859-1').readlines()]:
         #     continue
+
+        if folder != 'device-1769583b-c6b1-4f4a-808e-fc5a28c0ae42.remotewd.com':
+            continue
         info_path = os.path.join(args.folder, folder, 'info.txt')
         html_path = os.path.join(args.folder, folder, 'html.txt')
         shot_path = os.path.join(args.folder, folder, 'shot.png')
@@ -70,40 +74,37 @@ if __name__ == '__main__':
         except:
             url = 'https://' + folder
 
-        if url.startswith('cpanel'): # skip cpanel hosting
-            continue
-
-        # url = 'file:///home/ruofan/git_space/ScamDet/datasets/field_study/2023-09-05/msrgrptranstaging.trafficmanager.net/copy.html'
-        # candidate_elements, _, driver = llm_cls.ranking_model(url=url, driver=driver,
-        #                                                    ranking_model_refresh_page=True,
-        #                                                    announcer=None)
-
-        PhishLLMLogger.spit(f"Folder {os.path.join(args.folder, folder)}", caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
 
         logo_box, reference_logo = llm_cls.detect_logo(shot_path)
         pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis = llm_cls.test(url, reference_logo, logo_box,
                                                                                                         shot_path, html_path, driver,
                                                                                                         )
+        plotvis.save(predict_path)
+
+        # llm_cls.estimate_cost(url, reference_logo, logo_box,
+        #              shot_path, html_path, driver,
+        # )
+
         #
-        try:
-            with open(result_txt, "a+", encoding='ISO-8859-1') as f:
-                f.write(folder + "\t")
-                f.write(str(pred) + "\t")
-                f.write(str(brand) + "\t")  # write top1 prediction only
-                f.write(str(brand_recog_time) + "\t")
-                f.write(str(crp_prediction_time) + "\t")
-                f.write(str(crp_transition_time) + "\n")
-            if pred == 'phish':
-                plotvis.save(predict_path)
-
-        except UnicodeEncodeError:
-            continue
-
-        if (ct + 501) % 500 == 0:
-            driver.quit()
-            driver = CustomWebDriver.boot(proxy_server=proxy_url)  # Using the proxy_url variable
-            driver.set_script_timeout(timeout_time)
-            driver.set_page_load_timeout(timeout_time)
-
-    driver.quit()
+        # try:
+        #     with open(result_txt, "a+", encoding='ISO-8859-1') as f:
+        #         f.write(folder + "\t")
+        #         f.write(str(pred) + "\t")
+        #         f.write(str(brand) + "\t")  # write top1 prediction only
+        #         f.write(str(brand_recog_time) + "\t")
+        #         f.write(str(crp_prediction_time) + "\t")
+        #         f.write(str(crp_transition_time) + "\n")
+        #     if pred == 'phish':
+        #         plotvis.save(predict_path)
+        #
+        # except UnicodeEncodeError:
+        #     continue
+        #
+        # if (ct + 501) % 500 == 0:
+        #     driver.quit()
+        #     driver = CustomWebDriver.boot(proxy_server=proxy_url)  # Using the proxy_url variable
+        #     driver.set_script_timeout(timeout_time)
+        #     driver.set_page_load_timeout(timeout_time)
+    #
+    # driver.quit()
 

@@ -343,17 +343,17 @@ class DynaPhish():
 
 if __name__ == '__main__':
 
-    # with open('/home/ruofan/git_space/ScamDet/model_chain/dynaphish/domain_map.pkl', "rb") as handle:
+    # with open('./model_chain/dynaphish/domain_map.pkl', "rb") as handle:
     #     domain_map = pickle.load(handle)
     # #
     # domain_map['Delta Air Lines'] = ['delta']
     # #
-    # with open('/home/ruofan/git_space/ScamDet/model_chain/dynaphish/domain_map.pkl', "wb") as handle:
+    # with open('./model_chain/dynaphish/domain_map.pkl', "wb") as handle:
     #     pickle.dump(domain_map, handle)
     # exit()
 
     PhishLLMLogger.set_debug_on()
-    phishintention_config_path = '/home/ruofan/git_space/ScamDet/model_chain/dynaphish/configs.yaml'
+    phishintention_config_path = './model_chain/dynaphish/configs.yaml'
     PhishIntention = PhishIntentionWrapper()
     PhishIntention.reset_model(phishintention_config_path, False)
 
@@ -364,8 +364,8 @@ if __name__ == '__main__':
                                     rec='ABINet',
                                     device='cuda' if torch.cuda.is_available() else 'cpu')
     button_locator_model = SubmissionButtonLocator(
-        button_locator_config="/home/ruofan/git_space/MyXdriver_pub/xutils/forms/button_locator_models/config.yaml",
-        button_locator_weights_path="/home/ruofan/git_space/MyXdriver_pub/xutils/forms/button_locator_models/model_final.pth")
+        button_locator_config="../MyXdriver_pub/xutils/forms/button_locator_models/config.yaml",
+        button_locator_weights_path="../MyXdriver_pub/xutils/forms/button_locator_models/model_final.pth")
 
     dynaphish_cls = DynaPhish(PhishIntention,
                               phishintention_config_path,
