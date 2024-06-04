@@ -16,13 +16,11 @@
 Existing reference-based phishing detection:
 
 - :x: Relies on a pre-defined reference list
-- :x: Necessitates a massive amount of high-quality, diverse annotated data
 - :x: Does not fully utilize the textual information present on the webpage
 
 In our PhishLLM, we build a reference-based phishing detection framework:
 
 - ✅ Without a pre-defined reference list
-- ✅ Requires lightweight training
 - ✅ Fully explainable, as it mirrors the human cognitive process during web interaction and provides natural language explanations at every step
 
 ## Framework
@@ -32,17 +30,21 @@ In our PhishLLM, we build a reference-based phishing detection framework:
   - Input: logo caption, Logo OCR Results, industry sector (optional)
   - Intermediate Output: LLM's predicted brand
   - Output: Validated predicted brand, confirmed through Google Images
+  
 - Step 2: Credential-Requiring-Page classification model
   - Input: webpage OCR results
   - Output: LLM chooses from A. Credential-Taking Page or B. Non-Credential-Taking Page
+  
 - Step 3.1: CRP transition model (activate if LLM chooses 'B' from the last step)
   - Input: webpage clickable UI elements (the webpage must be live)
   - Intermediate Output: most likely UI element being a login button
   - Output: The page after clicking the UI 
+  
 - Step 3.2: Termination
   - A phishing alarm will be raised if:
   LLM predicts a targeted brand inconsistent with the webpage's domain
   **AND** LLM chooses 'A' from Step 2
+  
   - A benign decision will be reached if:
   LLM cannot predict a targeted brand
   **OR** the targeted brand aligns with the webpage domain
@@ -77,11 +79,17 @@ In our PhishLLM, we build a reference-based phishing detection framework:
       [YOUR_SEARCH_ENGINE_ID]
      ```
 - Step 4 (Optional): Edit Hyperparameters. All hyperparameter configurations are stored in param_dict.yaml. Edit this file to experiment with different parameter combinations.
-- Step 5: Run the Code
-```bash
+- Step 5: 
+  - Run PhishLLM 
+  ```bash
     conda activate myenv
     python -m field_study.test --folder [folder to test, e.g., ./datasets/field_study/2023-08-21/] --date [e.g., 2023-08-21]
-```
+  ```
+  - Or run baseline methods
+  ```bash
+    conda activate myenv
+    python -m field_study.test_baseline --folder [folder to test] --date [e.g., 2023-08-21] --method [phishpedia|phishintention|dynaphish]
+  ```
 
 <details>
 <summary> A .log file will be created during the run, which will log the explanations for each model prediction, click to see the sampled log</summary>
@@ -114,25 +122,8 @@ In our PhishLLM, we build a reference-based phishing detection framework:
   <img src="./field_study/plots/num_phish.png">
 </details>
 <details>
-  <summary>Phishing domain age distribution</summary>
-  <img src="./field_study/plots/domain_age.png">
-</details>
-<details>
-  <summary>Phishing domain TLD distribution</summary>
-  
-  | Top-5 TLD | Frequency      |
-  |----------------| --------------- |
-  | .com | 447 occurrences |
-  | .de | 60 occurrences |
-  | .online | 58 occurrences |
-  | .info | 52 occurrences |
-  | .xyz | 52 occurrences |
-
-</details>
-<details>
-  <summary>Top phishing targets, and top targeted sectors</summary>
+  <summary>Top 10 phishing targets</summary>
   <img src="./field_study/plots/brand_freq.png">
-  <img src="./field_study/plots/brand_sector.png">
 </details>
 <details>
   <summary>Geolocations of phishing IPs</summary>
@@ -143,12 +134,3 @@ In our PhishLLM, we build a reference-based phishing detection framework:
   <img src="./field_study/plots/campaign.png">
 </details>
 
-
-## Updates
-- [👏2023-09-07] Packaged phishing websites reported from field study: link.
-- [🛠️2023-08-28] Added functions to determine whether the webpage state has been updated (best method is to check the webpage screenshot, not the URL).
-- [🛠️2023-08-28] Updated CRP transition logic: if the webpage state hasn't changed, the system will attempt to click lower-ranked buttons instead of repeatedly clicking the top-ranked button.
-- [🤔2023-08-27] Found that providing the industry sector to the brand recognition model further improves brand recognition without affecting robustness.
-- [🤔2023-08-24] Added an option for relaxed result validation by checking if the predicted domain is alive.
-- [🛠️2023-08-20] Modified the brand recognition model.
-- [🛠️2023-08-07] To prevent PhishLLM from reporting brands offering cloud services (e.g., domain hosting, web hosting, etc.), we maintain a list of such domains in ./datasets/hosting_blacklists.txt. This list will continue to grow.
