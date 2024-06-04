@@ -53,7 +53,7 @@ def initialize_chrome_settings(lang_txt:str):
         "translate_whitelists": white_lists,
         "download_restrictions": 3,
         "download.prompt_for_download": False,
-        "download.default_directory": "/home/ruofan/git_space/phishing-research/trash",
+        "download.default_directory": "./trash",
     }
     options = webdriver.ChromeOptions()
 

@@ -59,7 +59,7 @@ class JSMA(Attack):
     def compute_jacobian(self, image):
         var_image = image.clone().detach()
         var_image.requires_grad = True
-        self.model = reset_model('/home/ruofan/git_space/ScamDet/checkpoints/epoch4_model.pt', protect=True)
+        self.model = reset_model('./checkpoints/epoch4_model.pt', protect=True)
         output = self.get_logits(var_image)
 
         num_features = int(np.prod(var_image.shape[1:]))
