@@ -40,15 +40,15 @@ In our PhishLLM, we build a reference-based phishing detection framework:
   - Intermediate Output: most likely UI element being a login button
   - Output: The page after clicking the UI 
   
-- Step 3.2: Termination
-  - A phishing alarm will be raised if:
-  LLM predicts a targeted brand inconsistent with the webpage's domain
-  **AND** LLM chooses 'A' from Step 2
+- Step 3.2: 
+  - Case 1: If the domain is from a web hosting domain: it is flagged as phishing if
+    (i) LLM predicts a targeted brand inconsistent with the webpage's domain
+  and  (ii) LLM chooses 'A' from Step 2
   
-  - A benign decision will be reached if:
-  LLM cannot predict a targeted brand
-  **OR** the targeted brand aligns with the webpage domain
-  **OR** LLM consistently chooses 'B' even after running Step 3.1 multiple times.
+  - Case 2: If the domain is not from a web hosting domain: it is flagged as phishing if
+  (i) LLM predicts a targeted brand inconsistent with the webpage's domain
+  (ii) LLM chooses 'A' from Step 2
+  and (iii) the domain is not a popular domain indexed by Google
 
 ## Project structure
 ```
