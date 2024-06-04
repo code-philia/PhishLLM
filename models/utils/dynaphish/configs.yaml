@@ -1,0 +1,23 @@
+# please set the environment variable first
+# echo 'export ANACONDA_ENV_PATH="/home/xxx/anaconda3/envs/myenv"' >> ~/.bashrc
+# source ~/.bashrc
+
+AWL_MODEL:
+  CFG_PATH: "${ANACONDA_ENV_PATH}/lib/python3.8/site-packages/phishintention/src/AWL_detector_utils/configs/faster_rcnn_web.yaml"
+  WEIGHTS_PATH: "${ANACONDA_ENV_PATH}/lib/python3.8/site-packages/phishintention/src/AWL_detector_utils/output/website_lr0.001/model_final.pth"
+
+CRP_CLASSIFIER:
+  WEIGHTS_PATH: "${ANACONDA_ENV_PATH}/lib/python3.8/site-packages/phishintention/src/crp_classifier_utils/output/Increase_resolution_lr0.005/BiT-M-R50x1V2_0.005.pth.tar"
+  MODEL_TYPE: 'mixed'
+
+CRP_LOCATOR:
+  CFG_PATH: "${ANACONDA_ENV_PATH}/lib/python3.8/site-packages/phishintention/src/crp_locator_utils/login_finder/configs/faster_rcnn_login_lr0.001_finetune.yaml"
+  WEIGHTS_PATH: "${ANACONDA_ENV_PATH}/lib/python3.8/site-packages/phishintention/src/crp_locator_utils/login_finder/output/lr0.001_finetune/model_final.pth"
+
+SIAMESE_MODEL:
+  NUM_CLASSES: 277
+  WEIGHTS_PATH: "${ANACONDA_ENV_PATH}/lib/python3.8/site-packages/phishintention/src/OCR_siamese_utils/output/targetlist_lr0.01/bit.pth.tar"
+  OCR_WEIGHTS_PATH: "${ANACONDA_ENV_PATH}/lib/python3.8/site-packages/phishintention/src/OCR_siamese_utils/demo_downgrade.pth.tar"
+  TARGETLIST_PATH: "expand_targetlist.zip"  # Relative path
+  MATCH_THRE: 0.87
+  DOMAIN_MAP_PATH: "domain_map.pkl"  # Relative path
