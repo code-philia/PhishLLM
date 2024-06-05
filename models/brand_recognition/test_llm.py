@@ -1,9 +1,9 @@
 import time
 import os
 import openai
-from brand_recognition.dataloader import *
+from models.brand_recognition.dataloader import *
 import idna
-from model_chain.web_utils import is_valid_domain, query2image, get_images, url2logo, query2url
+from models.utils.web_utils import is_valid_domain, query2image, get_images, url2logo, query2url
 from phishintention.src.OCR_aided_siamese import pred_siamese_OCR
 from concurrent.futures import ThreadPoolExecutor
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key3.txt').read()

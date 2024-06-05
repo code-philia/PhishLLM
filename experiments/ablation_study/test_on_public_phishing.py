@@ -1,12 +1,12 @@
 import shutil
 
 import openai
-from model_chain.web_utils import *
-from model_chain.logger_utils import *
+from models.utils.web_utils import *
+from models.utils.logger_utils import *
 import os
-from model_chain.PhishIntentionWrapper import PhishIntentionWrapper
+from models.utils.PhishIntentionWrapper import PhishIntentionWrapper
 import yaml
-from model_chain.test_llm import TestLLM
+from pipeline.test_llm import TestLLM
 from tqdm import tqdm
 from datetime import datetime, date, timedelta
 import matplotlib.pyplot as plt

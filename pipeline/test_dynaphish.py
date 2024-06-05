@@ -2,16 +2,15 @@ import time
 
 import openai
 from phishintention.src.OCR_aided_siamese import pred_siamese_OCR
-from model_chain.web_utils import *
-from model_chain.logger_utils import *
-from model_chain.dynaphish.brand_knowledge_utils import BrandKnowledgeConstruction
+from models.utils.web_utils import *
+from models.utils.logger_utils import *
+from models.utils.dynaphish.brand_knowledge_utils import BrandKnowledgeConstruction
 import os
-from model_chain.PhishIntentionWrapper import PhishIntentionWrapper
+from models.utils.PhishIntentionWrapper import PhishIntentionWrapper
 import yaml
 from tldextract import tldextract
 import pickle
 from mmocr.apis import MMOCRInferencer
-from model_chain.dynaphish.utils import query_cleaning
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read().strip()
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "./datasets/google_cloud.json"
 os.environ['HTTP_PROXY'] = 'http://127.0.0.1:7890'

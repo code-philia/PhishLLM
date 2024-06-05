@@ -1,6 +1,6 @@
 import os
 
-from model_chain.test_llm import *
+from pipeline.test_llm import *
 import argparse
 from tqdm import tqdm
 import yaml

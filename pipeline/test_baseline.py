@@ -1,9 +1,10 @@
 
-from model_chain.PhishIntentionWrapper import PhishIntentionWrapper
+from models.utils.PhishIntentionWrapper import PhishIntentionWrapper
 import time
 import os
 import pandas as pd
 from tqdm import tqdm
+
 class TestBaseline():
 
     def __init__(self, phishintention_cls):

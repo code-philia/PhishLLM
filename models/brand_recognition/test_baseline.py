@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from PIL import Image
 import torch
-from selection_model.dataloader import ShotDataset
+from models.selection_model.dataloader import ShotDataset
 from distutils.sysconfig import get_python_lib
 import yaml
 import os

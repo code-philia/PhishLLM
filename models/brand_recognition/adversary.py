@@ -1,8 +1,8 @@
 
-from brand_recognition.test_llm import *
+from models.brand_recognition.test_llm import *
 import idna
 import pandas as pd
-from model_chain.web_utils import WebUtil, is_valid_domain, CustomWebDriver
+from models.utils.web_utils import WebUtil, is_valid_domain, CustomWebDriver
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read()
 
 def test(result_file):

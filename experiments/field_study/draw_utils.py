@@ -1,7 +1,7 @@
 from datetime import datetime, date
 from PIL import Image, ImageDraw, ImageFont
-from field_study.monitor_url import *
-from field_study.results_statistics import get_pos_site, daterange
+from experiments.field_study.monitor_url import *
+from experiments.field_study.results_statistics import get_pos_site, daterange
 import os
 import networkx as nx
 from PIL import Image

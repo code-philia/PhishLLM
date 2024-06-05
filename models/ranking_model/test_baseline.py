@@ -1,12 +1,12 @@
 import os.path
-from ranking_model.train import *
+from models.ranking_model.train import *
 import base64
 import io
 import time
 import yaml
 from phishintention.src.crp_locator import login_config
-from model_chain.utils import Regexes
-from model_chain.web_utils import CustomWebDriver
+from models.utils.utils import Regexes
+from models.utils.web_utils import CustomWebDriver
 
 def heuristic_find_dom(driver, topk):
     ct = 0

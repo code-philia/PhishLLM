@@ -2,10 +2,10 @@ import shutil
 import time
 import os
 import openai
-from brand_recognition.dataloader import *
+from models.brand_recognition.dataloader import *
 import idna
-from model_chain.web_utils import is_valid_domain
-from model_chain.test_llm import TestLLM
+from models.utils.web_utils import is_valid_domain
+from pipeline.test_llm import TestLLM
 import yaml
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key2.txt').read().strip()
 os.environ['http_proxy'] = "http://127.0.0.1:7890"

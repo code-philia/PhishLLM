@@ -1,9 +1,9 @@
 
 import os
-from model_chain.test_llm import TestLLM
-from model_chain.PhishIntentionWrapper import PhishIntentionWrapper
-from model_chain.logger_utils import PhishLLMLogger
-from model_chain.web_utils import CustomWebDriver
+from pipeline.test_llm import TestLLM
+from models.utils.PhishIntentionWrapper import PhishIntentionWrapper
+from models.utils.logger_utils import PhishLLMLogger
+from models.utils.web_utils import CustomWebDriver
 import yaml
 import openai
 from tqdm import tqdm

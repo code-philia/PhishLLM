@@ -1,6 +1,6 @@
 import time
 import openai
-from selection_model.dataloader import *
+from models.selection_model.dataloader import *
 import pandas as pd
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key3.txt').read()
 os.environ['CUDA_VISIBLE_DEVICES'] = '3'

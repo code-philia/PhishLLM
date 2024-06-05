@@ -1,6 +1,6 @@
-from model_chain.test_baseline import TestBaseline
-from model_chain.PhishIntentionWrapper import PhishIntentionWrapper
-from model_chain.web_utils import CustomWebDriver
+from pipeline.test_baseline import TestBaseline
+from models.utils.PhishIntentionWrapper import PhishIntentionWrapper
+from models.utils.web_utils import CustomWebDriver
 import argparse
 import yaml
 import cv2

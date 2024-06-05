@@ -1,6 +1,6 @@
 import time
 from llama import Llama, Dialog
-from selection_model.dataloader import *
+from models.selection_model.dataloader import *
 import contextlib
 import json
 from tqdm import tqdm

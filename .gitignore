@@ -2,3 +2,10 @@
 ./field_study/tele/cred.json
 ./checkpoints/
 ./crawling_scripts/
+/__pycache__/
+debug.py
+*.zip
+*.pkl
+*.npy
+*.pt
+expand_targetlist/

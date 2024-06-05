@@ -1,16 +1,10 @@
 import time
 import openai
 import backoff
-from openai.error import (
-    APIConnectionError,
-    APIError,
-    RateLimitError,
-    ServiceUnavailableError,
-)
 from transformers import GPT2TokenizerFast
 import os
 import openai
-from selection_model.dataloader import *
+from models.selection_model.dataloader import *
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key2.txt').read()
 
 def test(result_file):

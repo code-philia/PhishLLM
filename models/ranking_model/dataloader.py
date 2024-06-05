@@ -9,7 +9,7 @@ from torch.utils.data import Dataset, DataLoader, BatchSampler
 import torch
 import clip
 import lxml
-from ranking_model.dom_utils import *
+from models.ranking_model.dom_utils import *
 import io
 from lxml import html
 import re

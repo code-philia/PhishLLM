@@ -1,7 +1,7 @@
-from model_chain.test_baseline import *
-from model_chain.web_utils import CustomWebDriver
-from model_chain.dynaphish.brand_knowledge_utils import BrandKnowledgeConstruction
-from model_chain.test_dynaphish import DynaPhish, SubmissionButtonLocator
+from pipeline.test_baseline import *
+from models.utils.web_utils import CustomWebDriver
+from models.utils.dynaphish.brand_knowledge_utils import BrandKnowledgeConstruction
+from pipeline.test_dynaphish import DynaPhish, SubmissionButtonLocator
 import argparse
 import cv2
 from mmocr.apis import MMOCRInferencer

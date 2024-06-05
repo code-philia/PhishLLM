@@ -5,25 +5,22 @@ import json
 import torch
 import clip
 from phishintention.src.OCR_aided_siamese import pred_siamese_OCR
-from model_chain.utils import *
-from model_chain.web_utils import *
-from model_chain.logger_utils import *
+from models.utils.utils import *
+from models.utils.web_utils import *
+from models.utils.logger_utils import *
 from server.announcer import Announcer, AnnouncerEvent, AnnouncerPrompt
 from paddleocr import PaddleOCR
 import math
 import os
 from lxml import html
-from field_study.draw_utils import draw_annotated_image_box
+from experiments.field_study.draw_utils import draw_annotated_image_box
 from typing import List, Tuple, Set, Dict, Optional, Union
 from lavis.models import load_model_and_preprocess
-from functools import lru_cache
-from model_chain.PhishIntentionWrapper import PhishIntentionWrapper
+from models.utils.PhishIntentionWrapper import PhishIntentionWrapper
 import yaml
 import PIL
 from tldextract import tldextract
-import concurrent.futures
 import urllib3
-# Increase the connection pool size
 from urllib3.exceptions import MaxRetryError
 urllib3.disable_warnings()
 http = urllib3.PoolManager(maxsize=10)  # Increase the maxsize to a larger value, e.g., 10

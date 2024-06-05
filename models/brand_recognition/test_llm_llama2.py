@@ -1,7 +1,7 @@
 from typing import List, Optional
 from llama import Llama, Dialog
 import os
-from brand_recognition.test_llm import *
+from models.brand_recognition.test_llm import *
 import contextlib
 import json
 from tqdm import tqdm

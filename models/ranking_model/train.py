@@ -1,5 +1,5 @@
 from torch import nn, optim
-from ranking_model.dataloader import *
+from models.ranking_model.dataloader import *
 
 def trainer(EPOCH, model, train_dataloader, device, LR):
 

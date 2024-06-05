@@ -1,6 +1,6 @@
 import torch
 import clip
-from ranking_model.train import *
+from models.ranking_model.train import *
 import shutil
 
 @torch.no_grad()

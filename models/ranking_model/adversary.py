@@ -1,10 +1,10 @@
 import os
 
-from ranking_model.train import *
-from ranking_model.torchattacks.attacks.fgsm import FGSM
-from ranking_model.torchattacks.attacks.bim import BIM
-from ranking_model.torchattacks.attacks.deepfool import DeepFool
-from ranking_model.torchattacks.attacks.protect import *
+from models.ranking_model.train import *
+from models.ranking_model.torchattacks.attacks.fgsm import FGSM
+from models.ranking_model.torchattacks.attacks.bim import BIM
+from models.ranking_model.torchattacks.attacks.deepfool import DeepFool
+from models.ranking_model.torchattacks.attacks.protect import *
 import math
 from tldextract import tldextract
 os.environ['CUDA_VISIBLE_DEVICES'] = '3'
