@@ -127,27 +127,27 @@ testing_dir/
 
 ## Understand the Output
 - You will see the console is printing logs like the following <details><summary> Expand to see the sample log</summary>
-<pre><code>
-  [PhishLLMLogger][DEBUG] Folder ./datasets/field_study/2023-09-01/device-862044b2-5124-4735-b6d5-f114eea4a232.remotewd.com
-  [PhishLLMLogger][DEBUG] Logo caption: the logo for sonicwall network security appliance
-  [PhishLLMLogger][DEBUG] Logo OCR: SONICWALL Network Security Appliance Username
-  [PhishLLMLogger][DEBUG] Industry: Technology
-  [PhishLLMLogger][DEBUG] LLM prediction time: 0.9699530601501465
-  [PhishLLMLogger][DEBUG] Detected brand: sonicwall.com
-  [PhishLLMLogger][DEBUG] Domain sonicwall.com is valid and alive
-  [PhishLLMLogger][DEBUG] CRP prediction: There is no confusing token. Then we find the keywords that are related to login: LOG IN. Additionally, the presence of "Username" suggests that this page requires credentials. Therefore, the answer would be A.
-  [💥] Phishing discovered, phishing target is sonicwall.com
-  [PhishLLMLogger][DEBUG] Folder ./datasets/field_study/2023-09-01/lp.aldooliveira.com
-  [PhishLLMLogger][DEBUG] Logo caption: a black and white photo of the word hello world
-  [PhishLLMLogger][DEBUG] Logo OCR: Hello world! Welcome to WordPress. This is your first post. Edit or delete it, then start writing! dezembro 2, 2021 publicado
-  [PhishLLMLogger][DEBUG] Industry: Uncategorized
-  [PhishLLMLogger][DEBUG] LLM prediction time: 0.8813009262084961
-  [PhishLLMLogger][DEBUG] Detected brand: wordpress.com
-  [PhishLLMLogger][DEBUG] Domain wordpress.com is valid and alive
-  [PhishLLMLogger][DEBUG] CRP prediction: There is no token or keyword related to login or sensitive information. Therefore the answer would be B.
-  [PhishLLMLogger][DEBUG] No candidate login button to click
-   [✅] Benign
-</code></pre></details>
+  <pre><code>
+    [PhishLLMLogger][DEBUG] Folder ./datasets/field_study/2023-09-01/device-862044b2-5124-4735-b6d5-f114eea4a232.remotewd.com
+    [PhishLLMLogger][DEBUG] Logo caption: the logo for sonicwall network security appliance
+    [PhishLLMLogger][DEBUG] Logo OCR: SONICWALL Network Security Appliance Username
+    [PhishLLMLogger][DEBUG] Industry: Technology
+    [PhishLLMLogger][DEBUG] LLM prediction time: 0.9699530601501465
+    [PhishLLMLogger][DEBUG] Detected brand: sonicwall.com
+    [PhishLLMLogger][DEBUG] Domain sonicwall.com is valid and alive
+    [PhishLLMLogger][DEBUG] CRP prediction: There is no confusing token. Then we find the keywords that are related to login: LOG IN. Additionally, the presence of "Username" suggests that this page requires credentials. Therefore, the answer would be A.
+    [💥] Phishing discovered, phishing target is sonicwall.com
+    [PhishLLMLogger][DEBUG] Folder ./datasets/field_study/2023-09-01/lp.aldooliveira.com
+    [PhishLLMLogger][DEBUG] Logo caption: a black and white photo of the word hello world
+    [PhishLLMLogger][DEBUG] Logo OCR: Hello world! Welcome to WordPress. This is your first post. Edit or delete it, then start writing! dezembro 2, 2021 publicado
+    [PhishLLMLogger][DEBUG] Industry: Uncategorized
+    [PhishLLMLogger][DEBUG] LLM prediction time: 0.8813009262084961
+    [PhishLLMLogger][DEBUG] Detected brand: wordpress.com
+    [PhishLLMLogger][DEBUG] Domain wordpress.com is valid and alive
+    [PhishLLMLogger][DEBUG] CRP prediction: There is no token or keyword related to login or sensitive information. Therefore the answer would be B.
+    [PhishLLMLogger][DEBUG] No candidate login button to click
+     [✅] Benign
+  </code></pre></details>
   
 - Meanwhile, a txt file named "[today's date]_phishllm.txt" is being created, it has the following columns: 
   - "folder": name of the folder
