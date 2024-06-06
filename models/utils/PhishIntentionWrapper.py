@@ -5,7 +5,7 @@ from phishintention.src.OCR_aided_siamese import pred_siamese_OCR
 from phishintention.src.OCR_siamese_utils.utils import brand_converter, resolution_alignment
 from phishintention.src.crp_classifier_utils.bit_pytorch.grid_divider import coord2pixel_reverse
 from phishintention.src.crp_classifier import html_heuristic, credential_classifier_mixed_al
-from model_chain.utils import Regexes
+from models.utils.utils import Regexes
 import re
 import os
 from PIL import Image

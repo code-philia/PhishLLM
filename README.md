@@ -1,64 +1,76 @@
 # PhishLLM
+Official repository for "Less Defined Knowledge and More True Alarms: Reference-based Phishing Detection without a Pre-defined Reference List".
+Published in USENIX Security 2024. 
 
 <p align="center">
 
-[//]: # (  • <a href="">Paper</a> •)
+  • <a href="">Paper</a> •
 
-[//]: # (  • <a href="">Website</a> •)
+  • <a href="https://sites.google.com/view/phishllm">Website</a> •
 
-[//]: # (  • <a href="https://drive.google.com/drive/folders/1x6N6QEt_34B-pMStbBANUrjim-2ixG6T?usp=sharing">Datasets</a>  •)
+  • <a href="https://sites.google.com/view/phishllm/experimental-setup-datasets?authuser=0#h.r0fy4h1fw7mq">Datasets</a>  •
 
-[//]: # (  • <a href="#citation">Citation</a> •)
+  • <a href="#citation">Citation</a> •
 
 </p>
 
 ## Introduction
 Existing reference-based phishing detection:
 
-- :x: Relies on a pre-defined reference list
-- :x: Does not fully utilize the textual information present on the webpage
+- :x: Relies on a pre-defined reference list, which is lack of comprehensiveness and incurs high maintenance cost 
+- :x: Does not fully make use of the textual semantics present on the webpage
 
 In our PhishLLM, we build a reference-based phishing detection framework:
 
-- ✅ Without a pre-defined reference list
-- ✅ Fully explainable, as it mirrors the human cognitive process during web interaction and provides natural language explanations at every step
+- ✅ **Without the pre-defined reference list**: Modern LLMs have encoded far more extensive brand-domain information than any predefined list
+- ✅ **Chain-of-thought credential-taking prediction**: Reasoning the credential-taking status in a step-by-step way by looking at the text
 
 ## Framework
-<img src="./figures/phishllm.png">
+<img width=100%, src="./figures/phishllm.png">
 
-- Step 1: Brand recognition model
-  - Input: logo caption, Logo OCR Results, industry sector (optional)
+- **Step 1: Brand recognition model**
+  - Input: Logo caption, Logo OCR Results
   - Intermediate Output: LLM's predicted brand
   - Output: Validated predicted brand, confirmed through Google Images
   
-- Step 2: Credential-Requiring-Page classification model
-  - Input: webpage OCR results
+- **Step 2: Credential-Requiring-Page classification model**
+  - Input: Webpage OCR results
   - Output: LLM chooses from A. Credential-Taking Page or B. Non-Credential-Taking Page
+  - Go to step 4 if LLM chooses 'A', otherwise go to step 3.
   
-- Step 3.1: CRP transition model (activate if LLM chooses 'B' from the last step)
-  - Input: webpage clickable UI elements (the webpage must be live)
-  - Intermediate Output: most likely UI element being a login button
-  - Output: The page after clicking the UI 
-  
-- Step 3.2: 
-  - Case 1: If the domain is from a web hosting domain: it is flagged as phishing if
+- **Step 3: Credential-Requiring-Page transition model (activates if LLM chooses 'B' from the last step)**
+  - Input: All clickable UI elements
+  - Intermediate Output: Top-1 most likely login UI
+  - Output: Webpage after clicking that UI, **go back to Step 1** with the updated webpage and URL
+
+- **Step 4: Output step** 
+  - _Case 1_: If the domain is from a web hosting domain: it is flagged as **phishing** if
     (i) LLM predicts a targeted brand inconsistent with the webpage's domain
   and  (ii) LLM chooses 'A' from Step 2
   
-  - Case 2: If the domain is not from a web hosting domain: it is flagged as phishing if
+  - _Case 2_: If the domain is not from a web hosting domain: it is flagged as **phishing** if
   (i) LLM predicts a targeted brand inconsistent with the webpage's domain
   (ii) LLM chooses 'A' from Step 2
   and (iii) the domain is not a popular domain indexed by Google
+  
+  - _Other cases_: reported as **benign**
 
 ## Project structure
 ```
-|_ brand_recognition
-|_ selection_model (i.e. credential-requiring-page classification model)
-|_ ranking_model
-|_ model_chain (chaining all the components)
-  |_ test_llm.py: main class
-|_ field_study 
-   |_ test.py: main script
+|_ models (defining the brand recognition model, CRP prediction model, and CRP transition model)
+  |_ brand_recognition: brand recognition model
+  |_ selection_model: CRP prediction model
+  |_ ranking_model: CRP transition model
+|_ pipeline (chaining all the components together)
+  |_ test_llm.py: main script
+|_ experiments
+  |_ ablation_study: 
+    |_ adapt_to_cryptocurrency_phishing.py: exploration of VLM
+    |_ cost_benchmarking: benchmarking the runtime of PhishLLM
+    |_ domain_alias: domain alias experiment in RQ2
+    |_ test_on_middle_ranked_benign.py: lower-rank Alexa experiment in RQ2
+    |_ test_on_public_phishing: public phishing study in RQ4
+  |_ field_study: Large/Small-scale field study in RQ4
 ```
 
 ## Setup
@@ -66,30 +78,29 @@ In our PhishLLM, we build a reference-based phishing detection framework:
 ```bash
     cd PhishLLM/
     chmod +x ./setup.sh
-    ./setup.sh
+    export ENV_NAME="phishllm" && ./setup.sh
 ```
-- Step 2: Register OpenAI API Key. See [OpenAI Official Docs](https://platform.openai.com/). Save the API key to './datasets/openai_key2.txt'.
+- Step 2: Register OpenAI API Key. See [OpenAI Official Docs](https://platform.openai.com/). Paste the API key to './datasets/openai_key.txt'.
+
 - Step 3: Create a Google Cloud Service Account
   - Go to [Google Cloud Console]((https://console.cloud.google.com/)) and set up billing details.
   - Create a project and enable the "Custom Search API".
   - Obtain the API Key and Search Engine ID for "Custom Search API" following this [guide](https://developers.google.com/custom-search/v1/overview).
-  - Create a blank text file in the directory "./datasets/google_api_key.txt" and paste your API Key and Search Engine ID as follows:
+  - Create a blank text file in the directory "./datasets/google_api_key.txt" and paste your API Key (in the first line) and Search Engine ID (in the second line) as follows:
      ```text 
       [YOUR_API_KEY]
       [YOUR_SEARCH_ENGINE_ID]
      ```
+    
 - Step 4 (Optional): Edit Hyperparameters. All hyperparameter configurations are stored in param_dict.yaml. Edit this file to experiment with different parameter combinations.
-- Step 5: 
-  - Run PhishLLM 
+
+  
+- Step 5: Run PhishLLM 
   ```bash
-    conda activate myenv
-    python -m field_study.test --folder [folder to test, e.g., ./datasets/field_study/2023-08-21/] --date [e.g., 2023-08-21]
+    conda activate phishllm
+    python -m experiments.field_study.test --folder [folder to test, e.g., ./datasets/field_study/2023-08-21/] --date [e.g., 2023-08-21]
   ```
-  - Or run baseline methods
-  ```bash
-    conda activate myenv
-    python -m field_study.test_baseline --folder [folder to test] --date [e.g., 2023-08-21] --method [phishpedia|phishintention|dynaphish]
-  ```
+
 
 <details>
 <summary> A .log file will be created during the run, which will log the explanations for each model prediction, click to see the sampled log</summary>
@@ -116,21 +127,7 @@ In our PhishLLM, we build a reference-based phishing detection framework:
     </code></pre>
 </details>
 
-## Findings
-<details>
-  <summary>Number of phishing caught</summary>
-  <img src="./field_study/plots/num_phish.png">
-</details>
-<details>
-  <summary>Top 10 phishing targets</summary>
-  <img src="./field_study/plots/brand_freq.png">
-</details>
-<details>
-  <summary>Geolocations of phishing IPs</summary>
-  <img src="./field_study/plots/geo.png">
-</details>
-<details>
-  <summary>Phishing campaign analysis</summary>
-  <img src="./field_study/plots/campaign.png">
-</details>
+## Citations
+```bibtex
+```
 

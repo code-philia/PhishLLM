@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 import base64
 from webdriver_manager.chrome import ChromeDriverManager
 from typing import *
-from model_chain.logger_utils import PhishLLMLogger
+from models.utils.logger_utils import PhishLLMLogger
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import *
@@ -18,7 +18,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-from model_chain.PhishIntentionWrapper import PhishIntentionWrapper
+from models.utils.PhishIntentionWrapper import PhishIntentionWrapper
 import json
 from unidecode import unidecode
 import urllib.parse

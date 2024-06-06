@@ -77,14 +77,9 @@ function check_browsers {
 }
 
 # Install chrome binary
-check_browsers
-
-# Source the Conda configuration
-CONDA_BASE=$(conda info --base)
-source "$CONDA_BASE/etc/profile.d/conda.sh"
+#check_browsers
 
 # Create a new conda environment with Python 3.8
-ENV_NAME="myenv"
 # Check if the environment already exists
 conda info --envs | grep -w "$ENV_NAME" > /dev/null
 if [ $? -eq 0 ]; then
@@ -94,19 +89,23 @@ else
     conda create -n "$ENV_NAME" python=3.8
 fi
 
-# Install phishintention
 PACKAGE_NAME="phishintention"
-# Fetch list of installed packages
-installed_packages=$(conda run -n "$ENV_NAME" conda list)
-if echo "$installed_packages" | grep -q "$PACKAGE_NAME"; then
-  echo "$PACKAGE_NAME is already installed, skip installation"
+if conda list -n "$ENV_NAME" | grep -q "$PACKAGE_NAME"; then
+    echo "$PACKAGE_NAME is already installed, skip installation"
+elif [ -d "PhishIntention" ]; then
+    echo "Directory PhishIntention already exists, skip cloning"
+    cd PhishIntention
+    chmod +x ./setup.sh
+    export ENV_NAME="$ENV_NAME" && ./setup.sh
+    cd ../
+    rm -rf PhishIntention
 else
-  git clone https://github.com/lindsey98/PhishIntention.git
-  cd PhishIntention
-  chmod +x ./setup.sh
-  ./setup.sh
-  cd ../
-  rm -rf PhishIntention
+    git clone -b development --single-branch https://github.com/lindsey98/PhishIntention.git
+    cd PhishIntention
+    chmod +x ./setup.sh
+    export ENV_NAME="$ENV_NAME" && ./setup.sh
+    cd ../
+    rm -rf PhishIntention
 fi
 
 # Install PaddleOCR
@@ -120,22 +119,25 @@ conda run -n "$ENV_NAME" pip install "paddleocr>=2.0.1"
 
 # Install Image Captioning model
 PACKAGE_NAME="lavis"
-installed_packages=$(conda run -n "$ENV_NAME" conda list)
-if echo "$installed_packages" | grep -q "$PACKAGE_NAME"; then
-  echo "lavis is already installed, skip installation"
+if conda list -n "$ENV_NAME" | grep -q "$PACKAGE_NAME"; then
+    echo "$PACKAGE_NAME is already installed, skip installation"
 else
-  git clone https://github.com/lindsey98/LAVIS.git
-  cd LAVIS
-  conda run -n "$ENV_NAME" pip install -e .
-  cd ../
-  rm -rf LAVIS
+    git clone https://github.com/lindsey98/LAVIS.git
+    cd LAVIS
+    conda run -n "$ENV_NAME" pip install -e .
+    cd ../
+    rm -rf LAVIS
 fi
 
 ## Install other requirements
-conda run -n "$ENV_NAME" pip install -r requirements.txt
+if [ -f requirements.txt ]; then
+    conda run -n "$ENV_NAME" pip install -r requirements.txt
+else
+    echo "requirements.txt not found. Skipping additional package installations."
+fi
 
 # Download the ranking model
-mkdir checkpoints
+mkdir -p checkpoints
 cd checkpoints
-pip install gdown
-gdown --id 1bpy-SRDOkL96j9r3ErBd7L5mDUdLAWaU
+conda run -n "$ENV_NAME" pip install gdown
+conda run -n "$ENV_NAME" gdown --id 1bpy-SRDOkL96j9r3ErBd7L5mDUdLAWaU

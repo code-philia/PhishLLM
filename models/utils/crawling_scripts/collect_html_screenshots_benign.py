@@ -2,9 +2,9 @@ import os.path
 import shutil
 import time
 from tqdm import tqdm
-from model_chain.web_utils import CustomWebDriver
+from models.utils.web_utils import CustomWebDriver
 import pandas as pd
-from crawling_scripts.collect_html_screenshots_expand import is_uniform_color, cleanup_drivers, apply_custom_styles, init_driver_pool
+from models.utils.crawling_scripts.collect_html_screenshots_expand import is_uniform_color, cleanup_drivers, apply_custom_styles, init_driver_pool
 from multiprocessing import Pool, current_process
 from itertools import cycle
 

@@ -3,7 +3,7 @@ import shutil
 import time
 import tldextract.tldextract
 from tqdm import tqdm
-from model_chain.web_utils import CustomWebDriver
+from models.utils.web_utils import CustomWebDriver
 import json
 import requests
 import subprocess

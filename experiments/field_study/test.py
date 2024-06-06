@@ -1,5 +1,4 @@
 import os
-
 from pipeline.test_llm import *
 import argparse
 from tqdm import tqdm
@@ -16,7 +15,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     PhishLLMLogger.set_debug_on()
-    PhishLLMLogger.set_logfile('./field_study/results/{}_phishllm.log'.format(args.date))
+    PhishLLMLogger.set_logfile('./experiments/field_study/results/{}_phishllm.log'.format(args.date))
 
     # load hyperparameters
     with open(args.config) as file:
@@ -30,19 +29,18 @@ if __name__ == '__main__':
                       proxies={"http": "http://127.0.0.1:7890",
                                "https": "http://127.0.0.1:7890",
                                })
-    openai.api_key = os.getenv("OPENAI_API_KEY")
-    openai.proxy = proxy_url # set openai proxy
+    # openai.api_key = os.getenv("OPENAI_API_KEY")
+    # openai.proxy = proxy_url # set openai proxy
 
     # boot driver
-    driver = None
-    # sleep_time = 3; timeout_time = 5
-    # driver = CustomWebDriver.boot(proxy_server=proxy_url)  # Using the proxy_url variable
-    # driver.set_script_timeout(timeout_time)
-    # driver.set_page_load_timeout(timeout_time)
+    sleep_time = 3; timeout_time = 5
+    driver = CustomWebDriver.boot(proxy_server=proxy_url)  # Using the proxy_url variable
+    driver.set_script_timeout(timeout_time)
+    driver.set_page_load_timeout(timeout_time)
 
-    os.makedirs('./field_study/results/', exist_ok=True)
+    os.makedirs('./experiments/field_study/results/', exist_ok=True)
 
-    result_txt = './field_study/results/{}_phishllm.txt'.format(args.date)
+    result_txt = './experiments/field_study/results/{}_phishllm.txt'.format(args.date)
 
     if not os.path.exists(result_txt):
         with open(result_txt, "w+") as f:
@@ -54,11 +52,9 @@ if __name__ == '__main__':
             f.write("crp_transition_time" + "\n")
 
     for ct, folder in tqdm(enumerate(os.listdir(args.folder))):
-        # if folder in [x.split('\t')[0] for x in open(result_txt, encoding='ISO-8859-1').readlines()]:
-        #     continue
-
-        if folder != 'device-1769583b-c6b1-4f4a-808e-fc5a28c0ae42.remotewd.com':
+        if folder in [x.split('\t')[0] for x in open(result_txt, encoding='ISO-8859-1').readlines()]:
             continue
+
         info_path = os.path.join(args.folder, folder, 'info.txt')
         html_path = os.path.join(args.folder, folder, 'html.txt')
         shot_path = os.path.join(args.folder, folder, 'shot.png')
@@ -79,32 +75,26 @@ if __name__ == '__main__':
         pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis = llm_cls.test(url, reference_logo, logo_box,
                                                                                                         shot_path, html_path, driver,
                                                                                                         )
-        plotvis.save(predict_path)
 
-        # llm_cls.estimate_cost(url, reference_logo, logo_box,
-        #              shot_path, html_path, driver,
-        # )
+        try:
+            with open(result_txt, "a+", encoding='ISO-8859-1') as f:
+                f.write(folder + "\t")
+                f.write(str(pred) + "\t")
+                f.write(str(brand) + "\t")  # write top1 prediction only
+                f.write(str(brand_recog_time) + "\t")
+                f.write(str(crp_prediction_time) + "\t")
+                f.write(str(crp_transition_time) + "\n")
+            if pred == 'phish':
+                plotvis.save(predict_path)
 
-        #
-        # try:
-        #     with open(result_txt, "a+", encoding='ISO-8859-1') as f:
-        #         f.write(folder + "\t")
-        #         f.write(str(pred) + "\t")
-        #         f.write(str(brand) + "\t")  # write top1 prediction only
-        #         f.write(str(brand_recog_time) + "\t")
-        #         f.write(str(crp_prediction_time) + "\t")
-        #         f.write(str(crp_transition_time) + "\n")
-        #     if pred == 'phish':
-        #         plotvis.save(predict_path)
-        #
-        # except UnicodeEncodeError:
-        #     continue
-        #
-        # if (ct + 501) % 500 == 0:
-        #     driver.quit()
-        #     driver = CustomWebDriver.boot(proxy_server=proxy_url)  # Using the proxy_url variable
-        #     driver.set_script_timeout(timeout_time)
-        #     driver.set_page_load_timeout(timeout_time)
-    #
-    # driver.quit()
+        except UnicodeEncodeError:
+            continue
+
+        if (ct + 501) % 500 == 0:
+            driver.quit()
+            driver = CustomWebDriver.boot(proxy_server=proxy_url)  # Using the proxy_url variable
+            driver.set_script_timeout(timeout_time)
+            driver.set_page_load_timeout(timeout_time)
+
+    driver.quit()
 

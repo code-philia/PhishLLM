@@ -5,12 +5,12 @@ from PIL import Image
 import base64
 from google.cloud import vision
 import io
-from model_chain.dynaphish.utils import *
+from models.utils.dynaphish.utils import *
 import datetime
 from dateutil.parser import parse
 import dateutil
 import time
-from model_chain.dynaphish.google_safebrowsing import SafeBrowsing
+from models.utils.dynaphish.google_safebrowsing import SafeBrowsing
 from urllib.parse import parse_qs, urljoin, urlparse, urlsplit, urlunsplit
 import pandas as pd
 from typing import Union

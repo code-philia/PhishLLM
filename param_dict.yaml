@@ -1,8 +1,8 @@
-ocr:
-  sure_thre: 0.98
-  unsure_thre: 0.9
-  local_best_window: 2
-  supported_langs:
+ocr: # paddleOCR model
+  sure_thre: 0.98 # OCR will iterate through all supported languages, if one of the language exceeds 0.98, use this language
+  unsure_thre: 0.9 # OCR will iterate through all supported languages, if none of the language exceeds 0.98, but one of it exceeds 0.9 and is higher than the previous 2 languages, use this language
+  local_best_window: 2 # higher than the previous 2 languages
+  supported_langs: # all supported languages, you can add more from https://github.com/Mushroomcat9998/PaddleOCR/blob/main/doc/doc_en/multi_languages_en.md#5-support-languages-and-abbreviations
     - 'en'
     - 'ch'
     - 'ru'
@@ -12,38 +12,38 @@ ocr:
     - 'fr'
     - 'german'
 
-logo_caption:
-  model_name: "blip_caption"
-  model_type: "base_coco"
-  expand_ratio: 1.5
+logo_caption: # image captioning model
+  model_name: "blip_caption" # model name
+  model_type: "base_coco" #
+  expand_ratio: 1.5 # look at the logo region and expand this region by a factor of 1.5 to look at its surrounding things as well
 
-LLM_model: "gpt-3.5-turbo-16k"
+LLM_model: "gpt-3.5-turbo-16k" # use gpt3.5 for LLM
 
-brand_recog:
-  temperature: 0
-  max_tokens: 10
-  sleep_time: 0.5
-  prompt_path: "./brand_recognition/prompt.json"
-  ask_industry: True
+brand_recog: # brand recognition model
+  temperature: 0 # deterministic response
+  max_tokens: 10 # limit the maximum number of generated tokens
+  sleep_time: 0.5 #
+  prompt_path: "./brand_recognition/prompt.json" # path to the prompt
+  ask_industry: True # ask the industry sector as well to give more information to the LLM to infer the brand
   industry:
     temperature: 0
     max_tokens: 5
 
 brand_valid:
-  activate: False
-  k: 10
-  siamese_thre: 0.7
+  activate: False # whether to activate the brand validation?
+  k: 10 # look at the top-10 google image results to check whether the webpage logo is similar to any one of them
+  siamese_thre: 0.7 # whether the webpage logo is similar to any one of them with similarity threshold as 0.7
 
-crp_pred:
-  temperature: 0
-  max_tokens: 200
+crp_pred: # CRP prediction model
+  temperature: 0 # deterministic response
+  max_tokens: 200 #  limit the maximum number of generated tokens
   sleep_time: 0.5
-  prompt_path: "./selection_model/prompt.json"
+  prompt_path: "./selection_model/prompt.json" # path to the prompt
 
-rank:
-  model_name: "ViT-B/32"
-  checkpoint_path: "./checkpoints/epoch4_model.pt"
-  max_uis_process: 50
+rank: # CRP transition model
+  model_name: "ViT-B/32" # use vision transformer as backbone
+  checkpoint_path: "./checkpoints/epoch4_model.pt" # checkpoint path
+  max_uis_process: 50 # only look at the first 50 UI elements because the login UI is likely to be located on the top of the screenshot
   batch_size: 64
   depth_limit: 1
   driver_sleep_time: 3
