@@ -1,3 +1,5 @@
+import os
+
 from torch import nn, optim
 from PIL import Image
 from torch.utils.data import DataLoader
@@ -10,12 +12,12 @@ except ImportError:
     BICUBIC = Image.BICUBIC
 from tqdm import tqdm
 from scripts.data.data_utils import ButtonDataset, BalancedBatchSampler
+import argparse
 
-def trainer(EPOCH, model, train_dataloader, device, LR):
-
+def trainer(epoch, model, train_dataloader, device, lr):
     loss_img = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.visual.parameters(), lr=LR) # only change the image encoder part
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, len(train_dataloader)*EPOCH)
+    optimizer = optim.Adam(model.visual.parameters(), lr=lr)  # only change the image encoder part
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, len(train_dataloader) * epoch)
     model.train()
     model.token_embedding.eval()
     model.transformer.eval()
@@ -25,8 +27,8 @@ def trainer(EPOCH, model, train_dataloader, device, LR):
     model.text_projection.requires_grad = False
     model.logit_scale.requires_grad = False
 
-    for epoch in range(EPOCH):
-        print(f"running epoch {epoch}")
+    for ep in range(epoch):
+        print(f"Running epoch {ep}")
         step = 0
         tr_loss = 0
 
@@ -39,7 +41,7 @@ def trainer(EPOCH, model, train_dataloader, device, LR):
             texts = clip.tokenize(["not a login button", "a login button"]).to(device)
             logits_per_image, logits_per_text = model(images, texts)
             ground_truth = ground_truth.to(device)
-            total_loss = loss_img(logits_per_image, ground_truth) # only cross entropy for images
+            total_loss = loss_img(logits_per_image, ground_truth)  # only cross entropy for images
 
             optimizer.zero_grad()
             total_loss.backward()
@@ -52,35 +54,45 @@ def trainer(EPOCH, model, train_dataloader, device, LR):
                 optimizer.step()
                 scheduler.step()
                 clip.model.convert_weights(model)
-            pbar.set_description(f"train batchCE: {total_loss.item()}", refresh=True)
+            pbar.set_description(f"Train batch CE: {total_loss.item()}", refresh=True)
         tr_loss /= step
 
-        torch.save(model.state_dict(), "./checkpoints/epoch{}_model.pt".format(epoch))
-        print(f"epoch {epoch}, tr_loss {tr_loss}")
-
+        os.makedirs("./checkpoints", exist_ok=True)
+        torch.save(model.state_dict(), f"./checkpoints/epoch{ep}_model.pt")
+        print(f"Epoch {ep}, tr_loss {tr_loss}")
 def convert_models_to_fp32(model):
     for p in model.visual.parameters():
         p.data = p.data.float()
-        p.grad.data = p.grad.data.float()
+        if p.grad is not None:
+            p.grad.data = p.grad.data.float()
 
-if __name__ == '__main__':
+def main(args):
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    EPOCH = 5
-    BATCH_SIZE = 128
-    LR = 1e-5
-    model, preprocess = clip.load("ViT-B/32", device=device)
-    # https://github.com/openai/CLIP/issues/57
+    model, preprocess = clip.load("ViT-B/32", device=device, jit=False)
+
+    # Adjust model for CPU if necessary
     if device == "cpu":
         model.float()
 
-    model, preprocess = clip.load("ViT-B/32", device=device, jit=False)
+    train_dataset = ButtonDataset(
+        annot_path=args.annot_path,
+        root=args.dataset_root,
+        preprocess=preprocess
+    )
 
-    train_dataset = ButtonDataset(annot_path='./datasets/alexa_login_train.txt',
-                                  root='./datasets/alexa_login',
-                                  preprocess=preprocess)
-
-    train_sampler = BalancedBatchSampler(train_dataset.labels, BATCH_SIZE)
+    train_sampler = BalancedBatchSampler(train_dataset.labels, args.batch_size)
     train_dataloader = DataLoader(train_dataset, batch_sampler=train_sampler)
-    print(len(train_dataloader))
+    print(f"Number of batches: {len(train_dataloader)}")
 
-    trainer(EPOCH, model, train_dataloader, device, LR)
+    trainer(args.epoch, model, train_dataloader, device, args.lr)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Train a CLIP model on button images")
+    parser.add_argument('--epoch', type=int, default=5, help='Number of epochs to train')
+    parser.add_argument('--batch_size', type=int, default=128, help='Batch size for training')
+    parser.add_argument('--lr', type=float, default=1e-5, help='Learning rate')
+    parser.add_argument('--annot_path', type=str, required=True, help='Path to the annotation file')
+    parser.add_argument('--dataset_root', type=str, required=True, help='Root directory of the dataset')
+
+    args = parser.parse_args()
+    main(args)

@@ -157,8 +157,18 @@ testing_dir/
   - "crp_prediction_time": time taken for CRP prediction
   - "crp_transition_time": time taken for CRP transition
 
+## (Optional) Re-training
 
+Alternatively, if you would like to re-train the CRP transition model, which is a CLIP model. We have annotated a dataset for login UI / non-login UI elements.
+- Step 1: First download the dataset from here: https://drive.google.com/file/d/1uRK7ebJ0z1_R7kG2QcDf2rAeMK50fTi0/view?usp=share_link.
+- Step 2: Put the dataset under ./datasets/
+- Step 3: Start training:
+  ```bash
+    conda activate phishllm
+    python -m scripts.train.train --epoch 5 --batch_size 128 --lr 1e-5 --annot_path ./datasets/alexa_login_train.txt --dataset_root ./datasets/alexa_login
+  ```
+  
 ## Citations
 ```bibtex
 ```
-If you have any issues running our code, you can raise an issue or send an email to [liu.ruofan16@u.nus.edu, lin_yun@sjtu.edu.cn, dcsdjs@nus.edu.sg](mailto:liu.ruofan16@u.nus.edu,lin_yun@sjtu.edu.cn,dcsdjs@nus.edu.sg)
+If you have any issues running our code, you can raise a Github issue or email us [liu.ruofan16@u.nus.edu, lin_yun@sjtu.edu.cn, dcsdjs@nus.edu.sg](mailto:liu.ruofan16@u.nus.edu,lin_yun@sjtu.edu.cn,dcsdjs@nus.edu.sg)
