@@ -9,3 +9,7 @@ debug.py
 *.npy
 *.pt
 expand_targetlist/
+*baseline*.py
+*adv.py
+*_benign*.py
+*dynaphish*.py

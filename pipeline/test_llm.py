@@ -25,7 +25,7 @@ from urllib3.exceptions import MaxRetryError
 urllib3.disable_warnings()
 http = urllib3.PoolManager(maxsize=10)  # Increase the maxsize to a larger value, e.g., 10
 
-os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key2.txt').read().strip()
+os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read().strip()
 os.environ['CURL_CA_BUNDLE'] = ''
 
 

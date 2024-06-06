@@ -5,7 +5,7 @@ from transformers import GPT2TokenizerFast
 import os
 import openai
 from models.selection_model.dataloader import *
-os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key2.txt').read()
+os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read()
 
 def test(result_file):
     correct = 0

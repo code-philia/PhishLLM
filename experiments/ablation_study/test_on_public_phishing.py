@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from matplotlib_venn import venn3, venn3_circles
 from pathlib import Path
 
-os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key2.txt').read().strip()
+os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read().strip()
 os.environ['CURL_CA_BUNDLE'] = ''
 os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 

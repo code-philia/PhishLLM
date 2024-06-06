@@ -8,7 +8,7 @@ from models.utils.web_utils import is_valid_domain
 from pipeline.test_llm import TestLLM
 import yaml
 import Levenshtein as lev
-os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key2.txt').read().strip()
+os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read().strip()
 os.environ['http_proxy'] = "http://127.0.0.1:7890"
 os.environ['https_proxy'] = "http://127.0.0.1:7890"
 

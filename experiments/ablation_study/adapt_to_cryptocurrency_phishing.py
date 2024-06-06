@@ -11,7 +11,7 @@ from tqdm import tqdm
 from datetime import datetime, date, timedelta
 from pathlib import Path
 
-os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key2.txt').read().strip()
+os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read().strip()
 os.environ['CURL_CA_BUNDLE'] = ''
 os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
