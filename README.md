@@ -28,6 +28,8 @@ In our PhishLLM, we build a reference-based phishing detection framework:
 ## Framework
 <img src="./figures/phishllm.png"/>
 
+```Input```: a URL and its screenshot, ```Output```: Phish/Benign, Phishing target
+
 - **Step 1: Brand recognition model**
   - Input: Logo caption, Logo OCR Results
   - Intermediate Output: LLM's predicted brand
@@ -87,8 +89,7 @@ experiments/
 - Step 2: Register **OpenAI API Key**, [See Tutorial here](https://platform.openai.com/docs/quickstart). Paste the API key to './datasets/openai_key.txt'.
 
 
-- Step 3: Register a **Google Programmable Search API Key**, [See Tutorial here](https://meta.discourse.org/t/google-search-for-discourse-ai-programmable-search-engine-and-custom-search-api/307107)
-  - Paste your API Key (in the first line) and Search Engine ID (in the second line) to "./datasets/google_api_key.txt":
+- Step 3: Register a **Google Programmable Search API Key**, [See Tutorial here](https://meta.discourse.org/t/google-search-for-discourse-ai-programmable-search-engine-and-custom-search-api/307107). Paste your API Key (in the first line) and Search Engine ID (in the second line) to "./datasets/google_api_key.txt":
      ```text 
       [API_KEY]
       [SEARCH_ENGINE_ID]
@@ -157,4 +158,4 @@ testing_dir/
 ## Citations
 ```bibtex
 ```
-
+If you have any issues running our code, you can raise an issue or send an email to [liu.ruofan16@u.nus.edu, lin_yun@sjtu.edu.cn, dcsdjs@nus.edu.sg](mailto:liu.ruofan16@u.nus.edu,lin_yun@sjtu.edu.cn,dcsdjs@nus.edu.sg)
