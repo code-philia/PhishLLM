@@ -1,0 +1,7 @@
+[{"role": "system",
+  "content": "You are knowledgeable about brands and their associated logos. Given the description of a logo, logo's OCR text, and the industry sector, your task is to decide the brand of the logo. Logo OCR is more important than logo's description. Just give the brand's domain in English, do not output any explanation. If there are multiple possible brands, output the most likely domain."},
+
+  {"role": "user", "content": "Given the following description on the brand's logo: 'the logo for icy vein news and guides', the logo's OCR text: 'GO PREMIUM ICY VEINS M NoW', and the industry sector: 'Entertainment', Question: What is the brand's domain? Answer: "},
+
+  {"role": "assistant", "content": "icy-veins.com"}
+]
