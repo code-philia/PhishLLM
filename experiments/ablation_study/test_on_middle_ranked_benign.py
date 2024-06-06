@@ -5,7 +5,7 @@ import openai
 from models.brand_recognition.dataloader import *
 import idna
 from models.utils.web_utils import is_valid_domain
-from pipeline.test_llm import TestLLM
+from models.pipeline.test_llm import TestLLM
 import yaml
 import Levenshtein as lev
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read().strip()

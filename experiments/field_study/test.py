@@ -1,5 +1,5 @@
 import os
-from pipeline.test_llm import *
+from models.pipeline.test_llm import *
 import argparse
 from tqdm import tqdm
 import yaml

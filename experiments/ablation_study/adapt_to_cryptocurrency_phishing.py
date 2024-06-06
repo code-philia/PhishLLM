@@ -6,7 +6,7 @@ from models.utils.logger_utils import *
 import os
 from models.utils.PhishIntentionWrapper import PhishIntentionWrapper
 import yaml
-from pipeline.test_llm import TestLLM, TestVLM
+from models.pipeline.test_llm import TestLLM, TestVLM
 from tqdm import tqdm
 from datetime import datetime, date, timedelta
 from pathlib import Path

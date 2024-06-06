@@ -1,6 +1,6 @@
 
 import os
-from pipeline.test_llm import TestLLM
+from models.pipeline.test_llm import TestLLM
 from models.utils.PhishIntentionWrapper import PhishIntentionWrapper
 from models.utils.logger_utils import PhishLLMLogger
 from models.utils.web_utils import CustomWebDriver
