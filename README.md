@@ -60,23 +60,26 @@ In our PhishLLM, we build a reference-based phishing detection framework:
 ## Project structure
 
 <pre>
-models/ (defining the brand recognition model, CRP prediction model, and CRP transition model)
-├── brand_recognition/      # brand recognition model
-├── selection_model/        # CRP prediction model
-└── ranking_model/          # CRP transition model
-
-pipeline/ (chaining all the components together)
-└── test_llm.py             # defining the TestLLM class
+scripts/ 
+├── infer/
+│   └──test.py             # inference script
+├── train/
+│   └──train.py             # training script for the CRP transition model (a CLIP model)
+├── pipeline/             
+│   └──test_llm.py # TestLLM class
+├── data/ # data utilities
+└── utils/ # other utitiles such as web interaction utility functions 
 
 experiments/
-├── ablation_study/ 
-│   ├── adapt_to_cryptocurrency_phishing.py  # exploration of VLM
-│   ├── cost_benchmarking.py                   # benchmarking the runtime of PhishLLM
-│   ├── domain_alias.py                        # domain alias experiment in RQ2
-│   ├── test_on_middle_ranked_benign.py      # lower-rank Alexa experiment in RQ2
-│   └── test_on_public_phishing.py             # public phishing study in RQ4
-└── field_study/                             # Large/Small-scale field study in RQ4
-    └── test.py                              # main testing script
+├── ablation_study/ # ablation study in RQ2 and public phishing study in RQ4
+├── componentwise_evaluation/ # component-wise evaluation experiments in RQ2, RQ3
+└── field_study/ # Large/Small-scale field study in RQ4
+
+prompts/ 
+├── brand_recog_prompt.json 
+└── crp_pred_prompt.json
+
+server/ # deployment scripts to deploy PhishLLM demo website
 </pre>
 
 ## Setup
@@ -119,7 +122,7 @@ testing_dir/
 ## Inference: Run PhishLLM 
   ```bash
     conda activate phishllm
-    python -m experiments.field_study.test --folder [folder to test, e.g., ./testing_dir]
+    python -m scripts.infer.test --folder [folder to test, e.g., ./testing_dir]
   ```
 
 ## Understand the Output
