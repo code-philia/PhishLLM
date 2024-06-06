@@ -4,13 +4,13 @@ Published in USENIX Security 2024.
 
 <p align="center">
 
-  • <a href="">Paper</a> •
+  • <a href="">Read our Paper</a> •
 
-  • <a href="https://sites.google.com/view/phishllm">Website</a> •
+  • <a href="https://sites.google.com/view/phishllm">Visit our Website</a> •
 
-  • <a href="https://sites.google.com/view/phishllm/experimental-setup-datasets?authuser=0#h.r0fy4h1fw7mq">Datasets</a>  •
+  • <a href="https://sites.google.com/view/phishllm/experimental-setup-datasets?authuser=0#h.r0fy4h1fw7mq">Download our Datasets</a>  •
 
-  • <a href="#citation">Citation</a> •
+  • <a href="#citation">Cite our Paper</a> •
 
 </p>
 
@@ -26,7 +26,7 @@ In our PhishLLM, we build a reference-based phishing detection framework:
 - ✅ **Chain-of-thought credential-taking prediction**: Reasoning the credential-taking status in a step-by-step way by looking at the text
 
 ## Framework
-<embed src="./figures/phishllm.pdf" width="100%" height="600px" />
+<img src="./figures/phishllm.png"/>
 
 - **Step 1: Brand recognition model**
   - Input: Logo caption, Logo OCR Results
@@ -53,7 +53,7 @@ In our PhishLLM, we build a reference-based phishing detection framework:
   (ii) LLM chooses 'A' from Step 2
   and (iii) the domain is not a popular domain indexed by Google
   
-  - _Other cases_: reported as **benign**
+  - _Otherwise_: reported as **benign**
 
 ## Project structure
 
@@ -69,10 +69,10 @@ pipeline/ (chaining all the components together)
 experiments/
 ├── ablation_study/ 
 │   ├── adapt_to_cryptocurrency_phishing.py  # exploration of VLM
-│   ├── cost_benchmarking/                   # benchmarking the runtime of PhishLLM
-│   ├── domain_alias/                        # domain alias experiment in RQ2
+│   ├── cost_benchmarking.py                   # benchmarking the runtime of PhishLLM
+│   ├── domain_alias.py                        # domain alias experiment in RQ2
 │   ├── test_on_middle_ranked_benign.py      # lower-rank Alexa experiment in RQ2
-│   └── test_on_public_phishing/             # public phishing study in RQ4
+│   └── test_on_public_phishing.py             # public phishing study in RQ4
 └── field_study/                             # Large/Small-scale field study in RQ4
     └── test.py                              # main testing script
 </pre>
@@ -84,19 +84,17 @@ experiments/
     chmod +x ./setup.sh
     export ENV_NAME="phishllm" && ./setup.sh
 ```
-- Step 2: Register **OpenAI API Key**. See [OpenAI Official Docs](https://platform.openai.com/). Paste the API key to './datasets/openai_key.txt'.
+- Step 2: Register **OpenAI API Key**, [See Tutorial here](https://platform.openai.com/docs/quickstart). Paste the API key to './datasets/openai_key.txt'.
 
-- Step 3: Register a **Google Programmable Search API Key**
-  - Go to [Google Cloud Console]((https://console.cloud.google.com/)) and set up billing details.
-  - Create a project and enable the "Custom Search API".
-  - Obtain the API Key and Search Engine ID for "Custom Search API" following this [guide](https://developers.google.com/custom-search/v1/overview).
-  - Create a blank text file in the directory "./datasets/google_api_key.txt" and paste your API Key (in the first line) and Search Engine ID (in the second line) as follows:
+
+- Step 3: Register a **Google Programmable Search API Key**, [See Tutorial here](https://meta.discourse.org/t/google-search-for-discourse-ai-programmable-search-engine-and-custom-search-api/307107)
+  - Paste your API Key (in the first line) and Search Engine ID (in the second line) to "./datasets/google_api_key.txt":
      ```text 
-      [YOUR_API_KEY]
-      [YOUR_SEARCH_ENGINE_ID]
+      [API_KEY]
+      [SEARCH_ENGINE_ID]
      ```
     
-- Step 4 (Optional): Edit Hyperparameters. All hyperparameter configurations are stored in param_dict.yaml. Edit this file to experiment with different parameter combinations.
+- Step 4 (Optional): Edit **Hyperparameters**. All hyperparameter configurations are in [param_dict.yaml](param_dict.yaml). 
 
 ## Prepare the Dataset
 To test on your own dataset, you need to prepare the dataset in the following structure:
@@ -124,7 +122,7 @@ testing_dir/
   ```
 
 ## Understand the Output
-- You will see the console is printing logs like the following <details><summary> Click to see the sample log</summary>
+- You will see the console is printing logs like the following <details><summary> Expand to see the sample log</summary>
     <pre><code>
       [PhishLLMLogger][DEBUG] Folder ./datasets/field_study/2023-09-01/device-862044b2-5124-4735-b6d5-f114eea4a232.remotewd.com
       [PhishLLMLogger][DEBUG] Logo caption: the logo for sonicwall network security appliance
