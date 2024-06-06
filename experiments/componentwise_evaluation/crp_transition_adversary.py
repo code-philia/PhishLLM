@@ -1,15 +1,20 @@
-import os
-
-from models.ranking_model.train import *
-from models.ranking_model.torchattacks.attacks.fgsm import FGSM
-from models.ranking_model.torchattacks.attacks.bim import BIM
-from models.ranking_model.torchattacks.attacks.deepfool import DeepFool
-from models.ranking_model.torchattacks.attacks.protect import *
+from models.utils.data_utils import ButtonDataset
+import torch
+from tqdm import tqdm
+from torch.utils.data import Dataset, DataLoader, BatchSampler
+import clip
+import numpy as np
+from PIL import Image
+import pandas as pd
+from experiments.componentwise_evaluation.torchattacks.attacks.fgsm import FGSM
+from experiments.componentwise_evaluation.torchattacks.attacks.bim import BIM
+from experiments.componentwise_evaluation.torchattacks.attacks.deepfool import DeepFool
+from experiments.componentwise_evaluation.torchattacks.attacks.protect import *
 import math
 from tldextract import tldextract
-os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+import os
 
-def tester_rank(model, test_dataset, device, protect_enabled, attack_method, adv_attack=True, image_save_dir=None):
+def tester_rank(model, test_dataset, device, protect_enabled, attack_method, adv_attack=True):
     total = 0
     perturb_correct = 0
 
@@ -57,22 +62,6 @@ def tester_rank(model, test_dataset, device, protect_enabled, attack_method, adv
             images.detach()
             adv_images.detach()
             del attack_cls
-
-        if image_save_dir and ((labels == 1).sum().item())>0:
-            os.makedirs(image_save_dir, exist_ok=True)
-            plt.figure(figsize=(10, 4))
-            # Display original image
-            plt.subplot(2, 1, 1)
-            plt.imshow(images.detach()[torch.where(labels==1)[0].item()].permute(1, 2, 0).cpu().numpy())
-            plt.title("Original")
-            plt.axis('off')
-            # Display adversarial image
-            plt.subplot(2, 1, 2)
-            plt.imshow(adv_images.detach()[torch.where(labels==1)[0].item()].permute(1, 2, 0).cpu().numpy())
-            plt.title("Adversarial")
-            plt.axis('off')
-            plt.tight_layout()
-            plt.savefig(os.path.join(image_save_dir, tldextract.extract(url).domain+'.png'))
 
         # perturbed prediction
         del model
@@ -127,12 +116,3 @@ if __name__ == '__main__':
 
     tester_rank(model, test_dataset, device, protect_enabled=protect_enabled, attack_method=attack_method,
                 image_save_dir='./ranking_model/test_case')
-
-    # FGSM: After attack correct count = 210, Total = 321, Recall@K = 0.6542056074766355
-    # BIM (iterative FGSM, but gradually increasing the perturbation magnitude) After attack correct count = 28, Total = 321, Recall@K = 0.08722741433021806
-    # DeepFool After attack correct count = 10, Total = 321, Recall@K = 0.03115264797507788
-
-
-
-
-
