@@ -165,7 +165,7 @@ Alternatively, if you would like to re-train the CRP transition model, which is 
 - Step 3: Start training:
   ```bash
     conda activate phishllm
-    python -m scripts.train.train --epoch 5 --batch_size 128 --lr 1e-5 --annot_path ./datasets/alexa_login_train.txt --dataset_root ./datasets/alexa_login
+    python -m scripts.train.train --epoch 5 --batch_size 128 --lr 0.00001 --annot_path ./datasets/alexa_login_train.txt --dataset_root ./datasets/alexa_login
   ```
   
 ## Citations
