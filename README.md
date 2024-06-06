@@ -26,7 +26,7 @@ In our PhishLLM, we build a reference-based phishing detection framework:
 - ✅ **Chain-of-thought credential-taking prediction**: Reasoning the credential-taking status in a step-by-step way by looking at the text
 
 ## Framework
-<img width=100%, src="./figures/phishllm.png">
+<embed src="./figures/phishllm.pdf" width="100%" height="600px" />
 
 - **Step 1: Brand recognition model**
   - Input: Logo caption, Logo OCR Results
@@ -56,33 +56,37 @@ In our PhishLLM, we build a reference-based phishing detection framework:
   - _Other cases_: reported as **benign**
 
 ## Project structure
-```
-|_ models (defining the brand recognition model, CRP prediction model, and CRP transition model)
-  |_ brand_recognition: brand recognition model
-  |_ selection_model: CRP prediction model
-  |_ ranking_model: CRP transition model
-|_ pipeline (chaining all the components together)
-  |_ test_llm.py: main script
-|_ experiments
-  |_ ablation_study: 
-    |_ adapt_to_cryptocurrency_phishing.py: exploration of VLM
-    |_ cost_benchmarking: benchmarking the runtime of PhishLLM
-    |_ domain_alias: domain alias experiment in RQ2
-    |_ test_on_middle_ranked_benign.py: lower-rank Alexa experiment in RQ2
-    |_ test_on_public_phishing: public phishing study in RQ4
-  |_ field_study: Large/Small-scale field study in RQ4
-```
+
+<pre>
+models/ (defining the brand recognition model, CRP prediction model, and CRP transition model)
+├── brand_recognition/      # brand recognition model
+├── selection_model/        # CRP prediction model
+└── ranking_model/          # CRP transition model
+
+pipeline/ (chaining all the components together)
+└── test_llm.py             # defining the TestLLM class
+
+experiments/
+├── ablation_study/ 
+│   ├── adapt_to_cryptocurrency_phishing.py  # exploration of VLM
+│   ├── cost_benchmarking/                   # benchmarking the runtime of PhishLLM
+│   ├── domain_alias/                        # domain alias experiment in RQ2
+│   ├── test_on_middle_ranked_benign.py      # lower-rank Alexa experiment in RQ2
+│   └── test_on_public_phishing/             # public phishing study in RQ4
+└── field_study/                             # Large/Small-scale field study in RQ4
+    └── test.py                              # main testing script
+</pre>
 
 ## Setup
-- Step 1: Clone the Repository and Install Requirements
+- Step 1: Clone the Repository and **Install Requirements**. A new conda environment "phishllm" will be created
 ```bash
     cd PhishLLM/
     chmod +x ./setup.sh
     export ENV_NAME="phishllm" && ./setup.sh
 ```
-- Step 2: Register OpenAI API Key. See [OpenAI Official Docs](https://platform.openai.com/). Paste the API key to './datasets/openai_key.txt'.
+- Step 2: Register **OpenAI API Key**. See [OpenAI Official Docs](https://platform.openai.com/). Paste the API key to './datasets/openai_key.txt'.
 
-- Step 3: Create a Google Cloud Service Account
+- Step 3: Register a **Google Programmable Search API Key**
   - Go to [Google Cloud Console]((https://console.cloud.google.com/)) and set up billing details.
   - Create a project and enable the "Custom Search API".
   - Obtain the API Key and Search Engine ID for "Custom Search API" following this [guide](https://developers.google.com/custom-search/v1/overview).
@@ -94,16 +98,33 @@ In our PhishLLM, we build a reference-based phishing detection framework:
     
 - Step 4 (Optional): Edit Hyperparameters. All hyperparameter configurations are stored in param_dict.yaml. Edit this file to experiment with different parameter combinations.
 
-  
-- Step 5: Run PhishLLM 
+## Prepare the Dataset
+To test on your own dataset, you need to prepare the dataset in the following structure:
+<pre>
+testing_dir/
+├── aaa.com/
+│   ├── shot.png  # save the webpage screenshot
+│   ├── info.txt  # save the webpage URL
+│   └── html.txt  # save the webpage HTML source
+├── bbb.com/
+│   ├── shot.png  # save the webpage screenshot
+│   ├── info.txt  # save the webpage URL
+│   └── html.txt  # save the webpage HTML source
+├── ccc.com/
+│   ├── shot.png  # save the webpage screenshot
+│   ├── info.txt  # save the webpage URL
+│   └── html.txt  # save the webpage HTML source
+</pre>
+
+
+## Inference: Run PhishLLM 
   ```bash
     conda activate phishllm
-    python -m experiments.field_study.test --folder [folder to test, e.g., ./datasets/field_study/2023-08-21/] --date [e.g., 2023-08-21]
+    python -m experiments.field_study.test --folder [folder to test, e.g., ./testing_dir]
   ```
 
-
-<details>
-<summary> A .log file will be created during the run, which will log the explanations for each model prediction, click to see the sampled log</summary>
+## Understand the Output
+- You will see the console is printing logs like the following <details><summary> Click to see the sample log</summary>
     <pre><code>
       [PhishLLMLogger][DEBUG] Folder ./datasets/field_study/2023-09-01/device-862044b2-5124-4735-b6d5-f114eea4a232.remotewd.com
       [PhishLLMLogger][DEBUG] Logo caption: the logo for sonicwall network security appliance
@@ -124,8 +145,16 @@ In our PhishLLM, we build a reference-based phishing detection framework:
       [PhishLLMLogger][DEBUG] CRP prediction: There is no token or keyword related to login or sensitive information. Therefore the answer would be B.
       [PhishLLMLogger][DEBUG] No candidate login button to click
        [✅] Benign
-    </code></pre>
-</details>
+    </code></pre></details>
+  
+- Meanwhile, a txt file named "[today's date]_phishllm.txt" is being created, it has the following columns: 
+  - "folder": name of the folder
+  - "phish_prediction": "phish" | "benign"
+  - "target_prediction": phishing target brand's domain, e.g. paypal.com, meta.com
+  - "brand_recog_time": time taken for brand recognition
+  - "crp_prediction_time": time taken for CRP prediction
+  - "crp_transition_time": time taken for CRP transition
+
 
 ## Citations
 ```bibtex

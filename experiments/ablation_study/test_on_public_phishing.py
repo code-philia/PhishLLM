@@ -26,69 +26,69 @@ if __name__ == '__main__':
 
     root_folder = './datasets/public_phishing_feeds'
 
-    # today = date.today()
-    # day = "2024-05-13"
-    # result = f'./datasets/public_phishing/{day}.txt'
-    # os.makedirs("./datasets/public_phishing", exist_ok=True)
-    #
-    # phishintention_cls = PhishIntentionWrapper()
-    # llm_cls = TestLLM(phishintention_cls,
-    #                   param_dict=param_dict,
-    #                   proxies={"http": "http://127.0.0.1:7890",
-    #                            "https": "http://127.0.0.1:7890",
-    #                            }
-    #                   )
-    # openai.api_key = os.getenv("OPENAI_API_KEY")
-    # openai.proxy = "http://127.0.0.1:7890" # proxy
-    #
-    # sleep_time = 3; timeout_time = 60
-    # driver = CustomWebDriver.boot(proxy_server="127.0.0.1:7890")  # Using the proxy_url variable
-    # driver.set_script_timeout(timeout_time)
-    # driver.set_page_load_timeout(timeout_time)
-    #
-    # PhishLLMLogger.set_debug_on()
-    # PhishLLMLogger.set_verbose(True)
-    # # PhishLLMLogger.set_logfile(f'./datasets/public_phishing/{datetime}_phishllm.log')
-    #
-    # for it, folder in tqdm(enumerate(os.listdir(os.path.join(root_folder, day))[::-1])):
-    #     # if it <= 241:
-    #     #     continue
-    #     target_folder = os.path.join(root_folder, day, folder)
-    #
-    #     # if os.path.exists(result) and folder in [x.strip().split('\t')[0] for x in open(result).readlines()]:
-    #     #      continue
-    #
-    #     if folder not in [
-    #         'payment-advice.pages.dev',
-    #                      ]:
-    #        continue
-    #
-    #     shot_path = os.path.join(target_folder, 'shot.png')
-    #     html_path = os.path.join(target_folder, 'index.html')
-    #     info_path = os.path.join(target_folder, 'info.txt')
-    #     if os.path.exists(info_path):
-    #         URL = open(info_path, encoding='utf-8').read()
-    #     else:
-    #         URL = f'http://{folder}'
-    #
-    #     if os.path.exists(shot_path):
-    #         logo_box, reference_logo = llm_cls.detect_logo(shot_path)
-    #         PhishLLMLogger.spit(URL)
-    #         pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, _ = llm_cls.test(URL,
-    #                                                                                                     reference_logo,
-    #                                                                                                     logo_box,
-    #                                                                                                     shot_path,
-    #                                                                                                     html_path,
-    #                                                                                                     driver,
-    #                                                                                                   )
-    #         # with open(result, 'a+') as f:
-    #         #     f.write(folder+'\t'+str(pred)+'\t'+str(brand)+'\t'+str(brand_recog_time)+'\t'+str(crp_prediction_time)+'\t'+str(crp_transition_time)+'\n')
-    #     else:
-    #         shutil.rmtree(target_folder)
-    #
-    #     driver.delete_all_cookies()
-    #
-    # driver.quit()
+    today = date.today()
+    day = "2024-05-13"
+    result = f'./datasets/public_phishing/{day}.txt'
+    os.makedirs("./datasets/public_phishing", exist_ok=True)
+
+    phishintention_cls = PhishIntentionWrapper()
+    llm_cls = TestLLM(phishintention_cls,
+                      param_dict=param_dict,
+                      proxies={"http": "http://127.0.0.1:7890",
+                               "https": "http://127.0.0.1:7890",
+                               }
+                      )
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+    openai.proxy = "http://127.0.0.1:7890" # proxy
+
+    sleep_time = 3; timeout_time = 60
+    driver = CustomWebDriver.boot(proxy_server="127.0.0.1:7890")  # Using the proxy_url variable
+    driver.set_script_timeout(timeout_time)
+    driver.set_page_load_timeout(timeout_time)
+
+    PhishLLMLogger.set_debug_on()
+    PhishLLMLogger.set_verbose(True)
+    # PhishLLMLogger.set_logfile(f'./datasets/public_phishing/{datetime}_phishllm.log')
+
+    for it, folder in tqdm(enumerate(os.listdir(os.path.join(root_folder, day))[::-1])):
+        # if it <= 241:
+        #     continue
+        target_folder = os.path.join(root_folder, day, folder)
+
+        # if os.path.exists(result) and folder in [x.strip().split('\t')[0] for x in open(result).readlines()]:
+        #      continue
+
+        if folder not in [
+            'payment-advice.pages.dev',
+                         ]:
+           continue
+
+        shot_path = os.path.join(target_folder, 'shot.png')
+        html_path = os.path.join(target_folder, 'index.html')
+        info_path = os.path.join(target_folder, 'info.txt')
+        if os.path.exists(info_path):
+            URL = open(info_path, encoding='utf-8').read()
+        else:
+            URL = f'http://{folder}'
+
+        if os.path.exists(shot_path):
+            logo_box, reference_logo = llm_cls.detect_logo(shot_path)
+            PhishLLMLogger.spit(URL)
+            pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, _ = llm_cls.test(URL,
+                                                                                                        reference_logo,
+                                                                                                        logo_box,
+                                                                                                        shot_path,
+                                                                                                        html_path,
+                                                                                                        driver,
+                                                                                                      )
+            # with open(result, 'a+') as f:
+            #     f.write(folder+'\t'+str(pred)+'\t'+str(brand)+'\t'+str(brand_recog_time)+'\t'+str(crp_prediction_time)+'\t'+str(crp_transition_time)+'\n')
+        else:
+            shutil.rmtree(target_folder)
+
+        driver.delete_all_cookies()
+
+    driver.quit()
 
     # '''Clean the FN cases'''
     root_folder = './datasets/public_phishing_feeds'

@@ -1,21 +1,24 @@
 import os
+import time
+
 from models.pipeline.test_llm import *
 import argparse
 from tqdm import tqdm
 import yaml
+import openai
+from datetime import datetime, date, timedelta
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read().strip()
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--folder", default="./datasets/field_study/2023-09-02/")
-    parser.add_argument("--date", default="2024-01-29", help="%Y-%m-%d")
-    parser.add_argument("--validate", action='store_true', help="Whether or not to activate the results validation for brand recognition model")
     parser.add_argument("--config", default='./param_dict.yaml', help="Config .yaml path")
     args = parser.parse_args()
 
     PhishLLMLogger.set_debug_on()
-    PhishLLMLogger.set_logfile('./experiments/field_study/results/{}_phishllm.log'.format(args.date))
+    PhishLLMLogger.set_verbose(True)
 
     # load hyperparameters
     with open(args.config) as file:
@@ -26,21 +29,19 @@ if __name__ == '__main__':
     phishintention_cls = PhishIntentionWrapper()
     llm_cls = TestLLM(phishintention_cls,
                       param_dict=param_dict,
-                      proxies={"http": "http://127.0.0.1:7890",
-                               "https": "http://127.0.0.1:7890",
+                      proxies={"http": proxy_url,
+                               "https": proxy_url,
                                })
-    # openai.api_key = os.getenv("OPENAI_API_KEY")
-    # openai.proxy = proxy_url # set openai proxy
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+    openai.proxy = proxy_url # set openai proxy
 
     # boot driver
-    sleep_time = 3; timeout_time = 5
     driver = CustomWebDriver.boot(proxy_server=proxy_url)  # Using the proxy_url variable
-    driver.set_script_timeout(timeout_time)
-    driver.set_page_load_timeout(timeout_time)
+    driver.set_script_timeout(param_dict['rank']['script_timeout'])
+    driver.set_page_load_timeout(param_dict['rank']['page_load_timeout'])
 
-    os.makedirs('./experiments/field_study/results/', exist_ok=True)
-
-    result_txt = './experiments/field_study/results/{}_phishllm.txt'.format(args.date)
+    day = date.today().strftime("%Y-%m-%d")
+    result_txt = '{}_phishllm.txt'.format(day)
 
     if not os.path.exists(result_txt):
         with open(result_txt, "w+") as f:
@@ -67,34 +68,40 @@ if __name__ == '__main__':
                 url = open(info_path, encoding='ISO-8859-1').read()
             else:
                 url = 'https://' + folder
-        except:
+        except FileNotFoundError:
             url = 'https://' + folder
 
-
         logo_box, reference_logo = llm_cls.detect_logo(shot_path)
-        pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis = llm_cls.test(url, reference_logo, logo_box,
-                                                                                                        shot_path, html_path, driver,
-                                                                                                        )
+        while True:
+            try:
+                pred, brand, brand_recog_time, crp_prediction_time, crp_transition_time, plotvis = llm_cls.test(url=url,
+                                                                                                                reference_logo=reference_logo,
+                                                                                                                logo_box=logo_box,
+                                                                                                                shot_path=shot_path,
+                                                                                                                html_path=html_path,
+                                                                                                                driver=driver,
+                                                                                                                )
+                driver.delete_all_cookies()
+                break
+
+            except (WebDriverException) as e:
+                print(f"Driver crashed or encountered an error: {e}. Restarting driver.")
+                driver.quit()
+                time.sleep(1)
+                driver = CustomWebDriver.boot(proxy_server=proxy_url)  # Using the proxy_url variable
+                driver.set_script_timeout(param_dict['rank']['script_timeout'])
+                driver.set_page_load_timeout(param_dict['rank']['page_load_timeout'])
+                continue
 
         try:
             with open(result_txt, "a+", encoding='ISO-8859-1') as f:
-                f.write(folder + "\t")
-                f.write(str(pred) + "\t")
-                f.write(str(brand) + "\t")  # write top1 prediction only
-                f.write(str(brand_recog_time) + "\t")
-                f.write(str(crp_prediction_time) + "\t")
-                f.write(str(crp_transition_time) + "\n")
+                f.write(f"{folder}\t{pred}\t{brand}\t{brand_recog_time}\t{crp_prediction_time}\t{crp_transition_time}\n")
             if pred == 'phish':
                 plotvis.save(predict_path)
 
         except UnicodeEncodeError:
             continue
 
-        if (ct + 501) % 500 == 0:
-            driver.quit()
-            driver = CustomWebDriver.boot(proxy_server=proxy_url)  # Using the proxy_url variable
-            driver.set_script_timeout(timeout_time)
-            driver.set_page_load_timeout(timeout_time)
 
     driver.quit()
 
