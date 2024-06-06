@@ -4,8 +4,8 @@ import pandas as pd
 import os
 from tqdm import tqdm
 import yaml
-from models.pipeline.test_llm import TestLLM
-from models.utils.PhishIntentionWrapper import PhishIntentionWrapper
+from scripts.pipeline.test_llm import TestLLM
+from scripts.utils.PhishIntentionWrapper import PhishIntentionWrapper
 import numpy as np
 from PIL import Image
 

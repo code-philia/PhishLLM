@@ -1,11 +1,11 @@
-from models.pipeline.test_baseline import *
-from models.utils.web_utils import CustomWebDriver
-from models.utils.dynaphish.brand_knowledge_utils import BrandKnowledgeConstruction
-from models.pipeline.test_dynaphish import DynaPhish, SubmissionButtonLocator
+from scripts.pipeline.test_baseline import *
+from scripts.utils.web_utils.web_utils import CustomWebDriver
+from scripts.utils.dynaphish.brand_knowledge_utils import BrandKnowledgeConstruction
+from scripts.pipeline.test_dynaphish import DynaPhish, SubmissionButtonLocator
 import argparse
 import cv2
 from mmocr.apis import MMOCRInferencer
-import torch
+
 os.environ['HTTP_PROXY'] = 'http://127.0.0.1:7890'
 os.environ['HTTPS_PROXY'] = 'http://127.0.0.1:7890'
 

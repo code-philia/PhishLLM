@@ -1,15 +1,13 @@
 import shutil
 
 import openai
-from models.utils.web_utils import *
-from models.utils.logger_utils import *
+from scripts.utils.web_utils.web_utils import *
+from scripts.utils.logger_utils import *
 import os
-from models.utils.PhishIntentionWrapper import PhishIntentionWrapper
+from scripts.utils.PhishIntentionWrapper import PhishIntentionWrapper
 import yaml
-from models.pipeline.test_llm import TestLLM, TestVLM
+from scripts.pipeline.test_llm import TestVLM
 from tqdm import tqdm
-from datetime import datetime, date, timedelta
-from pathlib import Path
 
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read().strip()
 os.environ['CURL_CA_BUNDLE'] = ''

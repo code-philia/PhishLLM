@@ -1,15 +1,13 @@
-import time
 import os
 import openai
-from models.utils.data_utils import ShotDataset_Caption
-from models.pipeline.test_llm import TestLLM
+from scripts.data.data_utils import ShotDataset_Caption
+from scripts.pipeline.test_llm import TestLLM
 import yaml
-from models.utils.PhishIntentionWrapper import PhishIntentionWrapper
-import idna
+from scripts.utils.PhishIntentionWrapper import PhishIntentionWrapper
 from tldextract import tldextract
 from tqdm import tqdm
 import numpy as np
-from models.utils.web_utils import is_valid_domain, query2image, get_images, url2logo, query2url
+from scripts.utils.web_utils.web_utils import is_valid_domain
 
 
 def list_correct(result_file):

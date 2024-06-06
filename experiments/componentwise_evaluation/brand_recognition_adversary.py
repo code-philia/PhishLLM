@@ -1,19 +1,15 @@
-
-import idna
 import pandas as pd
-from models.utils.web_utils import WebUtil, is_valid_domain, CustomWebDriver
+from scripts.utils.web_utils.web_utils import is_valid_domain
 import os
 import re
 from tqdm import tqdm
 import openai
 import yaml
-from models.utils.PhishIntentionWrapper import PhishIntentionWrapper
-from models.pipeline.test_llm import TestLLM
-from models.utils.data_utils import transparent_text_injection
-import base64
-import io
+from scripts.utils.PhishIntentionWrapper import PhishIntentionWrapper
+from scripts.pipeline.test_llm import TestLLM
+from scripts.data.data_utils import transparent_text_injection
 from PIL import Image
-import time
+
 
 def test(result_file):
 

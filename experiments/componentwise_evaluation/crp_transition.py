@@ -1,7 +1,7 @@
-from models.utils.data_utils import ButtonDataset
+from scripts.data.data_utils import ButtonDataset
 import torch
 from tqdm import tqdm
-from torch.utils.data import Dataset, DataLoader, BatchSampler
+from torch.utils.data import DataLoader
 import clip
 import numpy as np
 from PIL import Image

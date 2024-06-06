@@ -1,10 +1,10 @@
 import os
 import openai
 from tqdm import tqdm
-from models.utils.data_utils import ShotDataset
+from scripts.data.data_utils import ShotDataset
 import yaml
-from models.pipeline.test_llm import TestLLM
-from models.utils.PhishIntentionWrapper import PhishIntentionWrapper
+from scripts.pipeline.test_llm import TestLLM
+from scripts.utils.PhishIntentionWrapper import PhishIntentionWrapper
 import numpy as np
 
 def test(result_file):

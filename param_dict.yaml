@@ -23,7 +23,7 @@ brand_recog: # brand recognition model
   temperature: 0 # deterministic response
   max_tokens: 10 # limit the maximum number of generated tokens
   sleep_time: 0.5 #
-  prompt_path: "./brand_recognition/prompt.json" # path to the prompt
+  prompt_path: "./prompts/brand_recog_prompt.json" # path to the prompt
   ask_industry: True # ask the industry sector as well to give more information to the LLM to infer the brand
   industry:
     temperature: 0
@@ -38,7 +38,7 @@ crp_pred: # CRP prediction model
   temperature: 0 # deterministic response
   max_tokens: 200 #  limit the maximum number of generated tokens
   sleep_time: 0.5
-  prompt_path: "./selection_model/prompt.json" # path to the prompt
+  prompt_path: "./prompts/crp_pred_prompt.json" # path to the prompt
 
 rank: # CRP transition model
   model_name: "ViT-B/32" # use vision transformer as backbone

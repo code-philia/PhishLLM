@@ -1,8 +1,6 @@
-from models.utils.data_utils import ButtonDataset
-import torch
+from scripts.data.data_utils import ButtonDataset
 from tqdm import tqdm
-from torch.utils.data import Dataset, DataLoader, BatchSampler
-import clip
+from torch.utils.data import DataLoader
 import numpy as np
 from PIL import Image
 import pandas as pd
@@ -10,9 +8,7 @@ from experiments.componentwise_evaluation.torchattacks.attacks.fgsm import FGSM
 from experiments.componentwise_evaluation.torchattacks.attacks.bim import BIM
 from experiments.componentwise_evaluation.torchattacks.attacks.deepfool import DeepFool
 from experiments.componentwise_evaluation.torchattacks.attacks.protect import *
-import math
-from tldextract import tldextract
-import os
+
 
 def tester_rank(model, test_dataset, device, protect_enabled, attack_method, adv_attack=True):
     total = 0

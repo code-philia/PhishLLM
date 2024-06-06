@@ -1,14 +1,8 @@
 
 import os
-from models.pipeline.test_llm import TestLLM
-from models.utils.PhishIntentionWrapper import PhishIntentionWrapper
-from models.utils.logger_utils import PhishLLMLogger
-from models.utils.web_utils import CustomWebDriver
 import yaml
 import openai
-from tqdm import tqdm
 import pandas as pd
-import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from textwrap import wrap
@@ -133,16 +127,16 @@ if __name__ == '__main__':
     df_melted = df_time.melt(var_name='Processing Time Type', value_name='Time')
     plt.figure(figsize=(10, 4))
     sns.set(style="whitegrid")
-    palette = sns.color_palette("Set2")
-    ax = sns.boxplot(x='Processing Time Type', y='Time', data=df_melted, palette=palette, width=0.6)
+    palette = sns.color_palette("Paired")
+    ax = sns.boxplot(x='Processing Time Type', y='Time', data=df_melted, palette=palette, width=0.5)
 
     plt.xlabel('')
-    plt.ylabel('Time (seconds)', fontsize=15, fontweight='bold', color='black')
+    plt.ylabel('Time (seconds)', fontsize=13, fontweight='bold', color='black')
     labels = [label.get_text() for label in ax.get_xticklabels()]
-    wrapped_labels = ['\n'.join(wrap(label, 15)) for label in labels]
-    ax.set_xticklabels(wrapped_labels, ha='center', fontsize=12, fontweight='bold', color='black')
-    plt.yticks(fontsize=12, fontweight='bold', color='black')
-    plt.ylim(bottom=-0.2, top=6.5)
+    wrapped_labels = ['\n'.join(wrap(label, 10)) for label in labels]
+    ax.set_xticklabels(wrapped_labels, ha='center', fontsize=13, fontweight='bold', color='black')
+    plt.yticks(fontsize=13, fontweight='bold', color='black')
+    plt.ylim(bottom=-0.2, top=6.0)
     plt.grid(True, linestyle='--', alpha=0.7)
 
     categories = df_melted['Processing Time Type'].unique()
@@ -150,12 +144,12 @@ if __name__ == '__main__':
     for i, median in enumerate(medians):
         ax.annotate(f'Median = {median:.2f}', xy=(i, median), xycoords='data',
                     xytext=(0, 10), textcoords='offset points',
-                    ha='center', va='center', fontsize=12, color='black',
+                    ha='center', va='center', fontsize=10, color='black',
                     fontweight='bold',
                     bbox=dict(facecolor='white', alpha=0.5, edgecolor='black', boxstyle='round,pad=0.3'))
 
     plt.tight_layout()
-    plt.savefig('./field_study/plots/phishllm_cost.png', dpi=300)
+    plt.savefig('./experiments/field_study/plots/phishllm_cost.png', dpi=300)
     plt.close()
 
     # df = pd.read_csv(result_file, delimiter='\t')
