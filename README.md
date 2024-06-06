@@ -120,34 +120,34 @@ testing_dir/
 
 
 ## Inference: Run PhishLLM 
-  ```bash
-    conda activate phishllm
-    python -m scripts.infer.test --folder [folder to test, e.g., ./testing_dir]
-  ```
+```bash
+  conda activate phishllm
+  python -m scripts.infer.test --folder [folder to test, e.g., ./testing_dir]
+```
 
 ## Understand the Output
 - You will see the console is printing logs like the following <details><summary> Expand to see the sample log</summary>
-    <pre><code>
-      [PhishLLMLogger][DEBUG] Folder ./datasets/field_study/2023-09-01/device-862044b2-5124-4735-b6d5-f114eea4a232.remotewd.com
-      [PhishLLMLogger][DEBUG] Logo caption: the logo for sonicwall network security appliance
-      [PhishLLMLogger][DEBUG] Logo OCR: SONICWALL Network Security Appliance Username
-      [PhishLLMLogger][DEBUG] Industry: Technology
-      [PhishLLMLogger][DEBUG] LLM prediction time: 0.9699530601501465
-      [PhishLLMLogger][DEBUG] Detected brand: sonicwall.com
-      [PhishLLMLogger][DEBUG] Domain sonicwall.com is valid and alive
-      [PhishLLMLogger][DEBUG] CRP prediction: There is no confusing token. Then we find the keywords that are related to login: LOG IN. Additionally, the presence of "Username" suggests that this page requires credentials. Therefore, the answer would be A.
-      [💥] Phishing discovered, phishing target is sonicwall.com
-      [PhishLLMLogger][DEBUG] Folder ./datasets/field_study/2023-09-01/lp.aldooliveira.com
-      [PhishLLMLogger][DEBUG] Logo caption: a black and white photo of the word hello world
-      [PhishLLMLogger][DEBUG] Logo OCR: Hello world! Welcome to WordPress. This is your first post. Edit or delete it, then start writing! dezembro 2, 2021 publicado
-      [PhishLLMLogger][DEBUG] Industry: Uncategorized
-      [PhishLLMLogger][DEBUG] LLM prediction time: 0.8813009262084961
-      [PhishLLMLogger][DEBUG] Detected brand: wordpress.com
-      [PhishLLMLogger][DEBUG] Domain wordpress.com is valid and alive
-      [PhishLLMLogger][DEBUG] CRP prediction: There is no token or keyword related to login or sensitive information. Therefore the answer would be B.
-      [PhishLLMLogger][DEBUG] No candidate login button to click
-       [✅] Benign
-    </code></pre></details>
+<pre><code>
+  [PhishLLMLogger][DEBUG] Folder ./datasets/field_study/2023-09-01/device-862044b2-5124-4735-b6d5-f114eea4a232.remotewd.com
+  [PhishLLMLogger][DEBUG] Logo caption: the logo for sonicwall network security appliance
+  [PhishLLMLogger][DEBUG] Logo OCR: SONICWALL Network Security Appliance Username
+  [PhishLLMLogger][DEBUG] Industry: Technology
+  [PhishLLMLogger][DEBUG] LLM prediction time: 0.9699530601501465
+  [PhishLLMLogger][DEBUG] Detected brand: sonicwall.com
+  [PhishLLMLogger][DEBUG] Domain sonicwall.com is valid and alive
+  [PhishLLMLogger][DEBUG] CRP prediction: There is no confusing token. Then we find the keywords that are related to login: LOG IN. Additionally, the presence of "Username" suggests that this page requires credentials. Therefore, the answer would be A.
+  [💥] Phishing discovered, phishing target is sonicwall.com
+  [PhishLLMLogger][DEBUG] Folder ./datasets/field_study/2023-09-01/lp.aldooliveira.com
+  [PhishLLMLogger][DEBUG] Logo caption: a black and white photo of the word hello world
+  [PhishLLMLogger][DEBUG] Logo OCR: Hello world! Welcome to WordPress. This is your first post. Edit or delete it, then start writing! dezembro 2, 2021 publicado
+  [PhishLLMLogger][DEBUG] Industry: Uncategorized
+  [PhishLLMLogger][DEBUG] LLM prediction time: 0.8813009262084961
+  [PhishLLMLogger][DEBUG] Detected brand: wordpress.com
+  [PhishLLMLogger][DEBUG] Domain wordpress.com is valid and alive
+  [PhishLLMLogger][DEBUG] CRP prediction: There is no token or keyword related to login or sensitive information. Therefore the answer would be B.
+  [PhishLLMLogger][DEBUG] No candidate login button to click
+   [✅] Benign
+</code></pre></details>
   
 - Meanwhile, a txt file named "[today's date]_phishllm.txt" is being created, it has the following columns: 
   - "folder": name of the folder
@@ -160,14 +160,18 @@ testing_dir/
 ## (Optional) Re-training
 
 Alternatively, if you would like to re-train the CRP transition model, which is a CLIP model. We have annotated a dataset for login UI / non-login UI elements.
-- Step 1: First download the dataset from here: https://drive.google.com/file/d/1uRK7ebJ0z1_R7kG2QcDf2rAeMK50fTi0/view?usp=share_link.
-- Step 2: Put the dataset under ./datasets/
-- Step 3: Start training:
+- First download the dataset from here: https://drive.google.com/file/d/1uRK7ebJ0z1_R7kG2QcDf2rAeMK50fTi0/view?usp=share_link. Put all files under ./datasets/
+- Start training:
   ```bash
     conda activate phishllm
     python -m scripts.train.train --epoch 5 --batch_size 128 --lr 0.00001 --annot_path ./datasets/alexa_login_train.txt --dataset_root ./datasets/alexa_login
   ```
   
+## (Optional) Use other versions of GPT
+
+You can change the GPT model you want to use in the ``LLM_model`` argument in [param_dict.yaml](param_dict.yaml), default is "gpt-3.5-turbo-16k".
+Please check the [list of GPT models](https://platform.openai.com/docs/models) you can use.
+
 ## Citations
 ```bibtex
 ```
