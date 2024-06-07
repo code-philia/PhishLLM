@@ -198,7 +198,7 @@ class CustomWebDriver(webdriver.Chrome):
         self._recoverable_crashes = ["chrome not reachable", "page crash",
                                      "cannot determine loading status",
                                      "Message: unknown error"]
-        with open('./model_chain/web_utils_scripts.js', 'r') as f:
+        with open('./scripts/utils/web_utils/web_utils_scripts.js', 'r') as f:
             js_content = f.read()
         self.add_script(js_content)
 
