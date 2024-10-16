@@ -174,5 +174,12 @@ Please check the [list of GPT models](https://platform.openai.com/docs/models) y
 
 ## Citations
 ```bibtex
+@inproceedings{liu2024less,
+  title={Less Defined Knowledge and More True Alarms: Reference-based Phishing Detection without a Pre-defined Reference List},
+  author={Liu, Ruofan and Lin, Yun and Teoh, Xiwen and Liu, Gongshen and Huang, Zhiyong and Dong, Jin Song},
+  booktitle={33rd USENIX Security Symposium (USENIX Security 24)},
+  pages={523--540},
+  year={2024}
+}
 ```
 If you have any issues running our code, you can raise a Github issue or email us [liu.ruofan16@u.nus.edu, lin_yun@sjtu.edu.cn, dcsdjs@nus.edu.sg](mailto:liu.ruofan16@u.nus.edu,lin_yun@sjtu.edu.cn,dcsdjs@nus.edu.sg)
