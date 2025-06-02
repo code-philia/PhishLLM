@@ -4,7 +4,7 @@ Published in USENIX Security 2024.
 
 <p align="center">
 
-  • <a href="">Read our Paper</a> •
+  • <a href="https://www.usenix.org/system/files/usenixsecurity24-liu-ruofan.pdf">Read our Paper</a> •
 
   • <a href="https://sites.google.com/view/phishllm">Visit our Website</a> •
 
