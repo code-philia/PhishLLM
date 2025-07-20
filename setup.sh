@@ -115,7 +115,7 @@ if command -v nvcc &> /dev/null; then
 else # cpu-only
   conda run -n "$ENV_NAME" pip install paddlepaddle -i https://pypi.tuna.tsinghua.edu.cn/simple
 fi
-conda run -n "$ENV_NAME" pip install "paddleocr>=2.0.1"
+conda run -n "$ENV_NAME" pip install paddleocr
 
 # Install Image Captioning model
 PACKAGE_NAME="lavis"
