@@ -79,14 +79,14 @@ function check_browsers {
 # Install chrome binary
 #check_browsers
 
-# Create a new conda environment with Python 3.8
+# Create a new conda environment with Python 3.9
 # Check if the environment already exists
 conda info --envs | grep -w "$ENV_NAME" > /dev/null
 if [ $? -eq 0 ]; then
     echo "Activating Conda environment $ENV_NAME"
 else
-    echo "Creating and activating new Conda environment $ENV_NAME with Python 3.8"
-    conda create -n "$ENV_NAME" python=3.8
+    echo "Creating and activating new Conda environment $ENV_NAME with Python 3.9"
+    conda create -n "$ENV_NAME" python=3.9
 fi
 
 PACKAGE_NAME="phishintention"
