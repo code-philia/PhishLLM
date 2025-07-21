@@ -1,33 +1,10 @@
-ocr: # paddleOCR model
-  sure_thre: 0.98 # OCR will iterate through all supported languages, if one of the language exceeds 0.98, use this language
-  unsure_thre: 0.9 # OCR will iterate through all supported languages, if none of the language exceeds 0.98, but one of it exceeds 0.9 and is higher than the previous 2 languages, use this language
-  local_best_window: 2 # higher than the previous 2 languages
-  supported_langs: # all supported languages, you can add more from https://github.com/Mushroomcat9998/PaddleOCR/blob/main/doc/doc_en/multi_languages_en.md#5-support-languages-and-abbreviations
-    - 'en'
-    - 'ch'
-    - 'ru'
-    - 'japan'
-    - 'fa'
-    - 'korean'
-    - 'fr'
-    - 'german'
-
-logo_caption: # image captioning model
-  model_name: "blip_caption" # model name
-  model_type: "base_coco" #
-  expand_ratio: 1.5 # look at the logo region and expand this region by a factor of 1.5 to look at its surrounding things as well
-
-LLM_model: "gpt-3.5-turbo-16k" # use gpt3.5 for LLM
+VLM_model: "gpt-4o-mini-2024-07-18" # use gpt4
 
 brand_recog: # brand recognition model
   temperature: 0 # deterministic response
   max_tokens: 10 # limit the maximum number of generated tokens
   sleep_time: 0.5 #
   prompt_path: "./prompts/brand_recog_prompt.json" # path to the prompt
-  ask_industry: True # ask the industry sector as well to give more information to the LLM to infer the brand
-  industry:
-    temperature: 0
-    max_tokens: 5
 
 brand_valid:
   activate: False # whether to activate the brand validation?
@@ -41,11 +18,11 @@ crp_pred: # CRP prediction model
   prompt_path: "./prompts/crp_pred_prompt.json" # path to the prompt
 
 rank: # CRP transition model
-  model_name: "ViT-B/32" # use vision transformer as backbone
-  checkpoint_path: "./checkpoints/epoch4_model.pt" # checkpoint path
-  max_uis_process: 50 # only look at the first 50 UI elements because the login UI is likely to be located on the top of the screenshot
-  batch_size: 64
+  temperature: 0 # deterministic response
+  max_tokens: 10 #  limit the maximum number of generated tokens
+  max_uis_process: 30 # only look at the first k UI elements because the login UI is likely to be located on the top of the screenshot
   depth_limit: 1
   driver_sleep_time: 3
-  script_timeout: 5
-  page_load_timeout: 5
+  script_timeout: 30
+  page_load_timeout: 30
+  prompt_path: "./prompts/crp_trans_prompt.json" # path to the prompt

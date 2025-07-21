@@ -1,0 +1,169 @@
+<!DOCTYPE html><html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Telephony Server Login</title>
+  <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+  <link rel="stylesheet" href="css/font-awesome-4.7.0.min.css">
+  <link rel="stylesheet" href="css/bootstrap-3.3.7.min.css">
+  <link rel="stylesheet" href="css/appearance.css?v=229EDE28">   
+  <link rel="stylesheet" href="css/login.css?v=229EDE28">    
+  <link rel="stylesheet" href="css/vodia-select.css?v=229EDE28">
+  <script type="text/javascript" src="js/jquery-3.2.1.min.js"></script>
+  <script type="text/javascript" src="js/jquery-extension.js?v=229EDE28"></script>
+  <script type="text/javascript" src="js/bootstrap-3.3.7.min.js"></script>
+  <script type="text/javascript" src="js/md5-3.1.2.min.js?v=229EDE28"></script>
+  <script type="text/javascript" src="js/welcome.js?v=229EDE28"></script>
+  <script type="text/javascript" src="js/google.js?v=229EDE28"></script>
+  <script type="text/javascript" src="js/dropdown-list.js?v=229EDE28"></script>
+  <script src="https://apis.google.com/js/platform.js?onload=renderButton" async="" defer=""></script>
+  <meta name="google-signin-client_id" content="">
+</head>
+<body>
+  <div id="login">
+    <i class="fa fa-cog" id="android_settings" onclick="Android.changeUrl();" style="display:none;"></i>      
+    <div class="background-color">
+    </div>
+    <div class="background-image-container">
+      <h2>PBX Login</h2>
+       <div class="logo-strip"> </div>
+    </div>
+    <div class="form">
+      <form action="" class="center">
+        <div class="logo">
+          <img class="center" src="/rest/system/image?category=logo&amp;v=229EDE28" alt="">
+        </div>
+        <div id="login-error">
+          <p>This password does not match. Please try again.</p>
+        </div>
+        <div class="form-container">
+
+          <!-- username -->
+          <div class="input-group">
+            <input type="text" placeholder="Account" class="form-control" id="login_account" autofocus="" autocomplete="section-login username"> 
+            <span class="input-group-btn">
+              <div class="btn btn-no-border" id="" type="button"><img src="/img/outline-perm_identity-24px.svg" alt=""></div>
+            </span>
+          </div> 
+          
+          <!-- password -->
+          <div class="input-group">
+            <input type="password" placeholder="Password" class="form-control" id="login_password" autocomplete="section-login current-password"> 
+            <span class="input-group-btn">
+              <div class="btn btn-no-border" id="showpass" type="button"><img src="/img/outline-lock-24px.svg" alt=""></div>
+            </span>
+          </div>   
+
+          <div class="input-group select-group">
+    <!-- <select class="vodia-picker" style="opacity: 0" autocomplete="section-login language"> -->
+          <select id="login_lang">
+              <option value="en" data-thumbnail="img/flags/flag-us.svg">English</option>
+              <!-- <option value="au" data-thumbnail="img/flags/lang-au.svg">Australian</option> -->
+              <!-- <option value="uk" data-thumbnail="img/flags/lang-uk.svg">English (UK)</option> -->
+              <!-- <option value="cn" data-thumbnail="img/flags/lang-cn.svg">Chinese (Simplified)</option> -->
+              <option value="de" data-thumbnail="img/flags/flag-de.svg">German</option>
+              <!-- <option value="dk" data-thumbnail="img/flags/lang-dk.svg">Danish</option> -->
+              <option value="fr" data-thumbnail="img/flags/flag-fr.svg">French</option>
+              <option value="gr" data-thumbnail="img/flags/lang-gr.svg">Greek</option>
+              <option value="it" data-thumbnail="img/flags/flag-it.svg">Italian</option>
+              <option value="jp" data-thumbnail="img/flags/flag-jp.svg">Japanese</option>
+              <option value="nl" data-thumbnail="img/flags/lang-nl.svg">Dutch</option>
+              <!-- <option value="pl" data-thumbnail="img/flags/lang-pl.svg">Polish</option> -->
+              <option value="ct" data-thumbnail="img/flags/lang-ct.svg">Catalan</option>
+              <option value="pt" data-thumbnail="img/flags/flag-pt.svg">Portugese</option>
+              <option value="ru" data-thumbnail="img/flags/lang-ru.svg">Russian</option>
+              <option value="sp" data-thumbnail="img/flags/flag-sp.svg">Spanish</option>
+              <option value="tr" data-thumbnail="img/flags/flag-tr.svg">Turkish</option>
+            </select>
+             <span class="input-group-btn">
+              <div class="btn btn-no-border" id="showpass" type="button"><img src="/img/translate-24px.svg" alt=""></div>
+            </span>
+          </div>     
+        </div>
+        
+        <!-- Remember me -->
+        <div class="row login-checkbox">
+          <div class="col-xs-1">
+            <div class="check-container">
+              <input type="checkbox" id="login_cookie" class="vodia-box" checked=""><label for="login_cookie"><span class="checkbox"></span></label>
+            </div>
+          </div>
+          <div class="col-xs-10 keep-logged-in">
+            <p>Remember login information</p>
+          </div>
+        </div>
+
+        <!-- login button -->
+        <button class=" btn btn-login">Login</button>
+
+        <div class="reset-password collapse">
+          <a href="#">Forgot your password?</a>
+          <span class="collapse" id="recover_confirm">Are you sure that you want to send an email with a temporary password for your account "{0}"?</span>
+          <span class="collapse" id="recover_ok">An email was sent to you. Please check your inbox.</span>
+          <span class="collapse" id="recover_fail">We were not able to find an email for this account. Please contact your system administrator to have your password changed.</span>
+        </div>
+      </form>
+
+      <form id="offer-two-factor" class="center collapse">
+        <p>Please select how you would like to receive the code for logging in.</p>
+        <select id="2fac-method">
+          <option value="sms">SMS validation</option>
+          <option value="email">Email validation</option>
+        </select>
+        <button type="submit">Send</button>
+      </form>
+      
+      <form id="enter-two-factor" class="center collapse">
+        <p>Please enter the code</p>
+        <p class="collapse">This code did not match.</p>
+        <p><input type="text"> <a href="#">Request another code.</a></p>
+        <button type="submit">Send</button>
+      </form>
+
+      <!-- google login -->
+      <div class="line-or-line collapse">
+        <div class="or">or</div>
+        <div class="line"></div>
+      </div>
+
+      <button id="g-android-signin" class="btn btn-get-android" style="background: white; color: black; display:none;">
+        <span>
+          <img src="/img/google_g_logo.svg" alt="">
+        </span>
+        Sign in with Google
+      </button>
+      
+      <div id="g-signin2" style="padding-top:1em"></div>
+      
+      <div class="row" id="app-stores">
+        <div class="col-sm-4">
+          <div class="play-store">
+            <a href="#" target="_blank">
+              <img src="/img/google_store.svg" alt="">
+            </a>
+          </div>
+        </div>
+
+        <div class="col-sm-4">
+          <div class="play-store2">
+            <a href="#" style="display:inline-block;overflow:hidden;background:url(https://linkmaker.itunes.apple.com/en-us/badge-lrg.svg?releaseDate=2011-10-18&amp;kind=iossoftware&amp;bubble=ios_apps) no-repeat;width:135px;height:40px;" target="_blank"></a>
+          </div>
+        </div>
+
+        <div class="col-sm-4">
+          <div class="play-store3">
+            <a href="https://www.microsoft.com/en-us/p/vodia-phone/9ntksqfkc1zt?activetab=pivot:overviewtab" target="_blank">
+              <img src="/img/ms_store.svg">
+            </a>
+          </div>
+        </div>
+      </div>
+    
+      <!-- copyrights -->
+      <div class="copyright">
+        <p class="collapse" style="display: block;">Copyright 2023 Vodia Networks Inc.</p>
+        <img class="center" src="/img/logo.svg" alt="">
+      </div>
+    </div>
+  </div>
+
+</body></html>

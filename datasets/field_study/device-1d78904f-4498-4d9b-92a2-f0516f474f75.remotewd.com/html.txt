@@ -1,0 +1,96 @@
+<!DOCTYPE html><html lang="de"><head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta http-equiv="Cache-Control" content="private, no-transform">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="format-detection" content="telephone=no">
+<meta http-equiv="x-rim-auto-match" content="none">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, minimal-ui">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta http-equiv="cleartype" content="on">
+<link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
+<link rel="apple-touch-icon" href="/css/default/images/kopfbalken_links.png">
+<link rel="apple-touch-startup-image" href="/css/default/images/kopfbalken_links.png">
+<style>
+@font-face {
+font-family: 'Source Sans Pro';
+src: url('/css/rd/fonts/sourcesanspro.woff');
+}
+@font-face {
+font-family: 'Source Sans Pro';
+src: url('/css/rd/fonts/sourcesansproBold.woff');
+font-weight: bold;
+}
+@font-face {
+font-family: 'AVM';
+src: url('/css/rd/fonts/metaWebProBold.woff');
+font-weight: bold;
+}
+html, input, textarea, keygen, select, button {
+font-family: 'Source Sans Pro', Arial, sans-serif;
+font-size: 100%;
+}
+.blue_bar_title,
+.logoArea {
+font-family: 'AVM', 'Source Sans Pro', Arial, sans-serif;
+}
+</style>
+
+<link rel="stylesheet" type="text/css" href="/css/rd/login.css">
+<title>
+FRITZ!Box
+</title>
+</head>
+<body>
+<script>
+var gNbc = false,
+config = {"gu_type":"release","GUI_IS_POWERLINE":false,"GUI_IS_REPEATER":false,"isDebug":false,"language":"de"};
+</script>
+<script src="/js/avmcore.js?lang=de"></script>
+<script type="text/javascript" src="/js/login.js"></script>
+<script type="text/javascript">
+    var data = {"challenge":"54606343","blockTime":0,"pageTitle":"Willkommen bei Ihrer FRITZ!Box","lastPage":"","loginReason":0,"changedPassTxt":"\"Das FRITZ!Box-Kennwort wurde geändert.\"","logoutTxt":"\"Sie haben sich erfolgreich von der FRITZ!Box abgemeldet.\"","facTitle":"FRITZ!Box Werkseinstellungen","falseUsername":false,"txt":{"facNotAllowedOr10Min":"Sie haben keine Berechtigung diese Aktion durchzuführen oder Ihre FRITZ!Box ist schon länger als 10 Minuten in Betrieb.","facOnAllowedComp":"Das Wiederherstellen der Werkseinstellungen starten Sie von einem Computer aus, für den die Internetnutzung in der FRITZ!Box unbegrenzt ist.","pleaseChoose":"Bitte wählen ...","loginAgainUserMailPass":"Bitte melden Sie sich mit Ihrem Benutzernamen oder Ihrer E-Mail-Adresse und Ihrem Kennwort an.","facNotSet":"FRITZ!Box wurde nicht auf Werkseinstellungen zurückgesetzt","notAuthorized":"Sie sind momentan als Benutzer %1%Name% angemeldet. Dieser Benutzer hat keine Berechtigung, auf die von Ihnen angeforderten FRITZ!Box-Inhalte zuzugreifen.","autoLogoutLoginAgain":"Sie wurden automatisch abgemeldet, bitte melden Sie sich erneut an.","sendLoginLink":"Zugangslink senden","facFailed":"Das Wiederherstellen der Werkseinstellungen ist gescheitert.","loginAgainUserPass":"Bitte melden Sie sich mit Ihrem Benutzernamen und Ihrem Kennwort an.","waitMore":"Bitte warten Sie %1 Sekunden.","facNotAllowed":"Das Wiederherstellen der Werkseinstellungen ist gescheitert, da dieser Computer nicht dazu berechtigt ist.","autoLogoutTimeout":"Sie wurden automatisch abgemeldet, da seit längerer Zeit keine Aktivität registriert wurde.","waitOne":"Bitte warten Sie 1 Sekunde.","chooseUsername":"Bitte geben Sie einen Benutzernamen an.","sendPushServiceMail":"Push Service Mail senden","loginFailed":"Anmeldung fehlgeschlagen.","mistypedOrNotAuthorized":"Haben Sie sich vielleicht vertippt oder fehlt Ihnen die Zugangsberechtigung für diesen Bereich?","choose":"OK","back":"Zurück","login":"Anmelden","loginMailSent":"Die E-Mail mit den Zugangsdaten zur Benutzeroberfläche wurde versendet.","waitTryAgain":"Bitte melden Sie sich erneut an.","caution":"Achtung","facRepeat":"Sie können dann die Werkseinstellungen erneut wiederherstellen.","loginLinkMailPossible":"Wenn Sie Ihr Kennwort für die Benutzeroberfläche vergessen haben, können Sie sich einen Zugangslink per Push Service Mail senden lassen.","pass":"Kennwort","setFacDefaults":"Werkseinstellungen wiederherstellen","facDisconnectPower":"Trennen Sie die FRITZ!Box kurzzeitig von der Stromversorgung. Nach etwa einer Minute können Sie erneut auf die Benutzeroberfläche zugreifen. Klicken Sie dann auf 'Zur Übersicht'.","forgotPassword":"Kennwort vergessen?","facLoseSettings":"Beachten Sie bitte, dass beim Zurücksetzen alle Ihre Einstellungen verloren gehen!","loginAgainPass":"Bitte melden Sie sich mit Ihrem Kennwort an.","user":"Benutzername","tooManyLogins":"Es wurden zu viele Sitzungen gleichzeitig gestartet."},"cutPowerTxt":"Trennen Sie zunächst die FRITZ!Box kurzzeitig vom Strom und kehren Sie auf diese Seite zurück, nachdem Ihre FRITZ!Box neu gestartet ist.","showUser":true,"facWhatNextTxt":"Nach dem Zurücksetzen werden Sie automatisch auf die Übersichtsseite der FRITZ!Box weitergeleitet.","facIsSetTxt":"Die FRITZ!Box wird auf Werkseinstellungen zurückgesetzt und startet anschließend neu. Alle Verbindungen zur Anlage gehen dabei kurz verloren.","facPationsTxt":"Es kann bis zu 5 Minuten dauern, bis die FRITZ!Box wieder erreichbar ist, bitte haben Sie etwas Geduld.","fallbackRedirectUrl":"http:\/\/192.168.178.1\/","fromInternet":true,"setFacTxt":"Alternativ können Sie die FRITZ!Box in die Werkseinstellungen zurücksetzen.","username":"","bluBarTitle":"FRITZ!Box","ifSetFacTxt":"Wenn Sie Ihr FRITZ!Box-Kennwort vergessen haben, kann die Benutzeroberfläche erst dann wieder geöffnet werden, wenn die FRITZ!Box auf die Werkseinstellungen zurückgesetzt wurde.","activeUsers":[[],[],[]]};
+    if (gNbc) {
+    data.nbc = true;
+    }
+    function localInit() {
+    "use strict";
+    window.history.replaceState({}, '', '/');
+    html.blueBarHead({
+    "type": "login",
+    title: data.bluBarTitle,
+    parent: document.body
+    });
+    login.init(data);
+    }
+    localInit();
+</script>
+
+<header id="blueBarBox" name="" class="">
+<div id="" name="" class="logoBox"></div>
+<div id="blueBarTitel" name="" class="blue_bar_title">FRITZ!Box</div>
+<div id="" name="" class="logoBox fake"></div>
+</header>
+
+<div class="dialog_outer">
+<div id="dialogInner" class="dialog_inner">
+<div id="dialogHeadBox" class="dialog_head_box">
+<h2 id="dialogTitle">Willkommen bei Ihrer FRITZ!Box</h2>
+</div>
+<div id="dialogContent" class="dialog_content"><form method="post" action="index.lua" id="loginForm" class="loginForm">
+<div class="formular"><p>Bitte melden Sie sich mit Ihrem Benutzernamen oder Ihrer E-Mail-Adresse und Ihrem Kennwort an.</p>
+<label for="uiViewUser">Benutzername</label><input type="text" id="uiViewUser" name="uiUser" tabindex="1" value=""><br>
+<p id="uiUsernameError" class="ErrorMsg hidden">Bitte geben Sie einen Benutzernamen an.</p>
+<label for="uiPass">Kennwort</label><input type="password" tabindex="2" id="uiPass" name="uiPass">
+<div id="uiLoginError" class="hidden">
+<p class="error_text">Anmeldung fehlgeschlagen.</p>
+<p class="error_text">Haben Sie sich vielleicht vertippt oder fehlt Ihnen die Zugangsberechtigung für diesen Bereich?</p>
+<p id="uiWait" class="error_text"></p></div></div><div class="btn_form_foot"><input type="hidden" name="response" id="uiResp" value="">
+<input type="hidden" name="lp" value="">
+<input type="hidden" name="username" id="username" value="">
+<button type="submit" tabindex="3" id="submitLoginBtn">Anmelden</button>
+</div></form></div></div></div>
+
+
+</body></html>
