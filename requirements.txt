@@ -23,4 +23,5 @@ transformers==4.25
 tldextract
 unidecode
 whois
+importlib_resources
 
