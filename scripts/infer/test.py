@@ -1,19 +1,18 @@
-import os
-import time
-
 from scripts.pipeline.test_llm import *
 import argparse
 from tqdm import tqdm
 import yaml
 import openai
 from datetime import datetime, date, timedelta
+import logging
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 os.environ['OPENAI_API_KEY'] = open('./datasets/openai_key.txt').read().strip()
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--folder", default="./datasets/field_study/2023-09-02/")
+    parser.add_argument("--folder", default="./datasets/field_study/")
     parser.add_argument("--config", default='./param_dict.yaml', help="Config .yaml path")
     args = parser.parse_args()
 
@@ -25,9 +24,9 @@ if __name__ == '__main__':
         param_dict = yaml.load(file, Loader=yaml.FullLoader)
 
     # PhishLLM
-    proxy_url = os.environ.get('proxy_url', None)
+    proxy_url = os.environ.get('http_proxy', None)
     phishintention_cls = PhishIntentionWrapper()
-    llm_cls = TestLLM(phishintention_cls,
+    llm_cls = TestVLM(phishintention_cls,
                       param_dict=param_dict,
                       proxies={"http": proxy_url,
                                "https": proxy_url,
@@ -36,9 +35,9 @@ if __name__ == '__main__':
     openai.proxy = proxy_url # set openai proxy
 
     # boot driver
-    driver = CustomWebDriver.boot(proxy_server=proxy_url)  # Using the proxy_url variable
-    driver.set_script_timeout(param_dict['rank']['script_timeout'])
-    driver.set_page_load_timeout(param_dict['rank']['page_load_timeout'])
+    driver = initialize_driver(proxy_url=proxy_url,
+                               driver_script_timeout=param_dict['rank']['script_timeout'],
+                               driver_page_load_timeout=param_dict['rank']['page_load_timeout'])
 
     day = date.today().strftime("%Y-%m-%d")
     result_txt = '{}_phishllm.txt'.format(day)
@@ -86,11 +85,10 @@ if __name__ == '__main__':
 
             except (WebDriverException) as e:
                 print(f"Driver crashed or encountered an error: {e}. Restarting driver.")
-                driver.quit()
-                time.sleep(1)
-                driver = CustomWebDriver.boot(proxy_server=proxy_url)  # Using the proxy_url variable
-                driver.set_script_timeout(param_dict['rank']['script_timeout'])
-                driver.set_page_load_timeout(param_dict['rank']['page_load_timeout'])
+                driver = reinitialize_driver(driver=driver,
+                                             proxy_url=proxy_url,
+                                            driver_script_timeout=param_dict['rank']['script_timeout'],
+                                            driver_page_load_timeout=param_dict['rank']['page_load_timeout'])
                 continue
 
         try:
@@ -104,4 +102,3 @@ if __name__ == '__main__':
 
 
     driver.quit()
-

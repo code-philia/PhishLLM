@@ -14,12 +14,30 @@ def image2base64(image: Union[str, Image.Image]):
 	base64_encoded = base64.b64encode(img_bytes).decode('utf-8')  # Convert bytes to base64 string and decode to UTF-8
 	return base64_encoded
 
-def question_template_prediction(html_text):
-	return \
-        {
-            "role": "user",
-            "content": f"Given the HTML webpage text: <start>{html_text}<end>, \n Question: A. This is a credential-requiring page. B. This is not a credential-requiring page. \n Answer: "
-        }
+def prepare_candidate_uis(candidate_uis_imgs, candidate_uis_text):
+	candidate_uis_json = []
+
+	for ind, (img, text) in enumerate(zip(candidate_uis_imgs, candidate_uis_text)):
+		base64_image = image2base64(img)
+		candidate_uis_json.append({"type": "text",
+								   "text": f'Index {ind}: ' + text}
+								  )
+		candidate_uis_json.append({"type": "image_url",
+								   "image_url":  {
+									   "url": f"data:image/jpeg;base64,{base64_image}"
+								   }
+								   }
+								  )
+
+	return candidate_uis_json
+
+def vlm_question_template_transition(candidate_uis_imgs, candidate_uis_text):
+	candidate_uis_json = prepare_candidate_uis(candidate_uis_imgs, candidate_uis_text)
+
+	return {"role": "user",
+    	 	"content": candidate_uis_json
+			 }
+
 
 def vlm_question_template_prediction(screenshot_img: Image.Image):
 	return \
@@ -36,12 +54,6 @@ def vlm_question_template_prediction(screenshot_img: Image.Image):
 		 ]
 		 }
 
-def question_template_brand(logo_caption, logo_ocr):
-	return \
-        {
-            "role": "user",
-            "content": f"Given the following description on the brand's logo: '{logo_caption}', and the logo's OCR text: '{logo_ocr}', Question: What is the brand's domain? Answer: "
-        }
 
 def vlm_question_template_brand(logo_img: Image.Image):
 	return \
@@ -58,25 +70,6 @@ def vlm_question_template_brand(logo_img: Image.Image):
 		 ]
 		 }
 
-def question_template_brand_industry(logo_caption, logo_ocr, industry):
-	return \
-        {
-            "role": "user",
-            "content": f"Given the following description on the brand's logo: '{logo_caption}', the logo's OCR text: '{logo_ocr}', and the industry sector '{industry}', Question: What is the brand's domain? Answer: "
-        }
-
-def question_template_industry(html_text):
-	return \
-        [
-            {
-                "role": "system",
-                "content": f"Your task is to predict the industry sector given webpage content. Only give the industry sector, do not output any explanation."
-            },
-            {
-                "role": "user",
-                "content": f"Given the following webpage text: '{html_text}', Question: What is the webpage's industry sector? Answer: "
-            }
-        ]
 
 '''Bbox utilities'''
 def pairwise_intersect_area(bboxes1, bboxes2):

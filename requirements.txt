@@ -21,3 +21,6 @@ opencv-python
 opencv-contrib-python
 transformers==4.25
 tldextract
+unidecode
+whois
+

@@ -23,12 +23,15 @@ import json
 from unidecode import unidecode
 import urllib.parse
 
+
 def lower(text):
-	alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝ'
-	return "translate(%s, '%s', '%s')" % (text, alphabet, alphabet.lower())
+    alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝ'
+    return "translate(%s, '%s', '%s')" % (text, alphabet, alphabet.lower())
+
 
 def replace_nbsp(text, by=' '):
-	return "translate(%s, '\u00a0', %r)" % (text, by)
+    return "translate(%s, '\u00a0', %r)" % (text, by)
+
 
 class WebUtil():
     home_page_heuristics = [
@@ -77,7 +80,6 @@ class WebUtil():
         else:
             return 5
 
-
     def page_error_checking(self, driver):
         source = driver.page_source()
         if source == "<html><head></head><body></body></html>":
@@ -96,8 +98,6 @@ class WebUtil():
         if source == "<html><head></head><body></body></html>":
             return False
         return True
-
-
 
     def page_interaction_checking(self, driver):
         ct = 0
@@ -130,6 +130,7 @@ class WebUtil():
         return self.page_error_checking(driver)
 
     '''check white screen'''
+
     def white_screen(self, shot_path):
         old_screenshot_img = Image.open(shot_path)
         old_screenshot_img = old_screenshot_img.convert("RGB")
@@ -143,7 +144,6 @@ class WebUtil():
             return True  # dirty
         return False
 
-
     def page_white_screen(self, driver, ts=1.0):
         old_screenshot_img = Image.open(io.BytesIO(base64.b64decode(driver.get_screenshot_encoding())))
         old_screenshot_img = old_screenshot_img.convert("RGB")
@@ -156,6 +156,7 @@ class WebUtil():
         if white_area / img_area >= ts:  # skip white screenshots
             return True  # dirty
         return False
+
 
 class CustomWebDriver(webdriver.Chrome):
     _MAX_RETRIES = 3
@@ -189,9 +190,11 @@ class CustomWebDriver(webdriver.Chrome):
         chrome_caps['acceptSslCerts'] = True
         chrome_caps['acceptInsecureCerts'] = True
 
-        super().__init__("./datasets/chromedriver",
-                         chrome_options=chrome_options,
-                         desired_capabilities=chrome_caps)
+        super().__init__(
+                        "./chromedriver-linux64/chromedriver",
+                         options=chrome_options,
+                         desired_capabilities=chrome_caps
+        )
 
         self._RETRIES = kwargs.get("retries", {})
         self._REFS = kwargs.get("refs", {})
@@ -221,6 +224,7 @@ class CustomWebDriver(webdriver.Chrome):
         self.__dict__.update(new_instance.__dict__)
 
     '''Exception handling'''
+
     @staticmethod
     def stringify_exception(e, strip=False):
         exception_str = ""
@@ -233,7 +237,8 @@ class CustomWebDriver(webdriver.Chrome):
         return exception_str
 
     def enter_retry(self, method, max_retries=10):
-        retries, max_retries = self._RETRIES.get(method, [0, max_retries])  # Necessary so nested `_invokes` of the same method won't reset the retry counter
+        retries, max_retries = self._RETRIES.get(method, [0,
+                                                          max_retries])  # Necessary so nested `_invokes` of the same method won't reset the retry counter
         self._RETRIES[method] = [retries, max_retries]
         if retries <= max_retries:
             return True
@@ -279,7 +284,7 @@ class CustomWebDriver(webdriver.Chrome):
     def _invoke(self, method, *args, **kwargs):
         original_kwargs = dict(kwargs)  # In case we re-_invoke it, we need the original kwargs
         ex = None
-        ret_val = None # used to record whether the run is successful or not
+        ret_val = None  # used to record whether the run is successful or not
 
         try:
             if kwargs.pop("retry", True):  # By default, retry all methods if possible, otherwise explicitly requested
@@ -320,7 +325,8 @@ class CustomWebDriver(webdriver.Chrome):
                 if not self._invoke_exception_handler(self._TimeoutException_handler):
                     raise
                 if method != super(CustomWebDriver, self).get:
-                    self.get(self._last_url)  # If it was `get`, it will be retried later on. For anything else, we need to manually go back to the last known URL
+                    self.get(
+                        self._last_url)  # If it was `get`, it will be retried later on. For anything else, we need to manually go back to the last known URL
                 ret_val = False
             else:
                 raise
@@ -398,12 +404,14 @@ class CustomWebDriver(webdriver.Chrome):
                 return None
         ref = id(ret)
         if ret:
-            self._REFS[ref] = (self.find_element, (), {"by": by, "value": value, "timeout": timeout, "visible": visible, "webelement": webelement})
+            self._REFS[ref] = (self.find_element, (), {"by": by, "value": value, "timeout": timeout, "visible": visible,
+                                                       "webelement": webelement})
         return ret
 
     def find_elements(self, by=By.ID, value=None, timeout=0, visible=False, webelement=None, *args, **kwargs):
         if timeout > 0:
-            self.find_element(by=by, value=value, timeout=timeout, visible=visible, webelement=webelement, *args, **kwargs)
+            self.find_element(by=by, value=value, timeout=timeout, visible=visible, webelement=webelement, *args,
+                              **kwargs)
         ret_elements = self._invoke(super(CustomWebDriver, self).find_elements, by=by, value=value, *args,
                                     **kwargs) if webelement is None \
             else self._invoke(self._webelement_find_elements_by, webelement, by=by, value=value, webelement=webelement,
@@ -420,7 +428,7 @@ class CustomWebDriver(webdriver.Chrome):
                 ref = id(el)
                 if ref not in self._REFS:  # If not already previously fetched
                     self._REFS[ref] = (
-                    self.find_element, (), {"by": By.XPATH, "value": el_dompath, "timeout": 3, "visible": False})
+                        self.find_element, (), {"by": By.XPATH, "value": el_dompath, "timeout": 3, "visible": False})
 
             for el in to_remove:
                 ret_elements.remove(el)
@@ -440,7 +448,8 @@ class CustomWebDriver(webdriver.Chrome):
                                    webelement=element)
         except Exception as e:
             raise  # Debug debug Debug
-        return "//html%s" % "/".join([part if ":" not in part else "*" for part in dompath.split("/")]) if dompath else dompath
+        return "//html%s" % "/".join(
+            [part if ":" not in part else "*" for part in dompath.split("/")]) if dompath else dompath
 
     def get_all_buttons(self):
         ret = self._invoke(self.execute_script, "return get_all_buttons();")
@@ -451,7 +460,8 @@ class CustomWebDriver(webdriver.Chrome):
             button, button_dompath = button_ele
             interested_buttons.append(button)
             interested_buttons_dom.append(button_dompath)
-            self._REFS[id(button)] = (self.find_element, (), {"by": By.XPATH, "value": button_dompath, "timeout": 3, "visible": False})
+            self._REFS[id(button)] = (
+            self.find_element, (), {"by": By.XPATH, "value": button_dompath, "timeout": 3, "visible": False})
 
         return interested_buttons, interested_buttons_dom
 
@@ -464,7 +474,8 @@ class CustomWebDriver(webdriver.Chrome):
                 continue
             if link not in interested_links:
                 interested_links.append([link, link_source])
-                self._REFS[id(link)] = (self.find_element, (), {"by": By.XPATH, "value": link_dompath, "timeout": 3, "visible": False})
+                self._REFS[id(link)] = (
+                self.find_element, (), {"by": By.XPATH, "value": link_dompath, "timeout": 3, "visible": False})
 
         return interested_links
 
@@ -478,7 +489,8 @@ class CustomWebDriver(webdriver.Chrome):
             interested_links.append(link)
             link_doms.append(link_dompath)
             link_sources.append(link_source)
-            self._REFS[id(link)] = (self.find_element, (), {"by": By.XPATH, "value": link_dompath, "timeout": 3, "visible": False})
+            self._REFS[id(link)] = (
+            self.find_element, (), {"by": By.XPATH, "value": link_dompath, "timeout": 3, "visible": False})
 
         return interested_links, link_doms, link_sources
 
@@ -491,7 +503,8 @@ class CustomWebDriver(webdriver.Chrome):
             img, dompath = ele
             images.append(img)
             images_dom.append(dompath)
-            self._REFS[id(img)] = (self.find_element, (), {"by": By.XPATH, "value": dompath, "timeout": 3, "visible": False})
+            self._REFS[id(img)] = (
+            self.find_element, (), {"by": By.XPATH, "value": dompath, "timeout": 3, "visible": False})
 
         return images, images_dom
 
@@ -512,7 +525,8 @@ class CustomWebDriver(webdriver.Chrome):
                 dompath = self.get_dompath(ele)
                 leaf_elements_dom.append(dompath)
                 leaf_elements.append(ele)
-                self._REFS[id(ele)] = (self.find_element, (), {"by": By.XPATH, "value": dompath, "timeout": 3, "visible": False})
+                self._REFS[id(ele)] = (
+                self.find_element, (), {"by": By.XPATH, "value": dompath, "timeout": 3, "visible": False})
             except:
                 continue
 
@@ -549,7 +563,7 @@ class CustomWebDriver(webdriver.Chrome):
         # For free text elements
         if is_free_text:
             xpath_base = "//*[starts-with(normalize-space(%s), '%s')]" % (
-            lower(replace_nbsp("text()")), patterns.lower())
+                lower(replace_nbsp("text()")), patterns.lower())
             rule1 = '%s[not(self::script)][not(.%s)]' % (xpath_base, xpath_base)
 
         return [rule1, rule2]
@@ -625,8 +639,9 @@ class CustomWebDriver(webdriver.Chrome):
             return False
 
 
-
 '''Validate the domain'''
+
+
 def is_valid_domain(domain: Union[str, None]) -> bool:
     '''
         Check if the provided string is a valid domain
@@ -647,26 +662,49 @@ def is_valid_domain(domain: Union[str, None]) -> bool:
     it_is_a_domain = bool(pattern.fullmatch(domain))
     return it_is_a_domain
 
-def is_alive_domain(domain: str, proxies: Optional[Dict]=None) -> bool:
-   
+
+def is_alive_domain(domain: str, proxies: Optional[Dict] = None) -> bool:
     try:
         response = requests.head('https://www.' + domain, timeout=10, proxies=proxies)  # Reduced timeout and used HEAD
-        PhishLLMLogger.spit(f'Domain {domain}, status code {response.status_code}', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+        PhishLLMLogger.spit(f'Domain {domain}, status code {response.status_code}',
+                            caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
         if response.status_code < 400 or response.status_code in [405, 429] or response.status_code >= 500:
-            PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+            PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix,
+                                debug=True)
             return True
         elif response.history and any([r.status_code < 400 for r in response.history]):
-            PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+            PhishLLMLogger.spit(f'Domain {domain} is valid and alive', caller_prefix=PhishLLMLogger._caller_prefix,
+                                debug=True)
             return True
 
     except Exception as err:
-        PhishLLMLogger.spit(f'Error {err} when checking the aliveness of domain {domain}', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+        PhishLLMLogger.spit(f'Error {err} when checking the aliveness of domain {domain}',
+                            caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
         return False
 
     PhishLLMLogger.spit(f'Domain {domain} is invalid or dead', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
     return False
 
+
+'''Initialize driver'''
+
+
+def initialize_driver(proxy_url, driver_script_timeout, driver_page_load_timeout, sleep_time=0):
+    driver = CustomWebDriver.boot(proxy_server=proxy_url)
+    driver.set_script_timeout(driver_script_timeout)
+    driver.set_page_load_timeout(driver_page_load_timeout)
+    time.sleep(sleep_time)
+    return driver
+
+
+def reinitialize_driver(driver, proxy_url, driver_script_timeout, driver_page_load_timeout, sleep_time=0):
+    driver.quit()
+    return initialize_driver(proxy_url, driver_script_timeout, driver_page_load_timeout, sleep_time)
+
+
 '''Retrieve logo from a webpage'''
+
+
 def url2logo(url, phishintention_cls):
     # Set up the driver (assuming ChromeDriver is in the current directory or PATH)
     options = webdriver.ChromeOptions()
@@ -692,8 +730,12 @@ def url2logo(url, phishintention_cls):
 
     return reference_logo
 
+
 '''Search for domain in Google Search'''
-def query2url(query: str, SEARCH_ENGINE_API: str, SEARCH_ENGINE_ID: str, num: int=10, proxies: Optional[Dict]=None) -> List[str]:
+
+
+def query2url(query: str, SEARCH_ENGINE_API: str, SEARCH_ENGINE_ID: str, num: int = 10,
+              proxies: Optional[Dict] = None) -> List[str]:
     '''
         Retrieve the images from Google image search
         :param query:
@@ -728,7 +770,10 @@ def query2url(query: str, SEARCH_ENGINE_API: str, SEARCH_ENGINE_ID: str, num: in
 
 
 '''Search for logo in Google Image'''
-def query2image(query: str, SEARCH_ENGINE_API: str, SEARCH_ENGINE_ID: str, num: int=10, proxies: Optional[Dict]=None) -> List[str]:
+
+
+def query2image(query: str, SEARCH_ENGINE_API: str, SEARCH_ENGINE_ID: str, num: int = 10,
+                proxies: Optional[Dict] = None) -> List[str]:
     '''
         Retrieve the images from Google image search
         :param query:
@@ -758,7 +803,7 @@ def query2image(query: str, SEARCH_ENGINE_API: str, SEARCH_ENGINE_ID: str, num: 
     return returned_urls
 
 
-def download_image(url: str, proxies: Optional[Dict]=None) -> Optional[Image.Image]:
+def download_image(url: str, proxies: Optional[Dict] = None) -> Optional[Image.Image]:
     '''
         Download images from given url (Google image context links)
         :param url:
@@ -776,7 +821,8 @@ def download_image(url: str, proxies: Optional[Dict]=None) -> Optional[Image.Ima
 
     return None
 
-def get_images(image_urls: List[str], proxies: Optional[Dict]=None) -> List[Image.Image]:
+
+def get_images(image_urls: List[str], proxies: Optional[Dict] = None) -> List[Image.Image]:
     '''
         Run download_image in multiple threads
         :param image_urls:
@@ -793,8 +839,12 @@ def get_images(image_urls: List[str], proxies: Optional[Dict]=None) -> List[Imag
 
     return images
 
+
 '''Webdriver element clicking'''
-def page_transition(driver: CustomWebDriver, dom: str, save_html_path: str, save_shot_path: str) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+
+
+def page_transition(driver: CustomWebDriver, dom: str, save_html_path: str, save_shot_path: str) -> Tuple[
+    Optional[str], Optional[str], Optional[str], Optional[str]]:
     '''
         Click an element and save the updated screenshot and HTML
         :param driver:
@@ -808,7 +858,8 @@ def page_transition(driver: CustomWebDriver, dom: str, save_html_path: str, save
         etext = None
         if element:
             try:
-                driver.execute_script("arguments[0].style.border='3px solid red'", element[0]) # hightlight the element to click
+                driver.execute_script("arguments[0].style.border='3px solid red'",
+                                      element[0])  # hightlight the element to click
                 etext = driver.get_text(element[0])
                 if (etext is None) or len(etext) == 0:
                     etext = driver.get_attribute(element[0], "value")
@@ -848,12 +899,14 @@ def page_transition(driver: CustomWebDriver, dom: str, save_html_path: str, save
 
     try:
         driver.save_screenshot(save_shot_path)
-        PhishLLMLogger.spit('CRP transition is successful! New screenshot has been saved', caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
+        PhishLLMLogger.spit('CRP transition is successful! New screenshot has been saved',
+                            caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
         with open(save_html_path, "w", encoding='utf-8') as f:
             f.write(driver.page_source())
         return etext, current_url, save_html_path, save_shot_path
     except Exception as e:
-        PhishLLMLogger.spit('Exception {} when saving the new screenshot'.format(e), caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
+        PhishLLMLogger.spit('Exception {} when saving the new screenshot'.format(e),
+                            caller_prefix=PhishLLMLogger._caller_prefix, warning=True)
         return None, None, None, None
 
 
@@ -865,14 +918,18 @@ def get_screenshot_elements(phishintention_cls: PhishIntentionWrapper, driver: C
         screenshot_elements = pred_classes.numpy().tolist()
     return screenshot_elements
 
-def has_page_content_changed(phishintention_cls: PhishIntentionWrapper, driver: CustomWebDriver, prev_screenshot_elements: List[int]) -> bool:
+
+def has_page_content_changed(phishintention_cls: PhishIntentionWrapper, driver: CustomWebDriver,
+                             prev_screenshot_elements: List[int]) -> bool:
     screenshot_elements = get_screenshot_elements(phishintention_cls, driver)
     bincount_prev_elements = np.bincount(prev_screenshot_elements)
     bincount_curr_elements = np.bincount(screenshot_elements)
     set_of_elements = min(len(bincount_prev_elements), len(bincount_curr_elements))
-    screenshot_ele_change_ts = np.sum(bincount_prev_elements) // 2 # half the different UI elements distribution has changed
+    screenshot_ele_change_ts = np.sum(
+        bincount_prev_elements) // 2  # half the different UI elements distribution has changed
 
-    if np.sum(np.abs(bincount_curr_elements[:set_of_elements] - bincount_prev_elements[:set_of_elements])) > screenshot_ele_change_ts:
+    if np.sum(np.abs(bincount_curr_elements[:set_of_elements] - bincount_prev_elements[
+                                                                :set_of_elements])) > screenshot_ele_change_ts:
         PhishLLMLogger.spit(f"Webpage content has changed", caller_prefix=PhishLLMLogger._caller_prefix, debug=True)
         return True
     else:
@@ -880,9 +937,9 @@ def has_page_content_changed(phishintention_cls: PhishIntentionWrapper, driver: 
         return False
 
 
-def screenshot_element(clickable_element, clickable_dom, driver, clip_preprocess):
+def screenshot_element(clickable_element, clickable_dom, driver):
     candidate_ui = None
-    candidate_ui_img = None
+    ele_screenshot_img = None
     candidate_ui_text = None
 
     try:
@@ -890,11 +947,10 @@ def screenshot_element(clickable_element, clickable_dom, driver, clip_preprocess
         x1, y1, x2, y2 = driver.get_location(clickable_element)
 
         if x2 - x1 <= 0 or y2 - y1 <= 0:  # invisible
-            return candidate_ui, candidate_ui_img, candidate_ui_text
+            return candidate_ui, ele_screenshot_img, candidate_ui_text
 
         try:
             ele_screenshot_img = Image.open(io.BytesIO(clickable_element.screenshot_as_png))
-            candidate_ui_img = clip_preprocess(ele_screenshot_img)
             candidate_ui = clickable_dom
             etext = driver.get_text(clickable_element)  # append the text
             if not etext:
@@ -909,7 +965,6 @@ def screenshot_element(clickable_element, clickable_dom, driver, clip_preprocess
                 left, right = location['x'], location['x'] + size['width']
                 top, bottom = location['y'], location['y'] + size['height']
                 ele_screenshot_img = image.crop((left, top, right, bottom))
-                candidate_ui_img = clip_preprocess(ele_screenshot_img)
                 candidate_ui = clickable_dom
                 etext = driver.get_text(clickable_element)  # append the text
                 if not etext:
@@ -921,6 +976,6 @@ def screenshot_element(clickable_element, clickable_dom, driver, clip_preprocess
     except Exception as e:
         print(f"Error accessing element {clickable_dom}: {e}")
 
-    return candidate_ui, candidate_ui_img, candidate_ui_text
+    return candidate_ui, ele_screenshot_img, candidate_ui_text
 
 

@@ -77,28 +77,21 @@ function check_browsers {
 }
 
 # Install chrome binary
-#check_browsers
+check_browsers
 
-# Create a new conda environment with Python 3.9
+# Create a new conda environment with Python 3.8
 # Check if the environment already exists
 conda info --envs | grep -w "$ENV_NAME" > /dev/null
 if [ $? -eq 0 ]; then
     echo "Activating Conda environment $ENV_NAME"
 else
-    echo "Creating and activating new Conda environment $ENV_NAME with Python 3.9"
-    conda create -n "$ENV_NAME" python=3.9
+    echo "Creating and activating new Conda environment $ENV_NAME with Python 3.8"
+    conda create -n "$ENV_NAME" python=3.8
 fi
 
 PACKAGE_NAME="phishintention"
 if conda list -n "$ENV_NAME" | grep -q "$PACKAGE_NAME"; then
     echo "$PACKAGE_NAME is already installed, skip installation"
-elif [ -d "PhishIntention" ]; then
-    echo "Directory PhishIntention already exists, skip cloning"
-    cd PhishIntention
-    chmod +x ./setup.sh
-    export ENV_NAME="$ENV_NAME" && ./setup.sh
-    cd ../
-    rm -rf PhishIntention
 else
     git clone -b development --single-branch https://github.com/lindsey98/PhishIntention.git
     cd PhishIntention
@@ -106,27 +99,6 @@ else
     export ENV_NAME="$ENV_NAME" && ./setup.sh
     cd ../
     rm -rf PhishIntention
-fi
-
-# Install PaddleOCR
-if command -v nvcc &> /dev/null; then
-  # cuda is available
-  conda run -n "$ENV_NAME" pip install paddlepaddle-gpu -i https://pypi.tuna.tsinghua.edu.cn/simple
-else # cpu-only
-  conda run -n "$ENV_NAME" pip install paddlepaddle -i https://pypi.tuna.tsinghua.edu.cn/simple
-fi
-conda run -n "$ENV_NAME" pip install paddleocr
-
-# Install Image Captioning model
-PACKAGE_NAME="lavis"
-if conda list -n "$ENV_NAME" | grep -q "$PACKAGE_NAME"; then
-    echo "$PACKAGE_NAME is already installed, skip installation"
-else
-    git clone https://github.com/lindsey98/LAVIS.git
-    cd LAVIS
-    conda run -n "$ENV_NAME" pip install -e .
-    cd ../
-    rm -rf LAVIS
 fi
 
 ## Install other requirements
