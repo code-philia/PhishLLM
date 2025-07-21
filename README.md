@@ -1,5 +1,7 @@
-# PhishLLM
-Official repository for "Less Defined Knowledge and More True Alarms: Reference-based Phishing Detection without a Pre-defined Reference List".
+
+# PhishVLM
+
+An extension from our work "Less Defined Knowledge and More True Alarms: Reference-based Phishing Detection without a Pre-defined Reference List".
 Published in USENIX Security 2024. 
 
 <p align="center">
@@ -20,10 +22,10 @@ Existing reference-based phishing detection:
 - :x: Relies on a pre-defined reference list, which is lack of comprehensiveness and incurs high maintenance cost 
 - :x: Does not fully make use of the textual semantics present on the webpage
 
-In our PhishLLM, we build a reference-based phishing detection framework:
+In our PhishVLM, we build a reference-based phishing detection framework:
 
-- ✅ **Without the pre-defined reference list**: Modern LLMs have encoded far more extensive brand-domain information than any predefined list
-- ✅ **Chain-of-thought credential-taking prediction**: Reasoning the credential-taking status in a step-by-step way by looking at the text
+- ✅ **Without the pre-defined reference list**: Modern VLMs have encoded far more extensive brand-domain information than any predefined list
+- ✅ **Chain-of-thought credential-taking prediction**: Reasoning the credential-taking status in a step-by-step way by looking at the screenshot
 
 ## Framework
 <img src="./figures/phishllm.png"/>
@@ -31,28 +33,27 @@ In our PhishLLM, we build a reference-based phishing detection framework:
 ```Input```: a URL and its screenshot, ```Output```: Phish/Benign, Phishing target
 
 - **Step 1: Brand recognition model**
-  - Input: Logo caption, Logo OCR Results
-  - Intermediate Output: LLM's predicted brand
-  - Output: Validated predicted brand, confirmed through Google Images
-  
+  - Input: Logo Screenshot
+  - Output: VLM's predicted brand
+
 - **Step 2: Credential-Requiring-Page classification model**
-  - Input: Webpage OCR results
-  - Output: LLM chooses from A. Credential-Taking Page or B. Non-Credential-Taking Page
-  - Go to step 4 if LLM chooses 'A', otherwise go to step 3.
+  - Input: Webpage Screenshot
+  - Output: VLM chooses from A. Credential-Taking Page or B. Non-Credential-Taking Page
+  - Go to step 4 if VLM chooses 'A', otherwise go to step 3.
   
-- **Step 3: Credential-Requiring-Page transition model (activates if LLM chooses 'B' from the last step)**
-  - Input: All clickable UI elements
+- **Step 3: Credential-Requiring-Page transition model (activates if VLM chooses 'B' from the last step)**
+  - Input: All clickable UI elements screenshots
   - Intermediate Output: Top-1 most likely login UI
   - Output: Webpage after clicking that UI, **go back to Step 1** with the updated webpage and URL
 
 - **Step 4: Output step** 
   - _Case 1_: If the domain is from a web hosting domain: it is flagged as **phishing** if
-    (i) LLM predicts a targeted brand inconsistent with the webpage's domain
-  and  (ii) LLM chooses 'A' from Step 2
+    (i) VLM predicts a targeted brand inconsistent with the webpage's domain
+  and  (ii) VLM chooses 'A' from Step 2
   
   - _Case 2_: If the domain is not from a web hosting domain: it is flagged as **phishing** if
-  (i) LLM predicts a targeted brand inconsistent with the webpage's domain
-  (ii) LLM chooses 'A' from Step 2
+  (i) VLM predicts a targeted brand inconsistent with the webpage's domain
+  (ii) VLM chooses 'A' from Step 2
   and (iii) the domain is not a popular domain indexed by Google
   
   - _Otherwise_: reported as **benign**
@@ -64,7 +65,7 @@ scripts/
 ├── infer/
 │   └──test.py             # inference script
 ├── pipeline/             
-│   └──test_llm.py # TestLLM class
+│   └──test_llm.py # TestVLM class
 └── utils/ # other utitiles such as web interaction utility functions 
 
 prompts/ 
