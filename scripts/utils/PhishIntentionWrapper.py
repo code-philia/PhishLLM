@@ -14,7 +14,6 @@ import time
 import pickle
 from typing import Union
 import yaml
-import subprocess
 import importlib_resources  # backport for Python 3.8
 
 @contextmanager
@@ -90,11 +89,6 @@ def load_config(cfg_path: Union[str, None] = None, reload_targetlist=False, devi
     AWL_WEIGHTS_PATH = configs['AWL_MODEL']['WEIGHTS_PATH']
     AWL_CONFIG, AWL_MODEL = element_config(rcnn_weights_path=AWL_WEIGHTS_PATH,
                                            rcnn_cfg_path=AWL_CFG_PATH, device=device)
-    # siamese model
-    print('Load protected logo list')
-    if configs['SIAMESE_MODEL']['TARGETLIST_PATH'].endswith('.zip') \
-            and not os.path.isdir('{}'.format(configs['SIAMESE_MODEL']['TARGETLIST_PATH'].split('.zip')[0])):
-        subprocess.run('cd {} && unzip expand_targetlist.zip -d .'.format(os.path.dirname(configs['SIAMESE_MODEL']['TARGETLIST_PATH'])), shell=True)
 
     SIAMESE_MODEL, OCR_MODEL = phishpedia_config_OCR_easy(
         num_classes=configs['SIAMESE_MODEL']['NUM_CLASSES'],

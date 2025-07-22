@@ -78,12 +78,24 @@ prompts/
 ## Setup
 
 ### Step 1: **Install Requirements**. 
+
+✅ For Ubuntu:
 - A new conda environment "phishllm" will be created after this step, type for "All" when prompted.
 ```bash
   cd PhishLLM/
   chmod +x ./setup.sh
   export ENV_NAME="phishllm"
   ./setup.sh
+```
+
+✅ For Windows:
+- A .bat script is provided to handle setup automatically, including environment creation, Chrome installation, and dependency setup.
+1. Open Command Prompt or Anaconda Prompt.
+2. Run the following commands:
+```commandline
+  cd PhishLLM/
+  set ENV_NAME=phishllm
+  setup.bat
 ```
 
 ### Step 2: **Install ChromeDriver**. 
@@ -96,9 +108,9 @@ Unzip it and place the .exe file under "./chromedriver-linux64/chromedriver".
 
 ### Step 3: Register **Two API Keys**. 
 
-- **OpenAI API key**, [See Tutorial here](https://platform.openai.com/docs/quickstart). Paste the API key to './datasets/openai_key.txt'.
+- 🔑 **OpenAI API key**, [See Tutorial here](https://platform.openai.com/docs/quickstart). Paste the API key to './datasets/openai_key.txt'.
 
-- **Google Programmable Search API Key**, [See Tutorial here](https://meta.discourse.org/t/google-search-for-discourse-ai-programmable-search-engine-and-custom-search-api/307107). 
+- 🔑 **Google Programmable Search API Key**, [See Tutorial here](https://meta.discourse.org/t/google-search-for-discourse-ai-programmable-search-engine-and-custom-search-api/307107). 
 Paste your API Key (in the first line) and Search Engine ID (in the second line) to "./datasets/google_api_key.txt":
      ```text 
       [API_KEY]
